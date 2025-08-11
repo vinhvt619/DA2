@@ -1,0 +1,45 @@
+@import "tailwindcss";
+@plugin "flowbite-react/plugin/tailwindcss";
+@source "../.flowbite-react/class-list.json";
+.stroke1,
+.stroke2,
+.stroke3,
+.stroke4 {
+  color: white;
+  font-size: 2.5em;
+}
+
+.stroke1 {
+  -webkit-text-stroke: 3px black;
+  font-size: 7em;
+  font-weight: bolder;
+}
+.stroke2 {
+  font-size: 4em;
+  font-weight: bold;
+  -webkit-text-stroke: 2px black;
+}
+.stroke3 {
+  font-size: 3em;
+}
+.stroke4 {
+  font-size: 2em;
+  font-weight: 750;
+}
+
+/* treeselect */
+.card {
+  border-radius: 15px;
+}
+.p-treeselect-panel {
+  width: 40px;
+  /* height: 80px; */
+}
+.p-component input {
+  padding: 5px;
+}
+.p-treeselect-items-wrapper,
+.p-tree,
+.p-tree-selectable {
+  padding: 0;
+}
