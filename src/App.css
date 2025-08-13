@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @plugin "flowbite-react/plugin/tailwindcss";
 @source "../.flowbite-react/class-list.json";
+
+* {
+  --tw-ring-color: rgb(0 0 0 / 0) !important;
+}
+
 .stroke1,
 .stroke2,
 .stroke3,
