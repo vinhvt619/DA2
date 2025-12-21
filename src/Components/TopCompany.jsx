@@ -62,52 +62,59 @@ export default function TopCompany() {
   }
 
   return (
-    <div className="h-100 w-[80%] bg-[#E8DEF5] border-2 border-gray-300 rounded-3xl p-5">
+    <div className="w-[80%] bg-[#E8DEF5] border-2 border-gray-300 rounded-3xl p-5">
       <div className="font-medium text-lg">Top Công ty / Doanh nghiệp</div>
-      <div className="flex mt-3">
-        <Button
-          color="light"
-          size="xs"
-          className={`pill mr-3 shadow-none  hover:bg-linear-to-r hover:from-[#F5D9FF] hover:to-[#F8E6FF] ${
-            active === "t1"
-              ? "bg-linear-to-r  from-[#E49AF6] to-[#CBA3FF]"
-              : "bg-white"
-          }`}
-          onClick={() => setActive("t1")}
-        >
-          Theo lượt đánh giá
-        </Button>
-        <Button
-          color="light"
-          size="xs"
-          className={`pill mr-3 hover:bg-linear-to-r hover:from-[#F5D9FF] hover:to-[#F8E6FF] ${
-            active === "t2"
-              ? "bg-linear-to-r  from-[#E49AF6] to-[#CBA3FF]"
-              : "bg-white"
-          }`}
-          onClick={() => setActive("t2")}
-        >
-          Theo số lượng sử dụng
-        </Button>
-        <Button
-          color="light"
-          size="xs"
-          className={`pill hover:bg-linear-to-r hover:from-[#F5D9FF] hover:to-[#F8E6FF] ${
-            active === "t3"
-              ? "bg-linear-to-r  from-[#E49AF6] to-[#CBA3FF]"
-              : "bg-white"
-          }`}
-          onClick={() => setActive("t3")}
-        >
-          Theo thứ tự tăng dần
-        </Button>
-      </div>
+      <div className="pl-13 pt-2 pb-5">
+        <div className="flex mt-3">
+          <Button
+            color="light"
+            size="xs"
+            className={`pill mr-3 shadow-none  hover:bg-linear-to-r hover:from-[#F5D9FF] hover:to-[#F8E6FF] ${
+              active === "t1"
+                ? "bg-linear-to-r  from-[#E49AF6] to-[#CBA3FF]"
+                : "bg-white"
+            }`}
+            onClick={() => setActive("t1")}
+          >
+            Theo lượt đánh giá
+          </Button>
+          <Button
+            color="light"
+            size="xs"
+            className={`pill mr-3 hover:bg-linear-to-r hover:from-[#F5D9FF] hover:to-[#F8E6FF] ${
+              active === "t2"
+                ? "bg-linear-to-r  from-[#E49AF6] to-[#CBA3FF]"
+                : "bg-white"
+            }`}
+            onClick={() => setActive("t2")}
+          >
+            Theo số lượng sử dụng
+          </Button>
+          <Button
+            color="light"
+            size="xs"
+            className={`pill hover:bg-linear-to-r hover:from-[#F5D9FF] hover:to-[#F8E6FF] ${
+              active === "t3"
+                ? "bg-linear-to-r  from-[#E49AF6] to-[#CBA3FF]"
+                : "bg-white"
+            }`}
+            onClick={() => setActive("t3")}
+          >
+            Theo thứ tự tăng dần
+          </Button>
+        </div>
 
-      <ListCompany />
-      <ListCompany />
-      <ListCompany />
-      <ListCompany />
-      <ListCompany />
+        <ListCompany />
+        <ListCompany />
+        <ListCompany />
+        <ListCompany />
+        <ListCompany />
+        <ListCompany />
+        <ListCompany />
+        <ListCompany />
+        <ListCompany />
+        <ListCompany />
+      </div>
     </div>
   );
 }
