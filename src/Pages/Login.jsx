@@ -2,7 +2,7 @@ import "./../../src/App.css";
 import React from "react";
 import Header from "../Components/Header";
 
-function App() {
+function Login() {
   return (
     <div className="w-full h-screen bg-[#F8F4FC]">
       <Header />
@@ -36,8 +36,8 @@ function App() {
               <div className="text-sm text-blue-400 underline cursor-pointer ml-3 mt-2">
                 Quên mật khẩu?
               </div>
-              <div className="flex mt-1 ml-1 w-auto">
-                <input type="checkbox"></input>
+              <div className="flex mt-1 ml-1 w-auto justify-center items-center">
+                <input type="checkbox" className="text-black"></input>
                 <p className="ml-3 text-wrap w-77">Ghi nhớ</p>
               </div>
             </div>
@@ -57,4 +57,4 @@ function App() {
   );
 }
 
-export default App;
+export default Login;

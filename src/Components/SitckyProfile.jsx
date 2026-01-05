@@ -12,7 +12,7 @@ export default function StickyProfile() {
       <div className="mt-10">
         <div className="w-60 h-65 static">
           <div className="border-2 border-b-1 border-black h-15 rounded-t-3xl w-full bg-[#FFD8D8]"></div>
-          <div className="border-2 border-black rounded-full h-15 w-15 bg-white top-17 left-12 absolute"></div>
+          <div className="border-2 border-black rounded-full h-15 w-15 bg-white top-17 left-21 absolute"></div>
           <div className="border-2 border-t-1 border-black h-45 rounded-b-3xl w-full bg-white">
             <div className="p-5 mt-6 text-[10px]">
               <div className=" font-bold text-sm">Nguyễn Thành Vinh</div>

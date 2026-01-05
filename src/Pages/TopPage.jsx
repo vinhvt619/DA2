@@ -7,7 +7,9 @@ import StickyTopCV from "../Components/StickyTopCV.jsx";
 import TopCompany from "../Components/TopCompany.jsx";
 import TopCVList from "../Components/TopCVList.jsx";
 import ListNews from "../Components/NewsList.jsx";
-function App() {
+import StickyProfile from "../Components/SitckyProfile.jsx";
+import StickySettings from "../Components/StickySettings.jsx";
+function TopPage() {
   const [nodes, setNodes] = useState(null);
 
   useEffect(() => {
@@ -18,7 +20,7 @@ function App() {
     <div className="bg-[#F8F4FC] ">
       <Header />
       <div className="flex items-start">
-        <StickyTopCV />
+        <StickySettings />
         <div className="w-[80%] ">
           <div className="my-10 flex justify-center items center">
             <TopCompany />
@@ -35,4 +37,4 @@ function App() {
   );
 }
 
-export default App;
+export default TopPage;

@@ -1,7 +1,7 @@
 import "./../../src/App.css";
 import Header from "../Components/Header";
 import React from "react";
-function App() {
+function Register() {
   return (
     <div className="w-full h-screen bg-[#F8F4FC]">
       <Header />
@@ -48,11 +48,11 @@ function App() {
                 className="peer border-2 border-gray-400 w-85 h-10 p-3.5 rounded-2xl"
                 placeholder="Xác nhận mật khẩu"
               ></input>
-              <div className="flex mt-5 ml-1 w-auto">
-                <input type="checkbox"></input>
+              <div className="flex mt-5 ml-1 w-auto justify-center items-center">
+                <input type="checkbox" className="text-black"></input>
                 <p className="ml-3 text-wrap w-77">
                   Bạn chấp nhận những{" "}
-                  <span className="text-cyan-400 underline">
+                  <span className="text-cyan-400 underline cursor-pointer">
                     Điều khoản đăng ký
                   </span>{" "}
                   của chúng tôi
@@ -75,4 +75,4 @@ function App() {
   );
 }
 
-export default App;
+export default Register;

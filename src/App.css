@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@plugin "flowbite-react/plugin/tailwindcss";
+@import "flowbite-react/plugin/tailwindcss";
 @source "../.flowbite-react/class-list.json";
 
 * {
@@ -10,6 +10,7 @@
 .stroke2,
 .stroke3,
 .stroke4 {
+  font: 800 40px Arial;
   color: white;
   font-size: 2.5em;
 }
@@ -47,4 +48,9 @@
 .p-tree,
 .p-tree-selectable {
   padding: 0;
+}
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }

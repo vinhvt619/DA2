@@ -12,7 +12,7 @@ import {
   MagnifyingGlassIcon,
   ArrowRightIcon,
 } from "@heroicons/react/24/outline";
-function App() {
+function MainMenu() {
   const [nodes, setNodes] = useState(null);
   const [selectedNodeKey, setSelectedNodeKey] = useState(null);
 
@@ -58,7 +58,7 @@ function App() {
                   </div>
                 </div>
               </div>
-              <div className="h-80 w-230 p-3 grid grid-cols-2 gap-3 ml-5 ">
+              <div className=" p-3 grid grid-cols-2 gap-3 ml-5 ">
                 <Jobs color="bg-[#F8F4FC]" />
                 <Jobs color="bg-[#F8F4FC]" />
                 <Jobs color="bg-[#F8F4FC]" />
@@ -117,7 +117,7 @@ function App() {
                   className="text-black bg-white cursor-pointer border-2 border-black hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-gray-300 font-medium rounded-lg text-sm p-0.5 text-center inline-flex items-center me-2 "
                 >
                   <svg
-                    className="w-[16px] h-[16px] text-gray-800 dark:text-white"
+                    className="w-[16px] h-[16px] text-gray-800"
                     aria-hidden="true"
                     xmlns="http://www.w3.org/2000/svg"
                     width="24"
@@ -190,4 +190,4 @@ function App() {
   );
 }
 
-export default App;
+export default MainMenu;

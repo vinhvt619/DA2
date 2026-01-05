@@ -1,11 +1,11 @@
 import "./../../src/App.css";
 import React from "react";
-import Header from "../Components/Header";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
+import Header from "../Components/Header";
 
-function App() {
+function WelcomePage() {
   return (
-    <div className="w-full h-screen bg-[#F8F4FC]">
+    <div className="w-full h-full">
       <Header />
       <div className="flex pt-15">
         <div className="flex w-[70%] pl-35">
@@ -23,8 +23,7 @@ function App() {
               <div>
                 <a href="#">
                   <h1 className="stroke4 flex justify-center items-center">
-                    <div className="mb-2">Tạo ngay</div>
-                    <ArrowRightIcon className="h-10 w-20" />
+                    Tạo ngay <ArrowRightIcon className="h-10 w-20 mt-2" />
                   </h1>
                 </a>
               </div>
@@ -39,4 +38,4 @@ function App() {
   );
 }
 
-export default App;
+export default WelcomePage;

@@ -2,11 +2,12 @@ import "./../../src/App.css";
 import React from "react";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
 import Header from "../Components/Header";
+import HeaderNoUser from "../Components/HeaderNoUser";
 
-function App() {
+function WelcomePage() {
   return (
     <div className="w-full h-full">
-      <Header />
+      <HeaderNoUser />
       <div className="flex pt-15">
         <div className="flex w-[70%] pl-35">
           <div>
@@ -22,7 +23,7 @@ function App() {
             <button className="bg-[#DBCBEF] pl-6 py-3 flex justify-center mt-10 rounded-[50px]">
               <div>
                 <a href="#">
-                  <h1 className="stroke4 flex">
+                  <h1 className="stroke4 flex justify-center items-center">
                     Tạo ngay <ArrowRightIcon className="h-10 w-20 mt-2" />
                   </h1>
                 </a>
@@ -38,4 +39,4 @@ function App() {
   );
 }
 
-export default App;
+export default WelcomePage;
