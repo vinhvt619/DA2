@@ -23,7 +23,10 @@ import MainMenu from "./MainMenu.jsx";
 import TopPage from "./TopPage.jsx";
 import WelcomePageCustomer from "./Welcome_Page_Customer.jsx";
 import Profile from "./Profile.jsx";
-import Messenger from "./ChatBox.jsx";
+import Messenger from "./Message.jsx";
+import Accessibility from "./Accessibily.jsx";
+import SettingAndPrivate from "./SettingAndPrivate.jsx";
+import CreateResume from "./Resume.jsx";
 function App() {
   return (
     <BrowserRouter>
@@ -35,7 +38,10 @@ function App() {
         <Route path="/TopPage" element={<TopPage />} />
         <Route path="/WelcomePageCustomer" element={<WelcomePageCustomer />} />
         <Route path="/Profile" element={<Profile />} />
-        <Route path="/Message" element={<Messenger />}></Route>
+        <Route path="/Message" element={<Messenger />} />
+        <Route path="/Accessibility" element={<Accessibility />} />
+        <Route path="/SettingAndPrivate" element={<SettingAndPrivate />} />
+        <Route path="/Resume" element={<CreateResume />} />
       </Routes>
     </BrowserRouter>
   );

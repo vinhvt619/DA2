@@ -18,7 +18,7 @@ function Tab({ icon, content }) {
 }
 export default function StickyProfileSettings() {
   return (
-    <StickyBox className=" w-[20%]  flex justify-center items-center ml-10 text-sm">
+    <StickyBox className=" w-[20%]  flex justify-center items-center ml-25 text-sm">
       <div className="mt-10 bg-white">
         <div className="border-1 border-black h-86 w-70 rounded-2xl p-4">
           <Tab

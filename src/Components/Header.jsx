@@ -67,7 +67,7 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <header className="bg-linear-to-r from-[#FFFFFF] via-[#D9C9EE] to-[#9346F5]">
+    <header className="bg-linear-to-r from-[#FFFFFF] via-[#D9C9EE] to-[#9246f570]">
       <nav
         aria-label="Global"
         className="mx-auto flex items-center justify-between lg:px-8"
@@ -181,7 +181,7 @@ export default function Header() {
             <PopoverPanel
               transition
               anchor="bottom"
-              className=" w-60 [--anchor-padding:5px] border-1 border-black divide-y  divide-white/5 rounded-xl bg-white p-3 text-sm/6 transition duration-200 ease-in-out [--anchor-gap:--spacing(5)] data-closed:-translate-y-1 data-closed:opacity-0"
+              className=" w-60 [--anchor-padding:5px] border border-black divide-y  divide-white/5 rounded-xl bg-white p-3 text-sm/6 transition duration-200 ease-in-out [--anchor-gap:--spacing(5)] data-closed:-translate-y-1 data-closed:opacity-0"
             >
               <div className="p-1  truncate">
                 <a
