@@ -5,13 +5,12 @@ import ResumePreview from "../Components/ResumePreview";
 
 export default function CreateResume() {
   return (
-    <div className="bg-[#F8F4FC] h-full">
+    <div className="bg-[#F8F4FC] h-screen flex flex-col ">
       <Header />
-      <div className="pt-10 flex  items-start h-screen justify-evenly">
+      <div className="py-5 flex flex-1 items-start justify-evenly overflow-hidden">
         <ResumeForm />
         <ResumePreview />
       </div>
-      ádzcxzczzz
     </div>
   );
 }
