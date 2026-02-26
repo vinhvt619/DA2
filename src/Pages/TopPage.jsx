@@ -21,14 +21,14 @@ function TopPage() {
       <Header />
       <div className="flex items-start">
         <StickySettings />
-        <div className="w-[80%] ">
-          <div className="my-10 flex justify-center items center">
+        <div className="flex-1 flex flex-col items-center">
+          <div className="my-10 w-[80%] flex justify-center">
             <TopCompany />
           </div>
-          <div className="my-10 flex justify-center items center">
+          <div className="my-10 w-[80%] flex justify-center">
             <TopCVList />
           </div>
-          <div className="my-10 flex justify-center items center">
+          <div className="my-10 w-[80%] flex justify-center">
             <ListNews />
           </div>
         </div>

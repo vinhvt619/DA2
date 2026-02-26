@@ -8,52 +8,62 @@ import {
 import Terms from "./TermOfUse";
 export default function StickyProfile() {
   return (
-    <StickyBox className=" w-[20%]  flex justify-center items-center ml-10">
-      <div className="mt-10">
-        <div className="w-60 h-65 static">
-          <div className="border-2 border-b-1 border-black h-15 rounded-t-3xl w-full bg-[#FFD8D8]"></div>
-          <div className="border-2 border-black rounded-full h-15 w-15 bg-white top-17 left-21 absolute"></div>
-          <div className="border-2 border-t-1 border-black h-45 rounded-b-3xl w-full bg-white">
-            <div className="p-5 mt-6 text-[10px]">
-              <div className=" font-bold text-sm">Nguyễn Thành Vinh</div>
-              <div className="line-clamp-2">
-                Ph.D at Ho Chi Minh University of Technology. Chill n free.
-                Software Engineer. I&apos;m looking for a job that can help me
-                to get rich in the future.
+    <StickyBox className="w-64 shrink-0">
+      <div className="space-y-6">
+        <div className="bg-white rounded-2xl border-2 border-black overflow-hidden group">
+          <div className="h-16 bg-[#FFD8D8] border-b-2 border-black relative">
+            <div className="absolute -bottom-5 left-6 h-14 w-14 bg-white rounded-full border-2 border-black p-1">
+              <div className="h-full w-full bg-gray-100 rounded-full flex items-center justify-center">
+                <UserIcon className="w-6 h-6 text-gray-400" />
               </div>
-              <div className="flex py-2">
-                <span className="fi fi-vn "></span>
-                <div className="text-gray-500 ml-2">
-                  Ho Chi Minh City, Viet Nam
-                </div>
-              </div>
-              Trường đại học Bách Khoa Hồ Chí Minh
+            </div>
+          </div>
+          <div className="pt-8 pb-5 px-6">
+            <div className="mb-3">
+              <h3 className="font-bold text-base text-gray-800 leading-tight">
+                Nguyễn Thành Vinh
+              </h3>
+              <p className="text-[11px] text-gray-500 line-clamp-2 mt-1 font-medium">
+                Software Engineer. I&apos;m looking for a job.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 text-[10px] text-gray-500 mb-3 font-bold">
+              <span className="fi fi-vn rounded-xs"></span>
+              <span>Ho Chi Minh City, VN</span>
+            </div>
+
+            <div className="text-[10px] font-bold text-[#9346F5] bg-[#9346F5]/5 px-2 py-1 rounded-md border border-[#9346F5]/20 inline-block">
+              Đại học Bách Khoa HCM
             </div>
           </div>
         </div>
 
-        <div className="border-2 border-black w-60 h-40 rounded-3xl flex justify-center bg-white text-sm">
-          <div>
-            <div className="flex p-2 items-center mt-3 hover:bg-gray-300 hover:rounded-2xl w-50">
-              <div className="w-5 h-5 mr-3">
-                <BriefcaseIcon />
-              </div>
-              <a href="#">Tìm công việc</a>
-            </div>
-            <div className="flex p-2 items-center mt-3 hover:bg-gray-300 hover:rounded-2xl">
-              <div className="w-5 h-5 mr-3">
-                <UserIcon />
-              </div>
-              <a href="#">Công việc của tôi</a>
-            </div>
-            <div className="flex p-2 items-center mt-3 hover:bg-gray-300 hover:rounded-2xl">
-              <div className="w-5 h-5 mr-3">
-                <BookmarkIcon />
-              </div>
-              <a href="#">Ưa thích</a>
-            </div>
-          </div>
-        </div>
+        {/* Navigation Menu */}
+        <nav className="bg-white rounded-2xl border-2 border-black p-2 space-y-1">
+          <a
+            href="#"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-[#9346F5]/5 hover:text-[#9346F5] transition-all group font-bold text-xs"
+          >
+            <BriefcaseIcon className="w-4 h-4 text-gray-400 group-hover:text-[#9346F5]" />
+            <span>Tìm công việc</span>
+          </a>
+          <a
+            href="#"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-[#9346F5]/5 hover:text-[#9346F5] transition-all group font-bold text-xs"
+          >
+            <UserIcon className="w-4 h-4 text-gray-400 group-hover:text-[#9346F5]" />
+            <span>Công việc của tôi</span>
+          </a>
+          <a
+            href="#"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-[#9346F5]/5 hover:text-[#9346F5] transition-all group font-bold text-xs"
+          >
+            <BookmarkIcon className="w-4 h-4 text-gray-400 group-hover:text-[#9346F5]" />
+            <span>Ưa thích</span>
+          </a>
+        </nav>
+
         <Terms />
       </div>
     </StickyBox>

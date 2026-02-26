@@ -19,14 +19,9 @@ function WelcomePage() {
                 nhất.
               </p>
             </div>
-            <button className="bg-[#DBCBEF] pl-6 py-3 flex justify-center mt-10 rounded-[50px]">
-              <div>
-                <a href="#">
-                  <h1 className="stroke4 flex justify-center items-center">
-                    Tạo ngay <ArrowRightIcon className="h-10 w-20 mt-2" />
-                  </h1>
-                </a>
-              </div>
+            <button className="bg-linear-to-r from-[#DBCBEF] to-[#c5b3e3] px-8 py-3 flex items-center gap-2 mt-8 rounded-full transition-all duration-300 hover:shadow-xl cursor-pointer shadow-md font-bold text-base">
+              <span className="stroke4">Tạo ngay</span>
+              <ArrowRightIcon className="h-6 w-6 text-white" />
             </button>
           </div>
         </div>

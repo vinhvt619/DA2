@@ -1,37 +1,43 @@
 import React, { useState } from "react";
 
-export default function ListNews() {
-  function ListCV() {
-    return (
-      <div className="w-45 pt-10 group hover:underline cursor-pointer">
-        <div className="border-2 border-black bg-gray-300 rounded-2xl h-20 group-hover:bg-gray-500"></div>
-        <div className="text-xs font-semibold">
-          Hướng dẫn viết CV dành cho người mới
-        </div>
-        <div className="text-xs text-[#A2A2A2] font-light">07/05/2002</div>
-        <div className="line-clamp-3 text-xs text-gray-700">
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-          eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad
-          minim veniam, quis nostrud exercitation ullamco laboris nisi ut
-          aliquip ex ea commodo consequat. Duis aute irure dolor in
-          reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
-          pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
-          culpa qui officia deserunt mollit anim id est laborum.
-        </div>
-      </div>
-    );
-  }
-
+function NewsItem() {
   return (
-    <div className="w-[80%] bg-white border-2 border-gray-300 rounded-3xl p-5">
-      <div className="font-medium text-xl pt-2 pl-2">Tin tức</div>
-      <div className="pl-15 pb-5 grid grid-cols-3 gap-1">
-        <ListCV />
-        <ListCV />
-        <ListCV />
-        <ListCV />
-        <ListCV />
-        <ListCV />
+    <div className="w-[95%] pt-4 group cursor-pointer transition-all pl-3">
+      <div className="border border-gray-200 bg-gray-100 rounded-xl mb-3 group-hover:bg-gray-200 py-10 transition-colors flex items-center justify-center">
+        <div className="w-10 h-10 border border-gray-300 rounded-lg flex items-center justify-center opacity-20 "></div>
+      </div>
+      <div className="px-0.5">
+        <h3 className="text-[14px] font-bold text-gray-800 group-hover:text-[#9346F5] transition-colors line-clamp-2 leading-snug">
+          Hướng dẫn viết CV dành cho người mới ứng tuyển 2024
+        </h3>
+        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1.5 block">
+          07/05/2026
+        </span>
+        <p className="line-clamp-2 text-[11px] text-gray-500 mt-2.5 font-medium leading-relaxed">
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+          eiusmod tempor incididunt ut labore et dolore magna aliqua.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default function ListNews() {
+  return (
+    <div className="w-full bg-white border border-gray-200 rounded-2xl p-7 shadow-sm">
+      <div className="flex items-center justify-between mb-2">
+        <div className="font-bold text-lg text-gray-900 pl-3">
+          Tin tức & Bài viết
+        </div>
+        <button className="text-[10px] font-bold text-[#9346F5] hover:underline uppercase tracking-widest">
+          Xem tất cả bài viết &rarr;
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-x-10 gap-y-2">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <NewsItem key={i} />
+        ))}
       </div>
     </div>
   );

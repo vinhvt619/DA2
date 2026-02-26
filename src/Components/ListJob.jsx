@@ -1,6 +1,7 @@
 import { Button, Popover } from "flowbite-react";
-
 import React from "react";
+import { MapPinIcon, HeartIcon } from "@heroicons/react/24/outline";
+
 export default function Jobs(props) {
   const content = (
     <div className="w-120 h-80 bg-white p-5">
@@ -44,16 +45,47 @@ export default function Jobs(props) {
   return (
     <Popover content={content} trigger="hover" placement="right">
       <div
-        className={`h-20 flex items-center px-3 rounded-lg border-2 border-black hover:bg-gray-300 ${props.color}`}
+        className={`relative h-24 flex items-center px-5 rounded-2xl border border-black hover:border-[#D946EF] cursor-pointer group ${props.color}`}
       >
-        <div className="bg-gray-400 h-12 w-12 rounded-lg"></div>
-        <div className="h-15 ml-4 mb-2">
-          <div className="text-[#CB37FF] font-semibold text-md">
+        {/* Logo Section - Clean & Modern */}
+        <div className="bg-white h-14 w-14 rounded-xl border border-black flex items-center justify-center shrink-0"></div>
+
+        {/* Info Section */}
+        <div className="ml-5 flex-1 min-w-0 pr-10">
+          <div className="text-[#D946EF] font-extrabold text-sm truncate leading-tight group-hover:underline underline-offset-4 decoration-2">
             Dịch thuật văn bản IT sang tiếng Đức
           </div>
-          <div className="text-gray-400 text-sm -mt-1">Castus Corporation</div>
-          <div className="text-xs -mt-1">1 District, Ho Chi Minh City</div>
-          <div className="text-xs text-gray-400 -mt-1">a day ago</div>
+
+          <div className="text-gray-500 text-xs font-bold truncate mt-1">
+            Castus Corporation
+          </div>
+
+          <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-white/60 rounded-md border border-black/5">
+              <MapPinIcon className="w-3.5 h-3.5 text-[#D946EF]" />
+              <span className="text-[10px] font-semibold text-gray-700">
+                1 District, HCM
+              </span>
+            </div>
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-white/60 rounded-md border border-black/5">
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                Full Time
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Bottom Metadata & Interaction */}
+        <div className="absolute top-4 right-5">
+          <div className="text-gray-400 text-[9px] font-black uppercase tracking-tighter">
+            1 day ago
+          </div>
+        </div>
+
+        <div className="absolute bottom-4 right-5">
+          <button className="p-2 rounded-full hover:bg-white group/heart border border-transparent hover:border-black/10 shadow-sm">
+            <HeartIcon className="w-5 h-5 text-gray-400 group-hover/heart:text-red-500 fill-transparent group-hover/heart:fill-red-500" />
+          </button>
         </div>
       </div>
     </Popover>
