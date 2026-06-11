@@ -526,9 +526,9 @@ export default function ResumeForm({
         </div>
       )}
 
-      <div className="border-t border-gray-100" />
+      <div className="border-t border-gray-100 my-4" />
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 mt-4">
           <div className="text-xs font-bold text-gray-600 uppercase tracking-widest">Kinh nghiệm làm việc</div>
         </div>
       {experience.map((item) => (

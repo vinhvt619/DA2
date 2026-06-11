@@ -14,7 +14,7 @@ import {
   BriefcaseIcon,
 } from "@heroicons/react/24/outline";
 import { jobsData } from "../data/jobsData.js";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const filterOptions = [
   { value: "", label: "Tất cả tiêu chí" },
@@ -54,11 +54,19 @@ function SectionHeader({ icon: Icon, title, subtitle, action }) {
 }
 
 function MainMenu() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [selectedFilter, setSelectedFilter] = useState("");
-  const [searchKeyword, setSearchKeyword] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState(location.state?.searchKeyword || "");
   const [dbJobs, setDbJobs] = useState([]);
   const [latestPage, setLatestPage] = useState(1);
-  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (location.state?.searchKeyword !== undefined) {
+      setSearchKeyword(location.state.searchKeyword);
+      setLatestPage(1);
+    }
+  }, [location.state?.searchKeyword]);
 
   useEffect(() => {
     const fetchJobs = async () => {

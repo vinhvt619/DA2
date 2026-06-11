@@ -56,7 +56,9 @@ export default function CreateResume() {
     const fetchResumeData = async () => {
       if (!_id) return;
       try {
-        const response = await fetch(`/api/resume/${_id}`, { credentials: "include" });
+        const response = await fetch(`/api/resume/${_id}`, {
+          credentials: "include",
+        });
         if (response.ok) {
           const data = await response.json();
           if (data) {
@@ -89,8 +91,20 @@ export default function CreateResume() {
     setIsSaving(true);
     try {
       const payload = {
-        title, image, personalInfo, bio, profile, experience,
-        education, skill, language, certificate, project, award, hobby, selectedTemplate,
+        title,
+        image,
+        personalInfo,
+        bio,
+        profile,
+        experience,
+        education,
+        skill,
+        language,
+        certificate,
+        project,
+        award,
+        hobby,
+        selectedTemplate,
       };
       if (_id) payload._id = _id;
 
@@ -117,7 +131,10 @@ export default function CreateResume() {
   };
 
   const formattedTime = lastSaved
-    ? lastSaved.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+    ? lastSaved.toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
     : null;
 
   return (
@@ -158,7 +175,11 @@ export default function CreateResume() {
                 : "border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
             }`}
           >
-            {showForm ? <ChevronDoubleLeftIcon className="w-3.5 h-3.5" /> : <ChevronDoubleRightIcon className="w-3.5 h-3.5" />}
+            {showForm ? (
+              <ChevronDoubleLeftIcon className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronDoubleRightIcon className="w-3.5 h-3.5" />
+            )}
             <span className="hidden sm:block">Nội dung</span>
           </button>
 
@@ -198,7 +219,7 @@ export default function CreateResume() {
         {/* Left Sidebar (Resume Form) */}
         <div
           className={`transition-all duration-300 ease-in-out border-r border-gray-200 bg-white overflow-hidden flex flex-col shrink-0 ${
-            showForm ? "w-[320px]" : "w-0"
+            showForm ? "w-[480px]" : "w-0"
           }`}
         >
           <div className="flex-1 overflow-y-auto no-scrollbar">
@@ -264,7 +285,7 @@ export default function CreateResume() {
         {/* Right Sidebar (Templates) */}
         <div
           className={`transition-all duration-300 ease-in-out border-l border-gray-200 bg-white overflow-hidden shrink-0 ${
-            showTemplates ? "w-[200px]" : "w-0"
+            showTemplates ? "w-[280px]" : "w-0"
           }`}
         >
           <ResumeTemplate

@@ -22,9 +22,18 @@ export default function Header() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
   const showToast = useToastContext();
+
+  const handleSearch = (e) => {
+    if (e.key === "Enter" && searchQuery.trim()) {
+      navigate("/MainMenu", { state: { searchKeyword: searchQuery.trim() } });
+      setIsSearchOpen(false);
+      setSearchQuery("");
+    }
+  };
 
   useEffect(() => {
     const path = location.pathname.toLowerCase();
@@ -134,6 +143,9 @@ export default function Header() {
               <input
                 type="text"
                 placeholder="Tìm kiếm..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearch}
                 className="h-full w-full border-none bg-transparent text-sm outline-none"
               />
             </div>
@@ -184,22 +196,43 @@ export default function Header() {
                   Tin nhắn gần nhất
                 </p>
                 <div className="mb-3 space-y-2 text-sm text-gray-500">
-                  <div className="rounded-lg p-2 hover:bg-gray-50">
-                    <p className="font-medium text-gray-800">Jack Doan</p>
+                  <div
+                    className="rounded-lg p-2 hover:bg-gray-50 cursor-pointer"
+                    onClick={() => {
+                      toggleMenu("");
+                      navigate("/Message");
+                    }}
+                  >
+                    <div className="flex justify-between items-center mb-0.5">
+                      <p className="font-medium text-gray-800">Phòng nhóm chung</p>
+                      <span className="text-[10px] text-gray-400">Vừa xong</span>
+                    </div>
                     <p className="truncate text-xs">
-                      Chào bạn, mình đã xem CV của bạn...
+                      Xin chào cả nhóm!
                     </p>
                   </div>
-                  <div className="rounded-lg p-2 hover:bg-gray-50">
-                    <p className="font-medium text-gray-800">HR - Công ty ABC</p>
+                  <div
+                    className="rounded-lg p-2 hover:bg-gray-50 cursor-pointer"
+                    onClick={() => {
+                      toggleMenu("");
+                      navigate("/Message");
+                    }}
+                  >
+                    <div className="flex justify-between items-center mb-0.5">
+                      <p className="font-medium text-gray-800">Nguyễn Văn Toàn</p>
+                      <span className="text-[10px] text-gray-400">12 giờ trước</span>
+                    </div>
                     <p className="truncate text-xs">
-                      Bạn có thể sắp xếp phỏng vấn vào thứ 3 không?
+                      Dạ vâng ạ
                     </p>
                   </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => navigate("/Message")}
+                  onClick={() => {
+                    toggleMenu("");
+                    navigate("/Message");
+                  }}
                   className="w-full rounded-lg bg-[#f7f1ff] py-2 text-sm font-semibold text-[#9346F5] hover:text-[#7c38c9]"
                 >
                   Xem tất cả
