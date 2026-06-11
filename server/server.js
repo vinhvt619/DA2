@@ -19,9 +19,39 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:4000",
   "http://localhost:3000",
-];
+  "https://rabbitcv.vercel.app",
+  process.env.CLIENT_URL,
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
+  process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : undefined,
+  process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : undefined,
+].filter(Boolean);
 
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+const requiredEnv = ["MONGO_URI", "JWT_SECRET"];
+const missingEnv = requiredEnv.filter((key) => !process.env[key]);
+if (missingEnv.length) {
+  console.error(`Missing required environment variables: ${missingEnv.join(", ")}`);
+}
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+  },
+  credentials: true,
+};
+
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax",
+};
+
+app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
@@ -57,6 +87,22 @@ mongoose
     seedAdmin();
   })
   .catch((err) => console.log("Loi ket noi MongoDB:", err.message));
+
+app.get("/api/health", (req, res) => {
+  const dbConnected = mongoose.connection.readyState === 1;
+
+  res.status(missingEnv.length || !dbConnected ? 500 : 200).json({
+    ok: missingEnv.length === 0 && dbConnected,
+    env: process.env.NODE_ENV || "development",
+    missingEnv,
+    database: {
+      readyState: mongoose.connection.readyState,
+      connected: dbConnected,
+      name: mongoose.connection.name || null,
+      host: mongoose.connection.host || null,
+    },
+  });
+});
 
 const authMiddleware = (req, res, next) => {
   const token = req.cookies.token;
@@ -215,9 +261,7 @@ app.post("/api/login", async (req, res) => {
     });
 
     res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      ...cookieOptions,
       maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000,
     });
 
@@ -352,7 +396,7 @@ app.put("/api/user/password", authMiddleware, async (req, res) => {
 });
 
 app.post("/api/logout", (req, res) => {
-  res.clearCookie("token");
+  res.clearCookie("token", cookieOptions);
   res.status(200).json({ message: "Da dang xuat" });
 });
 
