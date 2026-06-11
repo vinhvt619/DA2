@@ -90,7 +90,7 @@ function WelcomePage() {
           <div className="relative mx-auto w-full max-w-xl ml-5 flex justify-center">
             <img
               alt="RabbitCV"
-              src="../RabbitCV.png"
+              src="/RabbitCV.png"
               className="h-96 w-96 object-contain"
             />
           </div>

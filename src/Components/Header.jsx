@@ -96,7 +96,7 @@ export default function Header() {
         <div className="flex shrink-0">
           <Link to="/WelcomePageCustomer" className="-m-1.5 p-1.5">
             <span className="sr-only">RabbitCV</span>
-            <img alt="RabbitCV" src="../RabbitCV.png" className="h-15 w-15" />
+            <img alt="RabbitCV" src="/RabbitCV.png" className="h-15 w-15" />
           </Link>
         </div>
 

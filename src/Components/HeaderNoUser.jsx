@@ -20,7 +20,7 @@ export default function HeaderNoUser() {
         <div className="flex items-center lg:flex-1">
           <Link to="/" className="-m-1.5 p-1.5">
             <span className="sr-only">RabbitCV</span>
-            <img alt="RabbitCV" src="../RabbitCV.png" className="h-15 w-15" />
+            <img alt="RabbitCV" src="/RabbitCV.png" className="h-15 w-15" />
           </Link>
           <div className="ml-10 hidden items-center lg:flex lg:gap-x-8">
             {navLinks.map((item) => (

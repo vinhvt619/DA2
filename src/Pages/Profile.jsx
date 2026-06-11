@@ -227,7 +227,7 @@ function Profile() {
               <div className="absolute left-8 -bottom-10">
                 <div className="h-20 w-20 rounded-full border bg-white shadow-xs flex items-center justify-center overflow-hidden">
                   <img
-                    src="../RabbitCV.png"
+                    src="/RabbitCV.png"
                     alt="Avatar"
                     className="w-[60%] h-[60%] object-contain"
                   />

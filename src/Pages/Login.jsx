@@ -76,7 +76,7 @@ function Login() {
         <div className="flex flex-col items-center mb-6">
           <img
             alt="RabbitCV Logo"
-            src="../RabbitCV.png"
+            src="/RabbitCV.png"
             className="h-16 w-16 mb-3"
           />
           <h1 className="text-2xl font-bold text-[#9346F5]">Đăng nhập</h1>
