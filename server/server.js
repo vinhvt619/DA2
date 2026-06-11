@@ -631,6 +631,10 @@ app.get("/api/admin/stats", authMiddleware, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server dang chay tai http://localhost:${PORT}`);
-});
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`Server dang chay tai http://localhost:${PORT}`);
+  });
+}
+
+export default app;
