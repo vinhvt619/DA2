@@ -4,7 +4,51 @@ import {
   PhoneIcon,
   MapPinIcon,
   GlobeAltIcon,
-} from "@heroicons/react/24/solid";
+} from "@heroicons/react/24/outline";
+
+const ContactItem = ({ icon: _Icon, text, link }) => {
+  if (!text) return null;
+  const content = (
+    <div className="flex items-center gap-1.5 text-xs text-gray-600">
+      <_Icon className="w-3.5 h-3.5 shrink-0" />
+      <span className="truncate">{text}</span>
+    </div>
+  );
+  return link ? (
+    <a
+      href={link}
+      target="_blank"
+      rel="noreferrer"
+      className="hover:text-blue-600"
+    >
+      {content}
+    </a>
+  ) : (
+    content
+  );
+};
+
+const SidebarContactItem = ({ icon: _Icon, text, link }) => {
+  if (!text) return null;
+  const content = (
+    <div className="flex items-center gap-2 text-xs text-gray-300">
+      <_Icon className="w-4 h-4 text-gray-400 shrink-0" />
+      <span className="truncate">{text}</span>
+    </div>
+  );
+  return link ? (
+    <a
+      href={link}
+      target="_blank"
+      rel="noreferrer"
+      className="hover:text-white"
+    >
+      {content}
+    </a>
+  ) : (
+    content
+  );
+};
 
 const BasicTemplate = ({
   image,
@@ -16,154 +60,300 @@ const BasicTemplate = ({
   skill,
   project,
   award,
+  hobby,
+  language,
+  certificate,
 }) => (
-  <div className="bg-white p-10 min-h-[297mm] h-fit">
-    <div className="border-b-2 border-gray-800 pb-5 mb-5 flex gap-5 items-end">
+  <div className="p-10 min-h-[297mm] h-fit bg-white font-sans text-gray-800">
+    <div className="flex flex-col items-center text-center mb-8">
       {image && (
         <img
           src={image}
           alt="Profile"
-          className="w-24 h-24 object-cover border border-gray-300"
+          className="w-24 h-24 rounded-full object-cover mb-4"
         />
       )}
-      <div>
-        <h1 className="text-4xl font-bold uppercase tracking-wider text-gray-900">
-          {personalInfo.fullName}
-        </h1>
-        <h2 className="text-xl font-medium text-gray-600 mt-1">
-          {personalInfo.jobTitle}
-        </h2>
+      <h1 className="text-3xl font-bold uppercase tracking-wider text-gray-900 mb-1">
+        {personalInfo.fullName}
+      </h1>
+      <h2 className="text-sm font-medium tracking-wider text-gray-500 uppercase mb-4">
+        {personalInfo.jobTitle}
+      </h2>
+
+      <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+        <ContactItem icon={EnvelopeIcon} text={personalInfo.email} />
+        <ContactItem icon={PhoneIcon} text={personalInfo.phone} />
+        <ContactItem icon={MapPinIcon} text={personalInfo.location} />
+        <ContactItem
+          icon={GlobeAltIcon}
+          text={personalInfo.website}
+          link={personalInfo.website}
+        />
+        {profile?.map((p, i) => (
+          <ContactItem
+            key={i}
+            icon={GlobeAltIcon}
+            text={p.networkName || p.link}
+            link={p.link}
+          />
+        ))}
       </div>
     </div>
 
-    <div className="grid grid-cols-1 gap-1 text-sm text-gray-700 mb-8">
-      <div className="flex flex-wrap gap-4">
-        <div className="flex items-center gap-1">
-          <EnvelopeIcon className="w-4 h-4" />
-          <span>{personalInfo.email}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <PhoneIcon className="w-4 h-4" />
-          <span>{personalInfo.phone}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <MapPinIcon className="w-4 h-4" />
-          <span>{personalInfo.location}</span>
-        </div>
-        {personalInfo.website && (
-          <div className="flex items-center gap-1">
-            <GlobeAltIcon className="w-4 h-4" />
-            <a href={personalInfo.website} className="hover:underline">
-              {personalInfo.website}
-            </a>
-          </div>
+    <div className="grid grid-cols-12 gap-8">
+      <div className="col-span-4 flex flex-col gap-6">
+        {skill?.length > 0 && (
+          <section>
+            <h3 className="text-xs font-bold uppercase tracking-widest border-b border-gray-300 pb-1 mb-3 text-gray-900">
+              Skills
+            </h3>
+            <div className="flex flex-col gap-3 text-xs text-gray-700">
+              {skill.map((item) => (
+                <div key={item.id}>
+                  <div className="flex flex-wrap gap-1.5 items-center">
+                    <span className="font-semibold text-gray-900">
+                      {item.title}
+                    </span>
+                    {item.performance && (
+                      <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-sm">
+                        {item.performance}
+                      </span>
+                    )}
+                  </div>
+                  {item.description && (
+                    <div
+                      className="mt-1 text-gray-600"
+                      dangerouslySetInnerHTML={{ __html: item.description }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {language?.length > 0 && (
+          <section>
+            <h3 className="text-xs font-bold uppercase tracking-widest border-b border-gray-300 pb-1 mb-3 text-gray-900">
+              Ngoại ngữ
+            </h3>
+            <div className="flex flex-col gap-3 text-xs text-gray-700">
+              {language.map((item) => (
+                <div key={item.id}>
+                  <div className="font-semibold text-gray-900">
+                    {item.title}
+                  </div>
+                  {item.description && (
+                    <div className="mt-0.5 text-gray-600">
+                      {item.description}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {award?.length > 0 && (
+          <section>
+            <h3 className="text-xs font-bold uppercase tracking-widest border-b border-gray-300 pb-1 mb-3 text-gray-900">
+              Giải thưởng
+            </h3>
+            <div className="flex flex-col gap-4 text-gray-700">
+              {award.map((awardItem) => (
+                <div key={awardItem.id}>
+                  <div className="flex justify-between items-baseline mb-0.5">
+                    <div className="text-xs font-bold text-gray-900">
+                      {awardItem.title}
+                    </div>
+                    <div className="text-[11px] text-blue-500">
+                      {awardItem.date}
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-gray-600 font-semibold">
+                    {awardItem.awarder}
+                  </div>
+                  {awardItem.description && (
+                    <div
+                      className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
+                      dangerouslySetInnerHTML={{
+                        __html: awardItem.description,
+                      }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {hobby?.length > 0 && (
+          <section>
+            <h3 className="text-xs font-bold uppercase tracking-widest border-b border-gray-300 pb-1 mb-3 text-gray-900">
+              Sở thích
+            </h3>
+            <div className="flex flex-col gap-2 text-xs text-gray-700">
+              {hobby.map((hobbyItem) => (
+                <div
+                  key={hobbyItem.id}
+                  className="flex items-center gap-1.5 font-medium"
+                >
+                  <div className="w-1 h-1 rounded-full bg-gray-400"></div>
+                  {hobbyItem.title}
+                </div>
+              ))}
+            </div>
+          </section>
         )}
       </div>
-    </div>
 
-    {/* Content Sections */}
-    <div className="space-y-6">
-      <section>
-        <h3 className="text-lg font-bold uppercase border-b border-gray-400 mb-2">
-          Tiểu sử
-        </h3>
-        <div
-          className="text-gray-700 text-sm leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: bio }}
-        />
-      </section>
+      <div className="col-span-8 flex flex-col gap-6">
+        {bio && (
+          <section>
+            <h3 className="text-xs font-bold uppercase tracking-widest border-b border-gray-300 pb-1 mb-3 text-gray-900">
+              Profile
+            </h3>
+            <div
+              className="text-xs text-gray-700 leading-relaxed text-justify"
+              dangerouslySetInnerHTML={{ __html: bio }}
+            />
+          </section>
+        )}
 
-      {experience.length > 0 && (
-        <section>
-          <h3 className="text-lg font-bold uppercase border-b border-gray-400 mb-2">
-            Kinh nghiệm làm việc
-          </h3>
-          {experience.map((exp) => (
-            <div key={exp.id} className="mb-4">
-              <div className="flex justify-between font-bold text-gray-800">
-                <span>{exp.title}</span>
-                <span className="text-sm font-normal text-gray-600">
-                  {exp.startDate} - {exp.endDate}
-                </span>
-              </div>
-              <div className="text-gray-700 italic text-sm mb-1">
-                {exp.company}
-              </div>
-              <div
-                className="text-gray-600 text-sm pl-4 list-disc"
-                dangerouslySetInnerHTML={{ __html: exp.description }}
-              />
+        {experience?.length > 0 && (
+          <section>
+            <h3 className="text-xs font-bold uppercase tracking-widest border-b border-gray-300 pb-1 mb-3 text-gray-900">
+              Experience
+            </h3>
+            <div className="flex flex-col gap-5">
+              {experience.map((item) => (
+                <div key={item.id}>
+                  <div className="flex justify-between items-start mb-0.5">
+                    <h4 className="text-sm font-bold text-gray-900">
+                      {item.title}
+                    </h4>
+                    <span className="text-[11px] text-blue-500 font-medium whitespace-nowrap">
+                      {item.startDate} - {item.endDate}
+                    </span>
+                  </div>
+                  <div className="text-xs font-semibold text-gray-700 mb-2">
+                    {item.company}
+                    {item.location ? ` • ${item.location}` : ""}
+                  </div>
+                  <div
+                    className="text-xs text-gray-600 leading-relaxed list-disc pl-4"
+                    dangerouslySetInnerHTML={{ __html: item.description }}
+                  />
+                </div>
+              ))}
             </div>
-          ))}
-        </section>
-      )}
+          </section>
+        )}
 
-      {project.length > 0 && (
-        <section>
-          <h3 className="text-lg font-bold uppercase border-b border-gray-400 mb-2">
-            Dự án
-          </h3>
-          {project.map((proj) => (
-            <div key={proj.id} className="mb-4">
-              <div className="flex justify-between font-bold text-gray-800">
-                <span>{proj.title}</span>
-                <span className="text-sm font-normal text-gray-600">
-                  {proj.date}
-                </span>
-              </div>
-              {proj.link && (
-                <a
-                  href={proj.link}
-                  className="text-blue-600 text-sm hover:underline block mb-1"
-                >
-                  {proj.link}
-                </a>
-              )}
-              <div
-                className="text-gray-600 text-sm pl-4 list-disc"
-                dangerouslySetInnerHTML={{ __html: proj.description }}
-              />
+        {education?.length > 0 && (
+          <section>
+            <h3 className="text-xs font-bold uppercase tracking-widest border-b border-gray-300 pb-1 mb-3 text-gray-900">
+              Education
+            </h3>
+            <div className="flex flex-col gap-4">
+              {education.map((edu) => (
+                <div key={edu.id}>
+                  <div className="flex justify-between items-baseline mb-0.5">
+                    <h4 className="text-sm font-bold text-gray-900">
+                      {edu.title}
+                    </h4>
+                    <span className="text-[11px] text-blue-500 font-medium whitespace-nowrap">
+                      {edu.startDate} - {edu.endDate}
+                    </span>
+                  </div>
+                  <div className="text-xs font-semibold text-gray-700 mb-2">
+                    {edu.company}
+                    {edu.location ? ` • ${edu.location}` : ""}
+                  </div>
+                  {(edu.major || edu.score) && (
+                    <div className="text-[11px] text-gray-600 mb-2">
+                      {edu.major}
+                      {edu.major && edu.score ? " - " : ""}
+                      {edu.score}
+                    </div>
+                  )}
+                  {edu.description && (
+                    <div
+                      className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
+                      dangerouslySetInnerHTML={{ __html: edu.description }}
+                    />
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
-        </section>
-      )}
+          </section>
+        )}
 
-      {education.length > 0 && (
-        <section>
-          <h3 className="text-lg font-bold uppercase border-b border-gray-400 mb-2">
-            Học vấn
-          </h3>
-          {education.map((edu) => (
-            <div key={edu.id} className="mb-2">
-              <div className="font-bold text-gray-800">{edu.company}</div>
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>{edu.title}</span>
-                <span>
-                  {edu.startDate} - {edu.endDate}
-                </span>
-              </div>
+        {project?.length > 0 && (
+          <section>
+            <h3 className="text-xs font-bold uppercase tracking-widest border-b border-gray-300 pb-1 mb-3 text-gray-900">
+              Projects
+            </h3>
+            <div className="flex flex-col gap-5">
+              {project.map((i) => (
+                <div key={i.id}>
+                  <div className="flex justify-between items-start mb-0.5">
+                    <h4 className="text-sm font-bold text-gray-900">
+                      {i.title}
+                    </h4>
+                    <span className="text-[11px] text-blue-500 font-medium whitespace-nowrap">
+                      {i.date}
+                    </span>
+                  </div>
+                  {i.link && (
+                    <a
+                      href={i.link}
+                      className="text-[11px] text-blue-600 hover:underline block mb-1 truncate"
+                    >
+                      {i.link}
+                    </a>
+                  )}
+                  <div
+                    className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
+                    dangerouslySetInnerHTML={{ __html: i.description }}
+                  />
+                </div>
+              ))}
             </div>
-          ))}
-        </section>
-      )}
+          </section>
+        )}
 
-      {skill.length > 0 && (
-        <section>
-          <h3 className="text-lg font-bold uppercase border-b border-gray-400 mb-2">
-            Kỹ năng
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {skill.map((s) => (
-              <span
-                key={s.id}
-                className="bg-gray-100 px-2 py-1 rounded text-sm text-gray-700"
-              >
-                {s.title}
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
+        {certificate?.length > 0 && (
+          <section>
+            <h3 className="text-xs font-bold uppercase tracking-widest border-b border-gray-300 pb-1 mb-3 text-gray-900">
+              Chứng chỉ
+            </h3>
+            <div className="flex flex-col gap-5">
+              {certificate.map((i) => (
+                <div key={i.id}>
+                  <div className="flex justify-between items-start mb-0.5">
+                    <h4 className="text-sm font-bold text-gray-900">
+                      {i.title}
+                    </h4>
+                    <span className="text-[11px] text-blue-500 font-medium whitespace-nowrap">
+                      {i.date}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-gray-600 font-semibold mb-1">
+                    {i.publisher}
+                  </div>
+                  {i.description && (
+                    <div
+                      className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
+                      dangerouslySetInnerHTML={{ __html: i.description }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
     </div>
   </div>
 );
@@ -178,112 +368,75 @@ const ModernTemplate = ({
   skill,
   project,
   award,
+  hobby,
+  language,
+  certificate,
 }) => (
-  <div className="p-10 text-sm h-full">
-    {/* Header */}
-    <div className="flex gap-6 mb-8">
-      <div className="w-32 h-32 shrink-0 border-2 border-gray-100 rounded-full overflow-hidden bg-gray-50">
-        {image ? (
-          <img
-            src={image}
-            alt="Profile"
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-300 bg-gray-100">
-            <span className="text-4xl font-bold text-gray-300">Avatar</span>
-          </div>
-        )}
-      </div>
-      <div className="flex-1">
-        <h1 className="text-3xl font-bold text-gray-800 uppercase mb-2 tracking-wide">
-          {personalInfo.fullName}
-        </h1>
-        <h2 className="text-xl text-blue-600 font-medium mb-4">
-          {personalInfo.jobTitle}
-        </h2>
+  <div className="min-h-[297mm] h-fit font-sans text-gray-800 flex flex-col bg-white">
+    <div className="grid grid-cols-12 min-h-[297mm]">
+      <div className="col-span-8 p-10 bg-white flex flex-col gap-6">
+        <div className="mb-4 text-center md:text-left">
+          <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 mb-1">
+            {personalInfo.fullName}
+          </h1>
+          <h2 className="text-base font-medium text-blue-700 uppercase tracking-widest">
+            {personalInfo.jobTitle}
+          </h2>
 
-        <div className="grid grid-cols-2 gap-y-2 text-gray-600 text-sm">
-          <div className="flex items-center gap-2">
-            <EnvelopeIcon className="w-4 h-4 text-gray-400" />
-            <span>{personalInfo.email}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <PhoneIcon className="w-4 h-4 text-gray-400" />
-            <span>{personalInfo.phone}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <MapPinIcon className="w-4 h-4 text-gray-400" />
-            <span>{personalInfo.location}</span>
-          </div>
-          {personalInfo.website && (
-            <div className="flex items-center gap-2">
-              <GlobeAltIcon className="w-4 h-4 text-gray-400" />
-              <a
-                href={personalInfo.website}
-                target="_blank"
-                rel="noreferrer"
-                className="hover:underline hover:text-blue-500 truncate max-w-[150px]"
-              >
-                {personalInfo.website}
-              </a>
-            </div>
-          )}
-          {profile
-            .filter((p) => p.link)
-            .map((p, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <GlobeAltIcon className="w-4 h-4 text-gray-400" />
-                <a
-                  href={p.link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:underline hover:text-blue-500 truncate max-w-[150px]"
-                >
-                  {p.link}
-                </a>
-              </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4 justify-center md:justify-start">
+            <ContactItem icon={EnvelopeIcon} text={personalInfo.email} />
+            <ContactItem icon={PhoneIcon} text={personalInfo.phone} />
+            <ContactItem icon={MapPinIcon} text={personalInfo.location} />
+            <ContactItem
+              icon={GlobeAltIcon}
+              text={personalInfo.website}
+              link={personalInfo.website}
+            />
+            {profile?.map((p, i) => (
+              <ContactItem
+                key={i}
+                icon={GlobeAltIcon}
+                text={p.networkName || p.link}
+                link={p.link}
+              />
             ))}
+          </div>
         </div>
-      </div>
-    </div>
 
-    <div className="grid grid-cols-12 gap-8">
-      {/* Left Column (Main Content) */}
-      <div className="col-span-8 flex flex-col gap-6">
-        {/* Summary */}
-        <section>
-          <h3 className="text-lg font-bold text-gray-800 uppercase border-b-2 border-gray-200 pb-1 mb-3">
-            Tiểu sử
-          </h3>
-          <div
-            className="text-gray-700 leading-relaxed text-sm resume-content"
-            dangerouslySetInnerHTML={{ __html: bio }}
-          />
-        </section>
-
-        {/* Experience */}
-        {experience.length > 0 && (
+        {bio && (
           <section>
-            <h3 className="text-lg font-bold text-gray-800 uppercase border-b-2 border-gray-200 pb-1 mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 mb-2 border-b-2 border-gray-100 pb-1">
+              Tiểu sử
+            </h3>
+            <div
+              className="text-xs text-gray-700 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: bio }}
+            />
+          </section>
+        )}
+
+        {experience?.length > 0 && (
+          <section>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 mb-4 pb-1 border-b-2 border-gray-100">
               Kinh nghiệm làm việc
             </h3>
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-6">
               {experience.map((exp) => (
                 <div key={exp.id}>
                   <div className="flex justify-between items-baseline mb-1">
-                    <h4 className="font-bold text-gray-700 text-base">
+                    <h4 className="text-sm font-bold text-gray-900">
                       {exp.title}
                     </h4>
-                    <span className="text-xs text-gray-500 font-medium whitespace-nowrap bg-gray-100 px-2 py-0.5 rounded">
+                    <span className="text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-sm">
                       {exp.startDate} - {exp.endDate}
                     </span>
                   </div>
-                  <div className="text-blue-600 font-medium text-sm mb-1">
+                  <div className="text-xs font-semibold text-gray-700 mb-2">
                     {exp.company}
+                    {exp.location ? ` • ${exp.location}` : ""}
                   </div>
                   <div
-                    className="text-gray-600 text-sm mt-1 list-disc pl-4 resume-content"
+                    className="text-xs text-gray-600 leading-relaxed list-disc pl-4"
                     dangerouslySetInnerHTML={{ __html: exp.description }}
                   />
                 </div>
@@ -292,39 +445,104 @@ const ModernTemplate = ({
           </section>
         )}
 
-        {/* Projects */}
-        {project.length > 0 && (
+        {education?.length > 0 && (
           <section>
-            <h3 className="text-lg font-bold text-gray-800 uppercase border-b-2 border-gray-200 pb-1 mb-3">
-              Dự án
+            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 mb-4 pb-1 border-b-2 border-gray-100">
+              Học vấn
             </h3>
-            <div className="flex flex-col gap-4">
-              {project.map((proj) => (
-                <div key={proj.id}>
+            <div className="flex flex-col gap-6">
+              {education.map((i) => (
+                <div key={i.id}>
                   <div className="flex justify-between items-baseline mb-1">
-                    <h4 className="font-bold text-gray-700 text-base">
-                      {proj.title}
+                    <h4 className="text-sm font-bold text-gray-900">
+                      {i.title}
                     </h4>
-                    <span className="text-xs text-gray-500 font-medium whitespace-nowrap bg-gray-100 px-2 py-0.5 rounded">
-                      {proj.date}
+                    <span className="text-[11px] font-semibold text-blue-500 bg-gray-100 px-2 py-0.5 rounded-sm">
+                      {i.startDate} - {i.endDate}
                     </span>
                   </div>
-                  {proj.link && (
-                    <div className="text-blue-600 font-medium text-sm mb-1">
-                      <a
-                        href={proj.link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="hover:underline"
-                      >
-                        {proj.link}
-                      </a>
+                  <div className="text-xs font-semibold text-gray-700 mb-2">
+                    {i.company}
+                    {i.location ? ` • ${i.location}` : ""}
+                  </div>
+                  {(i.major || i.score) && (
+                    <div className="text-[11px] text-gray-600 mb-2">
+                      {i.major}
+                      {i.major && i.score ? " - " : ""}
+                      {i.score}
                     </div>
                   )}
+                  {i.description && (
+                    <div
+                      className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
+                      dangerouslySetInnerHTML={{ __html: i.description }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {project?.length > 0 && (
+          <section>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 mb-4 pb-1 border-b-2 border-gray-100">
+              Dự án
+            </h3>
+            <div className="flex flex-col gap-5">
+              {project.map((i) => (
+                <div key={i.id}>
+                  <div className="flex justify-between items-baseline mb-1">
+                    <h4 className="text-sm font-bold text-gray-900">
+                      {i.title}
+                    </h4>
+                    <span className="text-[11px] font-semibold text-blue-500 bg-gray-100 px-2 py-0.5 rounded-sm">
+                      {i.date}
+                    </span>
+                  </div>
+                  {i.link && (
+                    <a
+                      href={i.link}
+                      className="text-[11px] text-blue-600 hover:underline block mb-1 truncate"
+                    >
+                      {i.link}
+                    </a>
+                  )}
                   <div
-                    className="text-gray-600 text-sm mt-1 list-disc pl-4 resume-content"
-                    dangerouslySetInnerHTML={{ __html: proj.description }}
+                    className="text-xs text-gray-600 leading-relaxed list-disc pl-4"
+                    dangerouslySetInnerHTML={{ __html: i.description }}
                   />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {certificate?.length > 0 && (
+          <section>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 mb-4 pb-1 border-b-2 border-gray-100">
+              Chứng chỉ
+            </h3>
+            <div className="flex flex-col gap-5">
+              {certificate.map((i) => (
+                <div key={i.id}>
+                  <div className="flex justify-between items-baseline mb-1">
+                    <h4 className="text-sm font-bold text-gray-900">
+                      {i.title}
+                    </h4>
+                    <span className="text-[11px] font-semibold text-blue-500 bg-gray-100 px-2 py-0.5 rounded-sm">
+                      {i.date}
+                    </span>
+                  </div>
+                  <div className="text-xs font-semibold text-gray-700 mb-2">
+                    {i.publisher}
+                  </div>
+                  {i.description && (
+                    <div
+                      className="text-xs text-gray-600 leading-relaxed list-disc pl-4"
+                      dangerouslySetInnerHTML={{ __html: i.description }}
+                    />
+                  )}
                 </div>
               ))}
             </div>
@@ -332,48 +550,61 @@ const ModernTemplate = ({
         )}
       </div>
 
-      {/* Right Column (Sidebar) */}
-      <div className="col-span-4 flex flex-col gap-6">
-        {/* Education */}
-        {education.length > 0 && (
+      <div className="col-span-4 bg-gray-50 p-10 flex flex-col gap-8 border-l border-gray-200">
+        <div className="flex justify-center mb-2">
+          {image && (
+            <img
+              src={image}
+              alt="Profile"
+              className="w-32 h-32 rounded-xl object-cover shadow-sm"
+            />
+          )}
+        </div>
+
+        {skill?.length > 0 && (
           <section>
-            <h3 className="text-lg font-bold text-gray-800 uppercase border-b-2 border-gray-200 pb-1 mb-3">
-              Học vấn
+            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 mb-4 pb-1 border-b-2 border-gray-200">
+              Kỹ năng
             </h3>
-            <div className="flex flex-col gap-4">
-              {education.map((edu) => (
-                <div key={edu.id}>
-                  <h4 className="font-bold text-gray-700">{edu.title}</h4>
-                  <div className="text-blue-600 text-sm mb-1">
-                    {edu.company}
+            <div className="flex flex-col gap-3">
+              {skill.map((i) => (
+                <div key={i.id}>
+                  <div className="flex flex-wrap gap-1.5 items-center">
+                    <span className="font-semibold text-gray-900 text-xs">
+                      {i.title}
+                    </span>
+                    {i.performance && (
+                      <span className="text-[10px] bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-sm">
+                        {i.performance}
+                      </span>
+                    )}
                   </div>
-                  <div className="text-xs text-gray-500 mb-1">
-                    {edu.startDate} - {edu.endDate}
-                  </div>
+                  {i.description && (
+                    <div
+                      className="mt-1 text-xs text-gray-600"
+                      dangerouslySetInnerHTML={{ __html: i.description }}
+                    />
+                  )}
                 </div>
               ))}
             </div>
           </section>
         )}
 
-        {/* Skills */}
-        {skill.length > 0 && (
+        {language?.length > 0 && (
           <section>
-            <h3 className="text-lg font-bold text-gray-800 uppercase border-b-2 border-gray-200 pb-1 mb-3">
-              Kỹ năng
+            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 mb-4 pb-1 border-b-2 border-gray-200">
+              Ngoại ngữ
             </h3>
-            <div className="flex flex-col gap-2">
-              {skill.map((s) => (
-                <div
-                  key={s.id}
-                  className="bg-gray-50 p-2 rounded border border-gray-100"
-                >
-                  <div className="font-bold text-gray-700 text-sm">
-                    {s.title}
+            <div className="flex flex-col gap-3">
+              {language.map((i) => (
+                <div key={i.id}>
+                  <div className="font-semibold text-gray-900 text-xs">
+                    {i.title}
                   </div>
-                  {s.description && (
-                    <div className="text-xs text-gray-500 mt-1 lines-clamp-2">
-                      {s.description.replace(/<[^>]+>/g, "")}
+                  {i.description && (
+                    <div className="mt-0.5 text-[11px] text-gray-600">
+                      {i.description}
                     </div>
                   )}
                 </div>
@@ -382,47 +613,46 @@ const ModernTemplate = ({
           </section>
         )}
 
-        {/* Awards */}
-        {award.length > 0 && (
+        {award?.length > 0 && (
           <section>
-            <h3 className="text-lg font-bold text-gray-800 uppercase border-b-2 border-gray-200 pb-1 mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 mb-4 pb-1 border-b-2 border-gray-200">
               Giải thưởng
             </h3>
             <div className="flex flex-col gap-3">
-              {award.map((a) => (
-                <div key={a.id}>
-                  <div className="font-bold text-gray-700 text-sm">
-                    {a.title}
+              {award.map((i) => (
+                <div key={i.id}>
+                  <h4 className="text-xs font-bold text-gray-900">{i.title}</h4>
+                  <div className="text-[11px] text-gray-700 font-semibold mt-0.5">
+                    {i.awarder}
                   </div>
-                  <div className="text-blue-600 text-xs">{a.company}</div>
-                  <div className="text-xs text-gray-400">{a.startDate}</div>
+                  <div className="text-[11px] text-blue-500 mt-0.5">
+                    {i.date}
+                  </div>
+                  {i.description && (
+                    <div
+                      className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
+                      dangerouslySetInnerHTML={{ __html: i.description }}
+                    />
+                  )}
                 </div>
               ))}
             </div>
           </section>
         )}
 
-        {/* Profile Links */}
-        {profile.length > 0 && (
+        {hobby?.length > 0 && (
           <section>
-            <h3 className="text-lg font-bold text-gray-800 uppercase border-b-2 border-gray-200 pb-1 mb-3">
-              Liên kết
+            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 mb-4 pb-1 border-b-2 border-gray-200">
+              Sở thích
             </h3>
-            <div className="flex flex-col gap-2">
-              {profile.map((p) => (
-                <div key={p.id} className="text-sm">
-                  <span className="font-semibold text-gray-700 block">
-                    {p.networkName}
-                  </span>
-                  <a
-                    href={p.link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-blue-500 hover:underline text-xs break-all"
-                  >
-                    {p.username}
-                  </a>
-                </div>
+            <div className="flex flex-wrap gap-2">
+              {hobby.map((i) => (
+                <span
+                  key={i.id}
+                  className="text-[11px] font-semibold text-gray-700 bg-gray-200 px-2.5 py-1 rounded-sm"
+                >
+                  {i.title}
+                </span>
               ))}
             </div>
           </section>
@@ -442,127 +672,190 @@ const ProfessionalTemplate = ({
   skill,
   project,
   award,
+  hobby,
+  language,
+  certificate,
 }) => (
-  <div className="flex bg-white min-h-[297mm]">
-    <div className="w-1/3 bg-slate-800 text-white p-6 pt-10 flex flex-col gap-6">
-      <div className="flex justify-center mb-4">
+  <div className="flex bg-white min-h-[297mm] font-sans">
+    <div className="w-[30%] bg-gray-900 text-white p-8 flex flex-col gap-8 shrink-0">
+      <div className="flex flex-col items-center text-center">
         {image ? (
           <img
             src={image}
             alt="Profile"
-            className="w-32 h-32 rounded-full object-cover border-4 border-slate-600"
+            className="w-32 h-32 rounded-full object-cover border-2 border-gray-600 mb-4"
           />
         ) : (
-          <div className="w-32 h-32 rounded-full bg-slate-600 flex items-center justify-center">
-            <span>IMG</span>
+          <div className="w-32 h-32 rounded-full bg-gray-800 border-2 border-gray-600 flex items-center justify-center mb-4">
+            <span className="text-gray-500 font-bold text-2xl uppercase">
+              {personalInfo?.fullName?.charAt(0) ?? "?"}
+            </span>
           </div>
         )}
+        <h1 className="text-2xl font-bold uppercase tracking-tight mb-1 leading-tight">
+          {personalInfo.fullName}
+        </h1>
+        <h2 className="text-xs font-medium text-gray-400 uppercase tracking-widest">
+          {personalInfo.jobTitle}
+        </h2>
       </div>
 
       <section>
-        <h3 className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-3">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 border-b border-gray-700 pb-1">
           Liên hệ
         </h3>
-        <div className="flex flex-col gap-3 text-sm text-slate-300">
-          <div>{personalInfo.email}</div>
-          <div>{personalInfo.phone}</div>
-          <div>{personalInfo.location}</div>
-          {personalInfo.website && (
-            <a href={personalInfo.website} className="hover:text-white">
-              {personalInfo.website}
-            </a>
-          )}
+        <div className="flex flex-col gap-3">
+          <SidebarContactItem icon={EnvelopeIcon} text={personalInfo.email} />
+          <SidebarContactItem icon={PhoneIcon} text={personalInfo.phone} />
+          <SidebarContactItem icon={MapPinIcon} text={personalInfo.location} />
+          <SidebarContactItem
+            icon={GlobeAltIcon}
+            text={personalInfo.website}
+            link={personalInfo.website}
+          />
         </div>
       </section>
 
-      {skill.length > 0 && (
+      {profile?.length > 0 && (
         <section>
-          <h3 className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-3">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 border-b border-gray-700 pb-1">
+            Mạng xã hội
+          </h3>
+          <div className="flex flex-col gap-3">
+            {profile.map((p, i) => (
+              <SidebarContactItem
+                key={i}
+                icon={GlobeAltIcon}
+                text={p.networkName || p.link}
+                link={p.link}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {skill?.length > 0 && (
+        <section>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 border-b border-gray-700 pb-1">
             Kỹ năng
           </h3>
-          <div className="flex flex-col gap-2">
-            {skill.map((s) => (
-              <div key={s.id}>
-                <div className="font-semibold text-sm">{s.title}</div>
-                <div className="w-full bg-slate-700 h-1.5 mt-1 rounded-full overflow-hidden">
+          <div className="flex flex-col gap-3">
+            {skill.map((i) => (
+              <div key={i.id}>
+                <div className="flex justify-between items-center mb-1">
+                  <div className="text-xs font-medium text-gray-300">
+                    {i.title}
+                  </div>
+                  {i.performance && (
+                    <div className="text-[10px] text-gray-500">
+                      {i.performance}
+                    </div>
+                  )}
+                </div>
+                <div className="w-full bg-gray-800 h-1 rounded-full overflow-hidden">
                   <div
-                    className="bg-blue-400 h-full"
+                    className="bg-gray-400 h-full"
                     style={{
                       width:
-                        s.performance === "Xuất sắc"
+                        i.performance === "Xuất sắc"
                           ? "100%"
-                          : s.performance === "Tốt"
+                          : i.performance === "Tốt"
                             ? "80%"
-                            : s.performance === "Tạm được"
+                            : i.performance === "Tạm được"
                               ? "60%"
-                              : "40%",
+                              : i.performance === "Trung bình"
+                                ? "40%"
+                                : "20%",
                     }}
                   ></div>
                 </div>
+                {i.description && (
+                  <div
+                    className="mt-1.5 text-[10px] text-gray-400"
+                    dangerouslySetInnerHTML={{ __html: i.description }}
+                  />
+                )}
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {education.length > 0 && (
+      {language?.length > 0 && (
         <section>
-          <h3 className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-3">
-            Học vấn
+          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 border-b border-gray-700 pb-1">
+            Ngoại ngữ
           </h3>
-          <div className="flex flex-col gap-4 text-sm">
-            {education.map((edu) => (
-              <div key={edu.id}>
-                <div className="font-bold text-white">{edu.title}</div>
-                <div className="text-slate-400">{edu.company}</div>
-                <div className="text-slate-500 text-xs">
-                  {edu.startDate} - {edu.endDate}
+          <div className="flex flex-col gap-3">
+            {language.map((i) => (
+              <div key={i.id}>
+                <div className="text-xs font-medium text-gray-300">
+                  {i.title}
                 </div>
+                {i.description && (
+                  <div className="mt-0.5 text-[10px] text-gray-400">
+                    {i.description}
+                  </div>
+                )}
               </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {hobby?.length > 0 && (
+        <section>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 border-b border-gray-700 pb-1">
+            Sở thích
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {hobby.map((i) => (
+              <span
+                key={i.id}
+                className="text-[10px] font-medium text-gray-300 border border-gray-700 px-2 py-0.5 rounded-sm"
+              >
+                {i.title}
+              </span>
             ))}
           </div>
         </section>
       )}
     </div>
 
-    {/* Main Content Right */}
-    <div className="w-2/3 p-8">
-      <div className="mb-10 border-b border-gray-200 pb-6">
-        <h1 className="text-4xl font-bold text-slate-800 mb-2 uppercase">
-          {personalInfo.fullName}
-        </h1>
-        <h2 className="text-xl text-blue-600 tracking-wide">
-          {personalInfo.jobTitle}
-        </h2>
-        <div
-          className="mt-4 text-gray-600 leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: bio }}
-        />
-      </div>
-
-      {experience.length > 0 && (
-        <section className="mb-8">
-          <h3 className="text-xl font-bold text-slate-800 uppercase mb-4 flex items-center gap-2">
-            <span className="w-2 h-8 bg-blue-600 inline-block"></span>
-            Kinh nghiệm
+    <div className="w-[70%] p-10 flex flex-col gap-6 text-gray-800">
+      {bio && (
+        <section>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 border-b border-gray-200 pb-1 mb-3">
+            Tiểu sử
           </h3>
-          <div className="space-y-6">
-            {experience.map((exp) => (
-              <div key={exp.id}>
-                <div className="flex justify-between items-baseline">
-                  <h4 className="text-lg font-bold text-gray-800">
-                    {exp.title}
-                  </h4>
-                  <span className="text-sm font-semibold text-blue-600">
-                    {exp.startDate} - {exp.endDate}
+          <div
+            className="text-xs text-gray-700 leading-relaxed text-justify"
+            dangerouslySetInnerHTML={{ __html: bio }}
+          />
+        </section>
+      )}
+
+      {experience?.length > 0 && (
+        <section>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 border-b border-gray-200 pb-1 mb-4">
+            Kinh nghiệm làm việc
+          </h3>
+          <div className="flex flex-col gap-5">
+            {experience.map((i) => (
+              <div key={i.id}>
+                <div className="flex justify-between items-baseline mb-0.5">
+                  <h4 className="text-sm font-bold text-gray-900">{i.title}</h4>
+                  <span className="text-[11px] text-blue-500 font-medium whitespace-nowrap ml-2">
+                    {i.startDate} - {i.endDate}
                   </span>
                 </div>
-                <div className="font-semibold text-gray-600 mb-2">
-                  {exp.company}
+                <div className="text-xs font-semibold text-gray-600 mb-1.5">
+                  {i.company}
+                  {i.location ? ` • ${i.location}` : ""}
                 </div>
                 <div
-                  className="text-gray-600 text-sm list-disc pl-4"
-                  dangerouslySetInnerHTML={{ __html: exp.description }}
+                  className="text-xs text-gray-600 leading-relaxed list-disc pl-4"
+                  dangerouslySetInnerHTML={{ __html: i.description }}
                 />
               </div>
             ))}
@@ -570,36 +863,127 @@ const ProfessionalTemplate = ({
         </section>
       )}
 
-      {project.length > 0 && (
+      {education?.length > 0 && (
         <section>
-          <h3 className="text-xl font-bold text-slate-800 uppercase mb-4 flex items-center gap-2">
-            <span className="w-2 h-8 bg-blue-600 inline-block"></span>
-            Dự án nổi bật
+          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 border-b border-gray-200 pb-1 mb-4">
+            Học vấn
           </h3>
-          <div className="grid grid-cols-1 gap-6">
-            {project.map((proj) => (
-              <div
-                key={proj.id}
-                className="bg-gray-50 p-4 border-l-4 border-blue-600"
-              >
-                <div className="flex justify-between items-start mb-1">
-                  <h4 className="font-bold text-gray-800">{proj.title}</h4>
-                  <span className="text-xs text-gray-500 font-mono">
-                    {proj.date}
+          <div className="flex flex-col gap-4">
+            {education.map((i) => (
+              <div key={i.id}>
+                <div className="flex justify-between items-baseline mb-0.5">
+                  <h4 className="text-sm font-bold text-gray-900">{i.title}</h4>
+                  <span className="text-[11px] text-blue-500 font-medium whitespace-nowrap ml-2">
+                    {i.startDate} - {i.endDate}
                   </span>
                 </div>
-                {proj.link && (
+                <div className="text-xs text-gray-600">
+                  {i.company}
+                  {i.location ? ` • ${i.location}` : ""}
+                </div>
+                {(i.major || i.score) && (
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    {i.major}
+                    {i.major && i.score ? " - " : ""}
+                    {i.score}
+                  </div>
+                )}
+                {i.description && (
+                  <div
+                    className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
+                    dangerouslySetInnerHTML={{ __html: i.description }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {project?.length > 0 && (
+        <section>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 border-b border-gray-200 pb-1 mb-4">
+            Dự án nổi bật
+          </h3>
+          <div className="flex flex-col gap-5">
+            {project.map((i) => (
+              <div key={i.id}>
+                <div className="flex justify-between items-baseline mb-0.5">
+                  <h4 className="text-sm font-bold text-gray-900">{i.title}</h4>
+                  <span className="text-[11px] text-blue-500 font-medium whitespace-nowrap ml-2">
+                    {i.date}
+                  </span>
+                </div>
+                {i.link && (
                   <a
-                    href={proj.link}
-                    className="text-blue-500 text-xs hover:underline mb-2 block"
+                    href={i.link}
+                    className="text-[11px] text-blue-600 hover:underline block mb-1 truncate"
                   >
-                    {proj.link}
+                    {i.link}
                   </a>
                 )}
                 <div
-                  className="text-gray-600 text-sm"
-                  dangerouslySetInnerHTML={{ __html: proj.description }}
+                  className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
+                  dangerouslySetInnerHTML={{ __html: i.description }}
                 />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {certificate?.length > 0 && (
+        <section>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 border-b border-gray-200 pb-1 mb-4">
+            Chứng chỉ
+          </h3>
+          <div className="flex flex-col gap-5">
+            {certificate.map((i) => (
+              <div key={i.id}>
+                <div className="flex justify-between items-baseline mb-0.5">
+                  <h4 className="text-sm font-bold text-gray-900">{i.title}</h4>
+                  <span className="text-[11px] text-blue-500 font-medium whitespace-nowrap ml-2">
+                    {i.date}
+                  </span>
+                </div>
+                <div className="text-xs font-semibold text-gray-700 mb-1">
+                  {i.publisher}
+                </div>
+                {i.description && (
+                  <div
+                    className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
+                    dangerouslySetInnerHTML={{ __html: i.description }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {award?.length > 0 && (
+        <section>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 border-b border-gray-200 pb-1 mb-4">
+            Giải thưởng
+          </h3>
+          <div className="flex flex-col gap-4">
+            {award.map((i) => (
+              <div key={i.id}>
+                <div className="flex justify-between items-baseline mb-0.5">
+                  <h4 className="text-sm font-bold text-gray-900">{i.title}</h4>
+                  <span className="text-[11px] text-blue-500 font-medium whitespace-nowrap ml-2">
+                    {i.date}
+                  </span>
+                </div>
+                <div className="text-xs font-semibold text-gray-600 mb-1">
+                  {i.awarder}
+                </div>
+                {i.description && (
+                  <div
+                    className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
+                    dangerouslySetInnerHTML={{ __html: i.description }}
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -620,6 +1004,9 @@ export default function ResumePreview({
   skill,
   project,
   award,
+  hobby,
+  language,
+  certificate,
 }) {
   const commonProps = {
     image,
@@ -631,6 +1018,9 @@ export default function ResumePreview({
     skill,
     project,
     award,
+    hobby,
+    language,
+    certificate,
   };
 
   return (
@@ -644,7 +1034,7 @@ export default function ResumePreview({
           "
           style={{ width: "210mm", minHeight: "297mm" }}
         >
-          {selectedTemplate === "basic" && <BasicTemplate {...commonProps} />}
+          {selectedTemplate === "classic" && <BasicTemplate {...commonProps} />}
           {selectedTemplate === "modern" && <ModernTemplate {...commonProps} />}
           {selectedTemplate === "professional" && (
             <ProfessionalTemplate {...commonProps} />

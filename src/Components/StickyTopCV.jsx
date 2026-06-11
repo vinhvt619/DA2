@@ -1,56 +1,48 @@
-import React from "react";
-import { useState } from "react";
-import StickyBox from "react-sticky-box";
+import React, { useState } from "react";
 import Terms from "./TermOfUse";
-import { Button } from "flowbite-react";
-import { HiOutlineArrowRight, HiShoppingCart } from "react-icons/hi";
 import { ChevronRightIcon } from "@heroicons/react/24/outline";
 
 export default function StickyTopCV() {
   const [active, setActive] = useState("b1");
+
+  const buttonClass = (name) =>
+    `mb-3 flex w-60 items-center justify-between rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium hover:bg-linear-to-r hover:from-[#F5D9FF] hover:to-[#F8E6FF] ${
+      active === name
+        ? "bg-linear-to-r from-[#E49AF6] to-[#CBA3FF]"
+        : "bg-white"
+    }`;
+
   return (
-    <StickyBox className=" w-[20%]  flex justify-center items-center ml-10">
+    <aside className="ml-10 flex w-[20%] items-start justify-center lg:sticky lg:top-4">
       <div className="mt-10">
-        <Button
-          color="light"
-          className={`mb-3 w-60 hover:bg-linear-to-r hover:from-[#F5D9FF] hover:to-[#F8E6FF] ${
-            active === "b1"
-              ? "bg-linear-to-r  from-[#E49AF6] to-[#CBA3FF]"
-              : "bg-white"
-          }`}
+        <button
+          type="button"
+          className={buttonClass("b1")}
           onClick={() => setActive("b1")}
         >
-          Top các công ty hàng đầu
-          <ChevronRightIcon className="h-4 w-4 ml-4" />
-        </Button>
-        <Button
-          color="light"
-          className={`mb-3 w-60 hover:bg-linear-to-r hover:from-[#F5D9FF] hover:to-[#F8E6FF] ${
-            active === "b2"
-              ? "bg-linear-to-r  from-[#E49AF6] to-[#CBA3FF]"
-              : "bg-white"
-          }`}
+          Top c?c c?ng ty h?ng ??u
+          <ChevronRightIcon className="ml-4 h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          className={buttonClass("b2")}
           onClick={() => setActive("b2")}
         >
-          <span className="line-clamp-2 w-[80%]">
-            Top các CV được sử dụng nhiều nhất
+          <span className="line-clamp-2 w-[80%] text-left">
+            Top c?c CV ???c s? d?ng nhi?u nh?t
           </span>
-          <ChevronRightIcon className="h-4 w-4 ml-4" />
-        </Button>
-        <Button
-          color="light"
-          className={`mb-3 w-60 hover:bg-linear-to-r hover:from-[#F5D9FF] hover:to-[#F8E6FF] ${
-            active === "b3"
-              ? "bg-linear-to-r  from-[#E49AF6] to-[#CBA3FF]"
-              : "bg-white"
-          }`}
+          <ChevronRightIcon className="ml-4 h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          className={buttonClass("b3")}
           onClick={() => setActive("b3")}
         >
-          <span className="w-[80%]">Tin tức</span>
-          <ChevronRightIcon className="h-4 w-4 ml-4" />
-        </Button>
+          <span className="w-[80%] text-left">Tin t?c</span>
+          <ChevronRightIcon className="ml-4 h-4 w-4" />
+        </button>
         <Terms />
       </div>
-    </StickyBox>
+    </aside>
   );
 }

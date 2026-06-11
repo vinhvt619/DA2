@@ -1,9 +1,9 @@
-// src/Components/RichText/Editor.jsx
 import { useEditor, EditorContent } from "@tiptap/react";
-import { BubbleMenu, FloatingMenu } from "@tiptap/react/menus";
+import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import MenuBar from "./MenuBar";
-import "./styles.scss"; // Ensure styles are imported for ProseMirror
+import "./styles.scss";
+import { useEffect } from "react";
 
 function Editor({ content = "", onChange, className = "" }) {
   const editor = useEditor({
@@ -20,11 +20,15 @@ function Editor({ content = "", onChange, className = "" }) {
     },
   });
 
-  if (editor && content !== editor.getHTML()) {
-    if (editor.getText() === "" && content !== "<p></p>" && content !== "") {
-      editor.commands.setContent(content);
+  useEffect(() => {
+    if (!editor) return;
+    const currentHTML = editor.getHTML();
+    if (content !== currentHTML && content !== "") {
+      if (editor.isEmpty) {
+        editor.commands.setContent(content, false);
+      }
     }
-  }
+  }, [content, editor]);
 
   return (
     <div

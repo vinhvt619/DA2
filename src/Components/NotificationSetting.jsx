@@ -11,6 +11,7 @@ export default function NotificationItem({
   onChange,
   isOpen,
   onToggle,
+  placement = "bottom",
 }) {
   const [step, setStep] = useState("main");
 
@@ -31,7 +32,7 @@ export default function NotificationItem({
         </div>
 
         {isOpen && (
-          <div className="dropdown-menu">
+          <div className={`dropdown-menu ${placement === 'top' ? 'dropdown-menu-top' : ''}`}>
             {step === "main" && (
               <div>
                 <div className="item" onClick={() => selectValue("Bật")}>

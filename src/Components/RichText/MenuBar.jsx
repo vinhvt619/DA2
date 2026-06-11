@@ -2,13 +2,12 @@ import {
   BoldIcon,
   ItalicIcon,
   StrikethroughIcon,
-  H1Icon,
   ListBulletIcon,
   QueueListIcon,
   ChatBubbleBottomCenterTextIcon,
   ArrowUturnLeftIcon,
   ArrowUturnRightIcon,
-  CodeBracketIcon
+  CodeBracketIcon,
 } from "@heroicons/react/24/outline";
 
 function MenuBar({ editor }) {
@@ -60,7 +59,7 @@ function MenuBar({ editor }) {
       isActive: () => editor.isActive("bulletList"),
     },
     {
-      icon: <QueueListIcon className="w-5 h-5" />, // Using QueueList for Ordered List representation
+      icon: <QueueListIcon className="w-5 h-5" />,
       title: "Ordered List",
       action: () => editor.chain().focus().toggleOrderedList().run(),
       isActive: () => editor.isActive("orderedList"),
@@ -111,7 +110,7 @@ function MenuBar({ editor }) {
             disabled={disabled}
             title={item.title}
             className={`
-              p-1.5 rounded transition-colors duration-200
+              p-1.5 rounded
               ${isActive ? "bg-gray-200 text-black shadow-sm" : "text-gray-600 hover:bg-gray-200 hover:text-black"}
               ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
               ${item.label ? "font-bold text-sm px-2" : ""}

@@ -1,15 +1,14 @@
-import withMT from "@material-tailwind/react/utils/withMT";
-import plugin from "tailwindcss/plugin";
-
 /** @type {import('tailwindcss').Config} */
-export default withMT({
+import defaultTheme from "tailwindcss/defaultTheme";
+
+export default {
   content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: ["Inter", ...defaultTheme.fontFamily.sans],
+      },
+    },
   },
-  plugins: [
-    plugin(function ({ addVariant }) {
-      addVariant("not-last-child", "&>*:not(:last-child)"); // select all child except last
-    }),
-  ],
-});
+  plugins: [],
+};

@@ -1,11 +1,106 @@
-import "./../../src/App.css";
-import Header from "../Components/Header";
-import React from "react";
+import "../App.css";
+import HeaderNoUser from "../Components/HeaderNoUser";
+import React, { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useToastContext } from "../Components/Toast";
 
 function Register() {
+  const navigate = useNavigate();
+  const showToast = useToastContext();
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    role: "employee",
+    terms: false,
+  });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (
+      !formData.username ||
+      !formData.email ||
+      !formData.password ||
+      !formData.confirmPassword
+    ) {
+      setError("Vui lòng nhập đầy đủ thông tin.");
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Mật khẩu xác nhận không khớp.");
+      return;
+    }
+
+    if (!formData.terms) {
+      setError("Bạn phải đồng ý với Điều khoản sử dụng.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const loginRes = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            username: formData.username,
+            password: formData.password,
+          }),
+        });
+        const loginData = await loginRes.json();
+
+        showToast(
+          "Đăng ký thành công! Chào mừng bạn đến với RabbitCV 🎉",
+          "success",
+        );
+        
+        if (loginData.user?.role === "company") {
+          setTimeout(() => navigate("/CompanyDashboard"), 1000);
+        } else {
+          setTimeout(() => navigate("/WelcomePageCustomer"), 1000);
+        }
+      } else {
+        setError(data.message || "Có lỗi xảy ra khi đăng ký.");
+      }
+    } catch {
+      setError("Lỗi kết nối đến máy chủ.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="w-full min-h-screen bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] flex flex-col">
-      <Header />
+      <HeaderNoUser />
+
       <div className="flex-1 flex flex-col items-center justify-center p-4">
         <div className="flex flex-col items-center mb-4">
           <img
@@ -16,8 +111,14 @@ function Register() {
           <h1 className="text-xl font-bold text-[#9346F5]">Đăng ký</h1>
         </div>
 
-        <form className="w-full max-w-sm">
+        <form className="w-full max-w-sm" onSubmit={handleSubmit}>
           <div className="bg-white p-6 rounded-3xl shadow-xl space-y-4">
+            {error && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-medium border border-red-100 text-center">
+                {error}
+              </div>
+            )}
+
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1 ml-1">
@@ -25,7 +126,10 @@ function Register() {
                 </label>
                 <input
                   type="text"
-                  className="w-full border-2 border-gray-300 px-4 py-2 rounded-xl focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/20 transition-all duration-200"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  className="w-full border-2 border-gray-300 px-4 py-2 rounded-xl focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/20"
                   placeholder="Nhập tên đăng nhập"
                 />
               </div>
@@ -36,7 +140,10 @@ function Register() {
                 </label>
                 <input
                   type="email"
-                  className="w-full border-2 border-gray-300 px-4 py-2 rounded-xl focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/20 transition-all duration-200"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full border-2 border-gray-300 px-4 py-2 rounded-xl focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/20"
                   placeholder="example@mail.com"
                 />
               </div>
@@ -47,7 +154,10 @@ function Register() {
                 </label>
                 <input
                   type="password"
-                  className="w-full border-2 border-gray-300 px-4 py-2 rounded-xl focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/20 transition-all duration-200"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full border-2 border-gray-300 px-4 py-2 rounded-xl focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/20"
                   placeholder="Nhập mật khẩu"
                 />
               </div>
@@ -58,16 +168,52 @@ function Register() {
                 </label>
                 <input
                   type="password"
-                  className="w-full border-2 border-gray-300 px-4 py-2 rounded-xl focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/20 transition-all duration-200"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="w-full border-2 border-gray-300 px-4 py-2 rounded-xl focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/20"
                   placeholder="Nhập lại mật khẩu"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
+                  Bạn là
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(p => ({ ...p, role: 'employee' }))}
+                    className={`py-2.5 px-4 rounded-xl border-2 text-sm font-bold transition-all cursor-pointer ${
+                      formData.role === 'employee'
+                        ? 'border-[#9346F5] bg-purple-50 text-[#9346F5] shadow-xs'
+                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                    }`}
+                  >
+                    Ứng viên
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(p => ({ ...p, role: 'company' }))}
+                    className={`py-2.5 px-4 rounded-xl border-2 text-sm font-bold transition-all cursor-pointer ${
+                      formData.role === 'company'
+                        ? 'border-[#9346F5] bg-purple-50 text-[#9346F5] shadow-xs'
+                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                    }`}
+                  >
+                    Doanh nghiệp
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-start mt-2">
                 <div className="flex items-center h-5 mt-1">
                   <input
                     id="terms"
+                    name="terms"
                     type="checkbox"
+                    checked={formData.terms}
+                    onChange={handleChange}
                     className="w-4 h-4 text-[#9346F5] border-gray-300 rounded focus:ring-[#9346F5] cursor-pointer"
                   />
                 </div>
@@ -86,20 +232,22 @@ function Register() {
 
             <button
               type="submit"
-              className="w-full bg-linear-to-r from-[#9346F5] to-[#7c38c9] text-white font-bold py-2.5 px-4 rounded-xl hover:shadow-xl cursor-pointer transition-all duration-200 active:scale-[0.98]"
+              disabled={loading}
+              className={`w-full text-white font-bold py-2.5 px-4 rounded-xl shadow-md 
+                ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-linear-to-r from-[#9346F5] to-[#7c38c9] hover:shadow-xl cursor-pointer]"}`}
             >
-              Đăng ký tài khoản
+              {loading ? "Đang xử lý..." : "Đăng ký tài khoản"}
             </button>
 
             <div className="text-center">
               <p className="text-xs text-gray-600">
                 Đã có tài khoản?{" "}
-                <a
-                  href="/login"
-                  className="text-[#9346F5] hover:text-[#7c38c9] font-semibold transition-colors"
+                <Link
+                  to="/login"
+                  className="text-[#9346F5] hover:text-[#7c38c9] font-semibold"
                 >
                   Đăng nhập ngay
-                </a>
+                </Link>
               </p>
             </div>
           </div>

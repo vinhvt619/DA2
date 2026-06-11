@@ -6,6 +6,7 @@ import {
 } from "@heroicons/react/24/outline";
 import React, { useState } from "react";
 import Editor from "./RichText/Editor";
+import Toast, { useToast } from "./Toast";
 
 export default function ResumeForm({
   image,
@@ -30,7 +31,10 @@ export default function ResumeForm({
   setProject,
   award,
   setAward,
+  hobby,
+  setHobby,
 }) {
+  const { toast, showToast } = useToast();
   const [isModalProfileOpen, setIsModalProfileOpen] = useState(false);
   const [isModalExperienceOpen, setIsModalExperienceOpen] = useState(false);
   const [isModalEducationOpen, setIsModalEducationOpen] = useState(false);
@@ -39,6 +43,7 @@ export default function ResumeForm({
   const [isModalCertificateOpen, setIsModalCertificateOpen] = useState(false);
   const [isModalProjectOpen, setIsModalProjectOpen] = useState(false);
   const [isModalAwardOpen, setIsModalAwardOpen] = useState(false);
+  const [isModalHobbyOpen, setIsModalHobbyOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [newProfile, setNewProfile] = useState({
     networkName: "",
@@ -57,6 +62,8 @@ export default function ResumeForm({
     title: "",
     company: "",
     location: "",
+    major: "",
+    score: "",
     startDate: "",
     endDate: "",
     description: "",
@@ -92,21 +99,32 @@ export default function ResumeForm({
     description: "",
   });
 
+  const [newHobby, setNewHobby] = useState({
+    title: "",
+  });
+
   const onImageChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setImage(URL.createObjectURL(e.target.files[0]));
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImage(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleEditEducation = (item) => {
     setEditingId(item.id);
     setNewEducation({
-      title: item.title,
-      company: item.company,
-      location: item.location,
-      startDate: item.startDate,
-      endDate: item.endDate,
-      description: item.description,
+      title: item.title || "",
+      company: item.company || "",
+      location: item.location || "",
+      major: item.major || "",
+      score: item.score || "",
+      startDate: item.startDate || "",
+      endDate: item.endDate || "",
+      description: item.description || "",
     });
     setIsModalEducationOpen(true);
   };
@@ -198,6 +216,20 @@ export default function ResumeForm({
     }
   };
 
+  const handleEditHobby = (item) => {
+    setEditingId(item.id);
+    setNewHobby({
+      title: item.title,
+    });
+    setIsModalHobbyOpen(true);
+  };
+  const handleDeleteHobby = (e, id) => {
+    e.stopPropagation();
+    if (confirm("Bạn có chắc chắn muốn xóa sở thích này không?")) {
+      setHobby(hobby.filter((item) => item.id !== id));
+    }
+  };
+
   const handleDeleteExperience = (e, id) => {
     e.stopPropagation();
     if (confirm("Bạn có chắc chắn muốn xóa kinh nghiệm này không?")) {
@@ -235,8 +267,9 @@ export default function ResumeForm({
 
   return (
     <div className="w-full border-r bg-white p-8 overflow-y-scroll h-full">
+      <Toast toast={toast} />
       <div>
-        <div className="font-semibold  mb-4">Hình ảnh</div>
+        <div className="font-semibold mb-4">Hình ảnh</div>
 
         <label
           htmlFor="avatar"
@@ -267,7 +300,7 @@ export default function ResumeForm({
         />
       </div>
       <div className=" my-5 w-full">
-        <div className="font-semibold  mb-2">Họ và tên</div>
+        <div className="font-semibold mb-2">Họ và tên</div>
         <input
           className="rounded-sm border p-1.5 px-4 w-full text-sm"
           value={personalInfo.fullName}
@@ -277,7 +310,7 @@ export default function ResumeForm({
         />
       </div>
       <div className="my-5">
-        <div className="font-semibold  mb-2">Tiêu đề</div>
+        <div className="font-semibold mb-2">Tiêu đề</div>
         <input
           className="rounded-sm border p-1.5 px-4 w-full text-sm"
           value={personalInfo.jobTitle}
@@ -288,7 +321,7 @@ export default function ResumeForm({
       </div>
       <div className="flex gap-5">
         <div className="my-5">
-          <div className="font-semibold  mb-2">Email</div>
+          <div className="font-semibold mb-2">Email</div>
           <input
             className="rounded-sm border p-1.5 px-4 w-full text-sm"
             value={personalInfo.email}
@@ -298,7 +331,7 @@ export default function ResumeForm({
           />
         </div>
         <div className="my-5">
-          <div className="font-semibold  mb-2">Trang web</div>
+          <div className="font-semibold mb-2">Trang web</div>
           <input
             className="rounded-sm border p-1.5 px-4 w-full text-sm"
             value={personalInfo.website}
@@ -310,7 +343,7 @@ export default function ResumeForm({
       </div>
       <div className="flex gap-5">
         <div className="my-5">
-          <div className="font-semibold  mb-2">Điện thoại</div>
+          <div className="font-semibold mb-2">Điện thoại</div>
           <input
             className="rounded-sm border p-1.5 px-4 w-full text-sm"
             value={personalInfo.phone}
@@ -320,7 +353,7 @@ export default function ResumeForm({
           />
         </div>
         <div className="my-5">
-          <div className="font-semibold  mb-2">Vị trí</div>
+          <div className="font-semibold mb-2">Vị trí</div>
           <input
             className="rounded-sm border p-1.5 px-4 w-full text-sm"
             value={personalInfo.location}
@@ -344,7 +377,7 @@ export default function ResumeForm({
       {profile.map((item) => (
         <div
           key={item.id}
-          className="border border-gray-300 p-3 px-8 hover:bg-gray-50 cursor-pointer rounded-md mt-3 relative group transition-colors"
+          className="border border-gray-300 p-3 px-8 hover:bg-gray-50 cursor-pointer rounded-md mt-3 relative group"
           onClick={() => handleEditProfile(item)}
         >
           <div className="flex justify-between items-start">
@@ -358,7 +391,7 @@ export default function ResumeForm({
               )}
             </div>
 
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="opacity-0 group-hover:opacity-100">
               <button
                 className="p-1 hover:bg-red-100 rounded-full text-red-500 cursor-pointer"
                 onClick={(e) => handleDeleteProfile(e, item.id)}
@@ -371,7 +404,7 @@ export default function ResumeForm({
       ))}
 
       <div
-        className={`mt-4 border border-blue-500 text-blue-500 p-2 px-6 hover:bg-blue-50 cursor-pointer rounded-md place-self-end flex items-center gap-2 transition-colors ${profile.length === 0 ? "w-full justify-center" : "w-fit"}`}
+        className={`mt-4 border border-blue-500 text-blue-500 p-2 px-6 hover:bg-blue-50 cursor-pointer rounded-md place-self-end flex items-center gap-2 ${profile.length === 0 ? "w-full justify-center" : "w-fit"}`}
         onClick={() => {
           setEditingId(null);
           setNewProfile({ networkName: "", username: "", link: "" });
@@ -384,14 +417,14 @@ export default function ResumeForm({
 
       {isModalProfileOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform animate-in fade-in zoom-in">
             <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
               <h3 className="text-lg font-bold text-gray-800">
                 {editingId ? "Chỉnh Sửa Profile" : "Thêm Profile Mới"}
               </h3>
               <button
                 onClick={() => setIsModalProfileOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-200"
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -405,7 +438,7 @@ export default function ResumeForm({
                 <input
                   type="text"
                   placeholder="Ví dụ: LinkedIn, GitHub"
-                  className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                   value={newProfile.networkName}
                   onChange={(e) =>
                     setNewProfile({
@@ -423,7 +456,7 @@ export default function ResumeForm({
                 <input
                   type="text"
                   placeholder="Ví dụ: nguyenvan_a"
-                  className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                   value={newProfile.username}
                   onChange={(e) =>
                     setNewProfile({ ...newProfile, username: e.target.value })
@@ -438,7 +471,7 @@ export default function ResumeForm({
                 <input
                   type="text"
                   placeholder="https://..."
-                  className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                   value={newProfile.link}
                   onChange={(e) =>
                     setNewProfile({ ...newProfile, link: e.target.value })
@@ -450,7 +483,7 @@ export default function ResumeForm({
             <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
               <button
                 onClick={() => setIsModalProfileOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg"
               >
                 Hủy
               </button>
@@ -472,18 +505,18 @@ export default function ResumeForm({
                   } else {
                     setProfile([
                       ...profile,
-                      { ...newProfile, id: profile.length + 1 },
+                      { ...newProfile, id: Date.now() },
                     ]);
                   }
 
                   setIsModalProfileOpen(false);
                 }}
                 className={`
-                  px-4 py-2 text-sm font-medium text-white rounded-lg transition-all shadow-md
+                  px-4 py-2 text-sm font-medium text-white rounded-lg shadow-md
                   ${
                     !newProfile.networkName || !newProfile.username
                       ? "bg-blue-300 cursor-not-allowed"
-                      : "bg-blue-600 hover:bg-blue-700 active:transform active:scale-95"
+                      : "bg-blue-600 hover:bg-blue-700 active:transform"
                   }
                 `}
                 disabled={!newProfile.networkName || !newProfile.username}
@@ -500,7 +533,7 @@ export default function ResumeForm({
       {experience.map((item) => (
         <div
           key={item.id}
-          className="border border-gray-300 p-3 px-8 hover:bg-gray-50 cursor-pointer rounded-md mt-3 relative group transition-colors"
+          className="border border-gray-300 p-3 px-8 hover:bg-gray-50 cursor-pointer rounded-md mt-3 relative group"
           onClick={() => handleEditExperience(item)}
         >
           <div className="flex justify-between items-start">
@@ -512,7 +545,7 @@ export default function ResumeForm({
                 {item.startDate} - {item.endDate}
               </div>
             </div>
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="opacity-0 group-hover:opacity-100">
               <button
                 className="p-1 hover:bg-red-100 rounded-full text-red-500 cursor-pointer"
                 onClick={(e) => handleDeleteExperience(e, item.id)}
@@ -528,7 +561,7 @@ export default function ResumeForm({
         </div>
       ))}
       <div
-        className={`mt-4 border border-blue-500 text-blue-500 p-2 px-6 hover:bg-blue-50 cursor-pointer rounded-md place-self-end flex items-center gap-2 transition-colors ${experience.length === 0 ? "w-full justify-center" : "w-fit"}`}
+        className={`mt-4 border border-blue-500 text-blue-500 p-2 px-6 hover:bg-blue-50 cursor-pointer rounded-md place-self-end flex items-center gap-2 ${experience.length === 0 ? "w-full justify-center" : "w-fit"}`}
         onClick={() => {
           setEditingId(null);
           setNewExperience({
@@ -547,14 +580,14 @@ export default function ResumeForm({
       </div>
       {isModalExperienceOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
             <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
               <h3 className="text-lg font-bold text-gray-800">
                 {editingId ? "Chỉnh Sửa Kinh Nghiệm" : "Thêm Kinh Nghiệm Mới"}
               </h3>
               <button
                 onClick={() => setIsModalExperienceOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-200"
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -569,7 +602,7 @@ export default function ResumeForm({
                   <input
                     type="text"
                     placeholder="Ví dụ: Amazon, Google"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newExperience.company}
                     onChange={(e) =>
                       setNewExperience({
@@ -586,7 +619,7 @@ export default function ResumeForm({
                   <input
                     type="text"
                     placeholder="Ví dụ: Nhân viên văn phòng"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newExperience.title}
                     onChange={(e) =>
                       setNewExperience({
@@ -604,7 +637,7 @@ export default function ResumeForm({
                   </label>
                   <input
                     type="date"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newExperience.startDate}
                     onChange={(e) =>
                       setNewExperience({
@@ -620,7 +653,7 @@ export default function ResumeForm({
                   </label>
                   <input
                     type="date"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newExperience.endDate}
                     onChange={(e) =>
                       setNewExperience({
@@ -638,7 +671,7 @@ export default function ResumeForm({
                 <input
                   type="text"
                   placeholder="Ví dụ: Hà Nội"
-                  className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                   value={newExperience.location}
                   onChange={(e) =>
                     setNewExperience({
@@ -666,7 +699,7 @@ export default function ResumeForm({
             <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
               <button
                 onClick={() => setIsModalExperienceOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg"
               >
                 Hủy
               </button>
@@ -688,18 +721,18 @@ export default function ResumeForm({
                   } else {
                     setExperience([
                       ...experience,
-                      { ...newExperience, id: experience.length + 1 },
+                      { ...newExperience, id: Date.now() },
                     ]);
                   }
 
                   setIsModalExperienceOpen(false);
                 }}
                 className={`
-                  px-4 py-2 text-sm font-medium text-white rounded-lg transition-all shadow-md
+                  px-4 py-2 text-sm font-medium text-white rounded-lg shadow-md
                   ${
                     !newExperience.company || !newExperience.title
                       ? "bg-blue-300 cursor-not-allowed"
-                      : "bg-blue-600 hover:bg-blue-700 active:transform active:scale-95"
+                      : "bg-blue-600 hover:bg-blue-700 active:transform"
                   }
                 `}
                 disabled={!newExperience.company || !newExperience.title}
@@ -715,19 +748,24 @@ export default function ResumeForm({
       {education.map((item) => (
         <div
           key={item.id}
-          className="border border-gray-300 p-3 px-8 hover:bg-gray-50 cursor-pointer rounded-md mt-3 relative group transition-colors"
+          className="border border-gray-300 p-3 px-8 hover:bg-gray-50 cursor-pointer rounded-md mt-3 relative group"
           onClick={() => handleEditEducation(item)}
         >
           <div className="flex justify-between items-start">
             <div>
               <div className="font-medium">{item.title}</div>
               <div className="text-sm text-gray-500">{item.company}</div>
+              {(item.major || item.score) && (
+                <div className="text-sm text-gray-500">
+                  {item.major}{item.major && item.score ? " - " : ""}{item.score}
+                </div>
+              )}
               <div className="text-xs text-gray-500">{item.location}</div>
               <div className="text-xs text-gray-500">
                 {item.startDate} - {item.endDate}
               </div>
             </div>
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="opacity-0 group-hover:opacity-100">
               <button
                 className="p-1 hover:bg-red-100 rounded-full text-red-500 cursor-pointer"
                 onClick={(e) => handleDeleteEducation(e, item.id)}
@@ -744,13 +782,15 @@ export default function ResumeForm({
       ))}
 
       <div
-        className={`mt-4 border border-blue-500 text-blue-500 p-2 px-6 hover:bg-blue-50 cursor-pointer rounded-md place-self-end flex items-center gap-2 transition-colors ${education.length === 0 ? "w-full justify-center" : "w-fit"}`}
+        className={`mt-4 border border-blue-500 text-blue-500 p-2 px-6 hover:bg-blue-50 cursor-pointer rounded-md place-self-end flex items-center gap-2 ${education.length === 0 ? "w-full justify-center" : "w-fit"}`}
         onClick={() => {
           setEditingId(null);
           setNewEducation({
             title: "",
             company: "",
             location: "",
+            major: "",
+            score: "",
             startDate: "",
             endDate: "",
             description: "",
@@ -763,14 +803,14 @@ export default function ResumeForm({
       </div>
       {isModalEducationOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
             <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
               <h3 className="text-lg font-bold text-gray-800">
                 {editingId ? "Chỉnh Sửa Học Vấn" : "Thêm Học Vấn Mới"}
               </h3>
               <button
                 onClick={() => setIsModalEducationOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-200"
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -780,12 +820,12 @@ export default function ResumeForm({
               <div className="flex gap-4">
                 <div className="w-1/2">
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Công ty <span className="text-red-500">*</span>
+                    Trường <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
-                    placeholder="Ví dụ: Amazon, Google"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    placeholder="Ví dụ: Đại học Bách Khoa"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newEducation.company}
                     onChange={(e) =>
                       setNewEducation({
@@ -797,12 +837,12 @@ export default function ResumeForm({
                 </div>
                 <div className="w-1/2">
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Chức vụ <span className="text-red-500">*</span>
+                    Bằng cấp <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
-                    placeholder="Ví dụ: Nhân viên văn phòng"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    placeholder="Ví dụ: Cử nhân"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newEducation.title}
                     onChange={(e) =>
                       setNewEducation({
@@ -816,11 +856,47 @@ export default function ResumeForm({
               <div className="flex gap-4">
                 <div className="w-1/2">
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Lĩnh vực học tập
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: Kỹ thuật phần mềm"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                    value={newEducation.major}
+                    onChange={(e) =>
+                      setNewEducation({
+                        ...newEducation,
+                        major: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="w-1/2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Bảng điểm
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: 3.8/4.0"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                    value={newEducation.score}
+                    onChange={(e) =>
+                      setNewEducation({
+                        ...newEducation,
+                        score: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="w-1/2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
                     Thời gian bắt đầu
                   </label>
                   <input
                     type="date"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newEducation.startDate}
                     onChange={(e) =>
                       setNewEducation({
@@ -836,7 +912,7 @@ export default function ResumeForm({
                   </label>
                   <input
                     type="date"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newEducation.endDate}
                     onChange={(e) =>
                       setNewEducation({
@@ -854,7 +930,7 @@ export default function ResumeForm({
                 <input
                   type="text"
                   placeholder="Ví dụ: Hà Nội"
-                  className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                   value={newEducation.location}
                   onChange={(e) =>
                     setNewEducation({
@@ -885,14 +961,14 @@ export default function ResumeForm({
                 onClick={() => {
                   setIsModalEducationOpen(false);
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg transition-colors border border-gray-300"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg border border-gray-300"
               >
                 Hủy
               </button>
               <button
                 onClick={() => {
                   if (!newEducation.company || !newEducation.title) {
-                    alert("Vui lòng điền tên công ty và chức vụ!");
+                    alert("Vui lòng điền tên trường và bằng cấp!");
                     return;
                   }
 
@@ -907,18 +983,18 @@ export default function ResumeForm({
                   } else {
                     setEducation([
                       ...education,
-                      { ...newEducation, id: education.length + 1 },
+                      { ...newEducation, id: Date.now() },
                     ]);
                   }
 
                   setIsModalEducationOpen(false);
                 }}
                 className={`
-                  px-4 py-2 text-sm font-medium text-white rounded-lg transition-all shadow-md
+                  px-4 py-2 text-sm font-medium text-white rounded-lg shadow-md
                   ${
                     !newEducation.company || !newEducation.title
                       ? "bg-blue-300 cursor-not-allowed"
-                      : "bg-blue-600 hover:bg-blue-700 active:transform active:scale-95"
+                      : "bg-blue-600 hover:bg-blue-700 active:transform"
                   }
                 `}
                 disabled={!newEducation.company || !newEducation.title}
@@ -934,7 +1010,7 @@ export default function ResumeForm({
       {skill.map((item) => (
         <div
           key={item.id}
-          className="border border-gray-300 p-3 px-8 hover:bg-gray-50 cursor-pointer rounded-md mt-3 relative group transition-colors"
+          className="border border-gray-300 p-3 px-8 hover:bg-gray-50 cursor-pointer rounded-md mt-3 relative group"
           onClick={() => handleEditSkill(item)}
         >
           <div className="flex justify-between items-start">
@@ -943,7 +1019,7 @@ export default function ResumeForm({
               <div className="text-sm text-gray-500">{item.description}</div>
               <div className="text-xs text-gray-500">{item.performance}</div>
             </div>
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="opacity-0 group-hover:opacity-100">
               <button
                 className="p-1 hover:bg-red-100 rounded-full text-red-500 cursor-pointer"
                 onClick={(e) => handleDeleteSkill(e, item.id)}
@@ -955,7 +1031,7 @@ export default function ResumeForm({
         </div>
       ))}
       <div
-        className={`mt-4 border border-blue-500 text-blue-500 p-2 px-6 hover:bg-blue-50 cursor-pointer rounded-md place-self-end flex items-center gap-2 transition-colors ${skill.length === 0 ? "w-full justify-center" : "w-fit"}`}
+        className={`mt-4 border border-blue-500 text-blue-500 p-2 px-6 hover:bg-blue-50 cursor-pointer rounded-md place-self-end flex items-center gap-2 ${skill.length === 0 ? "w-full justify-center" : "w-fit"}`}
         onClick={() => {
           setEditingId(null);
           setNewSkill({
@@ -971,14 +1047,14 @@ export default function ResumeForm({
       </div>
       {isModalSkillOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
             <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
               <h3 className="text-lg font-bold text-gray-800">
                 {editingId ? "Chỉnh Sửa Kỹ Năng" : "Thêm Kỹ Năng Mới"}
               </h3>
               <button
                 onClick={() => setIsModalSkillOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-200"
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -992,8 +1068,8 @@ export default function ResumeForm({
                   </label>
                   <input
                     type="text"
-                    placeholder="Ví dụ: Amazon, Google"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    placeholder="Ví dụ: ReactJS, Lãnh đạo"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newSkill.title}
                     onChange={(e) =>
                       setNewSkill({
@@ -1005,12 +1081,11 @@ export default function ResumeForm({
                 </div>
                 <div className="w-1/2">
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Mô tả <span className="text-red-500">*</span>
+                    Mô tả (Tùy chọn)
                   </label>
                   <input
                     type="text"
-                    placeholder="Ví dụ: Nhân viên văn phòng"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newSkill.description}
                     onChange={(e) =>
                       setNewSkill({
@@ -1075,14 +1150,14 @@ export default function ResumeForm({
             <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
               <button
                 onClick={() => setIsModalSkillOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg"
               >
                 Hủy
               </button>
               <button
                 onClick={() => {
-                  if (!newSkill.title || !newSkill.description) {
-                    alert("Vui lòng điền tên công ty và chức vụ!");
+                  if (!newSkill.title) {
+                    alert("Vui lòng điền tên kỹ năng!");
                     return;
                   }
 
@@ -1095,20 +1170,20 @@ export default function ResumeForm({
                       ),
                     );
                   } else {
-                    setSkill([...skill, { ...newSkill, id: skill.length + 1 }]);
+                    setSkill([...skill, { ...newSkill, id: Date.now() }]);
                   }
 
                   setIsModalSkillOpen(false);
                 }}
                 className={`
-                  px-4 py-2 text-sm font-medium text-white rounded-lg transition-all shadow-md
+                  px-4 py-2 text-sm font-medium text-white rounded-lg shadow-md
                   ${
-                    !newSkill.title || !newSkill.description
+                    !newSkill.title
                       ? "bg-blue-300 cursor-not-allowed"
-                      : "bg-blue-600 hover:bg-blue-700 active:transform active:scale-95"
+                      : "bg-blue-600 hover:bg-blue-700 active:transform"
                   }
                 `}
-                disabled={!newSkill.title || !newSkill.description}
+                disabled={!newSkill.title}
               >
                 {editingId ? "Lưu thay đổi" : "Thêm mới"}
               </button>
@@ -1121,7 +1196,7 @@ export default function ResumeForm({
       {language.map((item) => (
         <div
           key={item.id}
-          className="border border-gray-300 p-3 px-8 hover:bg-gray-50 cursor-pointer rounded-md mt-3 relative group transition-colors"
+          className="border border-gray-300 p-3 px-8 hover:bg-gray-50 cursor-pointer rounded-md mt-3 relative group"
           onClick={() => handleEditLanguage(item)}
         >
           <div className="flex justify-between items-start">
@@ -1129,7 +1204,7 @@ export default function ResumeForm({
               <div className="font-medium">{item.title}</div>
               <div className="text-sm text-gray-500">{item.description}</div>
             </div>
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="opacity-0 group-hover:opacity-100">
               <button
                 className="p-1 hover:bg-red-100 rounded-full text-red-500 cursor-pointer"
                 onClick={(e) => handleDeleteLanguage(e, item.id)}
@@ -1141,7 +1216,7 @@ export default function ResumeForm({
         </div>
       ))}
       <div
-        className={`mt-4 border border-blue-500 text-blue-500 p-2 px-6 hover:bg-blue-50 cursor-pointer rounded-md place-self-end flex items-center gap-2 transition-colors ${language.length === 0 ? "w-full justify-center" : "w-fit"}`}
+        className={`mt-4 border border-blue-500 text-blue-500 p-2 px-6 hover:bg-blue-50 cursor-pointer rounded-md place-self-end flex items-center gap-2 ${language.length === 0 ? "w-full justify-center" : "w-fit"}`}
         onClick={() => {
           setEditingId(null);
           setNewLanguage({
@@ -1156,14 +1231,14 @@ export default function ResumeForm({
       </div>
       {isModalLanguageOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
             <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
               <h3 className="text-lg font-bold text-gray-800">
                 {editingId ? "Chỉnh Sửa Ngoại Ngữ" : "Thêm Ngoại Ngữ Mới"}
               </h3>
               <button
                 onClick={() => setIsModalLanguageOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-200"
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -1178,7 +1253,7 @@ export default function ResumeForm({
                   <input
                     type="text"
                     placeholder="Ví dụ: Amazon, Google"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newLanguage.title}
                     onChange={(e) =>
                       setNewLanguage({
@@ -1195,7 +1270,7 @@ export default function ResumeForm({
                   <input
                     type="text"
                     placeholder="Ví dụ: Nhân viên văn phòng"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newLanguage.description}
                     onChange={(e) =>
                       setNewLanguage({
@@ -1211,7 +1286,7 @@ export default function ResumeForm({
             <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
               <button
                 onClick={() => setIsModalLanguageOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg"
               >
                 Hủy
               </button>
@@ -1233,18 +1308,18 @@ export default function ResumeForm({
                   } else {
                     setLanguage([
                       ...language,
-                      { ...newLanguage, id: language.length + 1 },
+                      { ...newLanguage, id: Date.now() },
                     ]);
                   }
 
                   setIsModalLanguageOpen(false);
                 }}
                 className={`
-                  px-4 py-2 text-sm font-medium text-white rounded-lg transition-all shadow-md
+                  px-4 py-2 text-sm font-medium text-white rounded-lg shadow-md
                   ${
                     !newLanguage.title || !newLanguage.description
                       ? "bg-blue-300 cursor-not-allowed"
-                      : "bg-blue-600 hover:bg-blue-700 active:transform active:scale-95"
+                      : "bg-blue-600 hover:bg-blue-700 active:transform"
                   }
                 `}
                 disabled={!newLanguage.title || !newLanguage.description}
@@ -1260,7 +1335,7 @@ export default function ResumeForm({
       {certificate.map((item) => (
         <div
           key={item.id}
-          className="border border-gray-300 p-3 px-8 hover:bg-gray-50 cursor-pointer rounded-md mt-3 relative group transition-colors"
+          className="border border-gray-300 p-3 px-8 hover:bg-gray-50 cursor-pointer rounded-md mt-3 relative group"
           onClick={() => handleEditCertificate(item)}
         >
           <div className="flex justify-between items-start">
@@ -1269,7 +1344,7 @@ export default function ResumeForm({
               <div className="text-sm text-gray-500">{item.publisher}</div>
               <div className="text-xs text-gray-500">{item.date}</div>
             </div>
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="opacity-0 group-hover:opacity-100">
               <button
                 className="p-1 hover:bg-red-100 rounded-full text-red-500 cursor-pointer"
                 onClick={(e) => handleDeleteCertificate(e, item.id)}
@@ -1285,7 +1360,7 @@ export default function ResumeForm({
         </div>
       ))}
       <div
-        className={`mt-4 border border-blue-500 text-blue-500 p-2 px-6 hover:bg-blue-50 cursor-pointer rounded-md place-self-end flex items-center gap-2 transition-colors ${certificate.length === 0 ? "w-full justify-center" : "w-fit"}`}
+        className={`mt-4 border border-blue-500 text-blue-500 p-2 px-6 hover:bg-blue-50 cursor-pointer rounded-md place-self-end flex items-center gap-2 ${certificate.length === 0 ? "w-full justify-center" : "w-fit"}`}
         onClick={() => {
           setEditingId(null);
           setNewCertificate({
@@ -1302,14 +1377,14 @@ export default function ResumeForm({
       </div>
       {isModalCertificateOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
             <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
               <h3 className="text-lg font-bold text-gray-800">
                 {editingId ? "Chỉnh Sửa Chứng Chỉ" : "Thêm Chứng Chỉ Mới"}
               </h3>
               <button
                 onClick={() => setIsModalCertificateOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-200"
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -1324,7 +1399,7 @@ export default function ResumeForm({
                   <input
                     type="text"
                     placeholder="Ví dụ: Amazon, Google"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newCertificate.title}
                     onChange={(e) =>
                       setNewCertificate({
@@ -1341,7 +1416,7 @@ export default function ResumeForm({
                   <input
                     type="text"
                     placeholder="Ví dụ: Nhân viên văn phòng"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newCertificate.publisher}
                     onChange={(e) =>
                       setNewCertificate({
@@ -1359,7 +1434,7 @@ export default function ResumeForm({
                   </label>
                   <input
                     type="date"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newCertificate.date}
                     onChange={(e) =>
                       setNewCertificate({
@@ -1388,7 +1463,7 @@ export default function ResumeForm({
             <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
               <button
                 onClick={() => setIsModalCertificateOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg"
               >
                 Hủy
               </button>
@@ -1410,18 +1485,18 @@ export default function ResumeForm({
                   } else {
                     setCertificate([
                       ...certificate,
-                      { ...newCertificate, id: certificate.length + 1 },
+                      { ...newCertificate, id: Date.now() },
                     ]);
                   }
 
                   setIsModalCertificateOpen(false);
                 }}
                 className={`
-                  px-4 py-2 text-sm font-medium text-white rounded-lg transition-all shadow-md
+                  px-4 py-2 text-sm font-medium text-white rounded-lg shadow-md
                   ${
                     !newCertificate.title || !newCertificate.publisher
                       ? "bg-blue-300 cursor-not-allowed"
-                      : "bg-blue-600 hover:bg-blue-700 active:transform active:scale-95"
+                      : "bg-blue-600 hover:bg-blue-700 active:transform"
                   }
                 `}
                 disabled={!newCertificate.title || !newCertificate.publisher}
@@ -1437,7 +1512,7 @@ export default function ResumeForm({
       {project.map((item) => (
         <div
           key={item.id}
-          className="border border-gray-300 p-3 px-8 hover:bg-gray-50 cursor-pointer rounded-md mt-3 relative group transition-colors"
+          className="border border-gray-300 p-3 px-8 hover:bg-gray-50 cursor-pointer rounded-md mt-3 relative group"
           onClick={() => handleEditProject(item)}
         >
           <div className="flex justify-between items-start">
@@ -1445,7 +1520,7 @@ export default function ResumeForm({
               <div className="font-medium">{item.title}</div>
               <div className="text-xs text-gray-500">{item.date}</div>
             </div>
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="opacity-0 group-hover:opacity-100">
               <button
                 className="p-1 hover:bg-red-100 rounded-full text-red-500 cursor-pointer"
                 onClick={(e) => handleDeleteProject(e, item.id)}
@@ -1461,7 +1536,7 @@ export default function ResumeForm({
         </div>
       ))}
       <div
-        className={`mt-4 border border-blue-500 text-blue-500 p-2 px-6 hover:bg-blue-50 cursor-pointer rounded-md place-self-end flex items-center gap-2 transition-colors ${project.length === 0 ? "w-full justify-center" : "w-fit"}`}
+        className={`mt-4 border border-blue-500 text-blue-500 p-2 px-6 hover:bg-blue-50 cursor-pointer rounded-md place-self-end flex items-center gap-2 ${project.length === 0 ? "w-full justify-center" : "w-fit"}`}
         onClick={() => {
           setEditingId(null);
           setNewProject({
@@ -1478,14 +1553,14 @@ export default function ResumeForm({
       </div>
       {isModalProjectOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
             <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
               <h3 className="text-lg font-bold text-gray-800">
                 {editingId ? "Chỉnh Sửa Dự Án" : "Thêm Dự Án Mới"}
               </h3>
               <button
                 onClick={() => setIsModalProjectOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-200"
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -1500,7 +1575,7 @@ export default function ResumeForm({
                   <input
                     type="text"
                     placeholder="Ví dụ: Dự án sinh viên xuất sắc"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newProject.title}
                     onChange={(e) =>
                       setNewProject({
@@ -1512,11 +1587,11 @@ export default function ResumeForm({
                 </div>
                 <div className="w-1/2">
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Thời gian
+                    Thời gian (Tùy chọn)
                   </label>
                   <input
                     type="date"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newProject.date}
                     onChange={(e) =>
                       setNewProject({
@@ -1530,12 +1605,12 @@ export default function ResumeForm({
               <div className="flex gap-4">
                 <div className="w-full">
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Link dự án
+                    Link dự án (Tùy chọn)
                   </label>
                   <input
                     type="text"
                     placeholder="https://example.com"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newProject.link}
                     onChange={(e) =>
                       setNewProject({
@@ -1548,7 +1623,7 @@ export default function ResumeForm({
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Mô tả
+                  Mô tả (Tùy chọn)
                 </label>
                 <Editor
                   key={editingId ? `edit-${editingId}` : "new"}
@@ -1564,14 +1639,14 @@ export default function ResumeForm({
             <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
               <button
                 onClick={() => setIsModalProjectOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg"
               >
                 Hủy
               </button>
               <button
                 onClick={() => {
-                  if (!newProject.title || !newProject.date) {
-                    alert("Vui lòng điền tên dự án và thời gian!");
+                  if (!newProject.title) {
+                    alert("Vui lòng điền tên dự án!");
                     return;
                   }
 
@@ -1586,21 +1661,21 @@ export default function ResumeForm({
                   } else {
                     setProject([
                       ...project,
-                      { ...newProject, id: project.length + 1 },
+                      { ...newProject, id: Date.now() },
                     ]);
                   }
 
                   setIsModalProjectOpen(false);
                 }}
                 className={`
-                  px-4 py-2 text-sm font-medium text-white rounded-lg transition-all shadow-md
+                  px-4 py-2 text-sm font-medium text-white rounded-lg shadow-md
                   ${
-                    !newProject.title || !newProject.date
+                    !newProject.title
                       ? "bg-blue-300 cursor-not-allowed"
-                      : "bg-blue-600 hover:bg-blue-700 active:transform active:scale-95"
+                      : "bg-blue-600 hover:bg-blue-700 active:transform"
                   }
                 `}
-                disabled={!newProject.title || !newProject.date}
+                disabled={!newProject.title}
               >
                 {editingId ? "Lưu thay đổi" : "Thêm mới"}
               </button>
@@ -1613,7 +1688,7 @@ export default function ResumeForm({
       {award.map((item) => (
         <div
           key={item.id}
-          className="border border-gray-300 p-3 px-8 hover:bg-gray-50 cursor-pointer rounded-md mt-3 relative group transition-colors"
+          className="border border-gray-300 p-3 px-8 hover:bg-gray-50 cursor-pointer rounded-md mt-3 relative group"
           onClick={() => handleEditAward(item)}
         >
           <div className="flex justify-between items-start">
@@ -1622,7 +1697,7 @@ export default function ResumeForm({
               <div className="text-sm text-gray-500">{item.awarder}</div>
               <div className="text-xs text-gray-500">{item.date}</div>
             </div>
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="opacity-0 group-hover:opacity-100">
               <button
                 className="p-1 hover:bg-red-100 rounded-full text-red-500 cursor-pointer"
                 onClick={(e) => handleDeleteAward(e, item.id)}
@@ -1638,7 +1713,7 @@ export default function ResumeForm({
         </div>
       ))}
       <div
-        className={`mt-4 border border-blue-500 text-blue-500 p-2 px-6 hover:bg-blue-50 cursor-pointer rounded-md place-self-end flex items-center gap-2 transition-colors ${award.length === 0 ? "w-full justify-center" : "w-fit"}`}
+        className={`mt-4 border border-blue-500 text-blue-500 p-2 px-6 hover:bg-blue-50 cursor-pointer rounded-md place-self-end flex items-center gap-2 ${award.length === 0 ? "w-full justify-center" : "w-fit"}`}
         onClick={() => {
           setEditingId(null);
           setNewAward({
@@ -1655,14 +1730,14 @@ export default function ResumeForm({
       </div>
       {isModalAwardOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
             <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
               <h3 className="text-lg font-bold text-gray-800">
                 {editingId ? "Chỉnh Sửa Giải Thưởng" : "Thêm Giải Thưởng Mới"}
               </h3>
               <button
                 onClick={() => setIsModalAwardOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-200"
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -1677,7 +1752,7 @@ export default function ResumeForm({
                   <input
                     type="text"
                     placeholder="Ví dụ: Giải thưởng sinh viên xuất sắc"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newAward.title}
                     onChange={(e) =>
                       setNewAward({
@@ -1694,7 +1769,7 @@ export default function ResumeForm({
                   <input
                     type="text"
                     placeholder="Ví dụ: Trường Đại học Hà Nội"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newAward.awarder}
                     onChange={(e) =>
                       setNewAward({
@@ -1712,7 +1787,7 @@ export default function ResumeForm({
                   </label>
                   <input
                     type="date"
-                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     value={newAward.date}
                     onChange={(e) =>
                       setNewAward({
@@ -1741,7 +1816,7 @@ export default function ResumeForm({
             <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
               <button
                 onClick={() => setIsModalAwardOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg"
               >
                 Hủy
               </button>
@@ -1761,20 +1836,117 @@ export default function ResumeForm({
                       ),
                     );
                   } else {
-                    setAward([...award, { ...newAward, id: award.length + 1 }]);
+                    setAward([...award, { ...newAward, id: Date.now() }]);
                   }
 
                   setIsModalAwardOpen(false);
                 }}
                 className={`
-                  px-4 py-2 text-sm font-medium text-white rounded-lg transition-all shadow-md
+                  px-4 py-2 text-sm font-medium text-white rounded-lg shadow-md
                   ${
                     !newAward.title || !newAward.awarder
                       ? "bg-blue-300 cursor-not-allowed"
-                      : "bg-blue-600 hover:bg-blue-700 active:transform active:scale-95"
+                      : "bg-blue-600 hover:bg-blue-700 active:transform"
                   }
                 `}
                 disabled={!newAward.title || !newAward.awarder}
+              >
+                {editingId ? "Lưu thay đổi" : "Thêm mới"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="border-b border-gray-300 my-5 "></div>
+      <div className="font-semibold ">Sở thích</div>
+      {hobby.map((item) => (
+        <div
+          key={item.id}
+          className="border border-gray-300 p-3 px-8 hover:bg-gray-50 cursor-pointer rounded-md mt-3 relative group"
+          onClick={() => handleEditHobby(item)}
+        >
+          <div className="flex justify-between items-center">
+            <div className="font-medium">{item.title}</div>
+            <div className="opacity-0 group-hover:opacity-100">
+              <button
+                className="p-1 hover:bg-red-100 rounded-full text-red-500 cursor-pointer"
+                onClick={(e) => handleDeleteHobby(e, item.id)}
+              >
+                <TrashIcon className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+      <div
+        className={`mt-4 border border-blue-500 text-blue-500 p-2 px-6 hover:bg-blue-50 cursor-pointer rounded-md place-self-end flex items-center gap-2 ${hobby.length === 0 ? "w-full justify-center" : "w-fit"}`}
+        onClick={() => {
+          setEditingId(null);
+          setNewHobby({ title: "" });
+          setIsModalHobbyOpen(true);
+        }}
+      >
+        <PlusIcon className="w-4 h-4" />
+        Thêm sở thích
+      </div>
+      {isModalHobbyOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform animate-in fade-in zoom-in">
+            <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-800">
+                {editingId ? "Chỉnh Sửa Sở Thích" : "Thêm Sở Thích Mới"}
+              </h3>
+              <button
+                onClick={() => setIsModalHobbyOpen(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Sở thích <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Đọc sách, Nghe nhạc"
+                  className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                  value={newHobby.title}
+                  onChange={(e) => setNewHobby({ ...newHobby, title: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+              <button
+                onClick={() => setIsModalHobbyOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => {
+                  if (!newHobby.title) {
+                    showToast("Vui lòng điền tên sở thích!", "error");
+                    return;
+                  }
+
+                  if (editingId) {
+                    setHobby(hobby.map((item) => item.id === editingId ? { ...newHobby, id: editingId } : item));
+                  } else {
+                    setHobby([...hobby, { ...newHobby, id: Date.now() }]);
+                  }
+
+                  setIsModalHobbyOpen(false);
+                }}
+                className={`
+                  px-4 py-2 text-sm font-medium text-white rounded-lg shadow-md
+                  ${!newHobby.title ? "bg-blue-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 active:transform"}
+                `}
+                disabled={!newHobby.title}
               >
                 {editingId ? "Lưu thay đổi" : "Thêm mới"}
               </button>

@@ -1,16 +1,31 @@
 import React, { useState } from "react";
-import { Button } from "flowbite-react";
+
+function TabButton({ active, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`mr-2 rounded-full px-4 py-2 text-[9px] font-bold uppercase tracking-wider ${
+        active
+          ? "bg-linear-to-r from-[#E49AF6] to-[#CBA3FF] text-white"
+          : "bg-white text-gray-600 hover:bg-gray-50"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
 const ListCV = React.memo(({ rank }) => {
   return (
-    <div className="bg-white border border-gray-300 rounded-2xl p-2.5 mt-4 w-80 text-sm cursor-pointer hover:bg-[#FEEFFB] group transition-all">
+    <div className="mt-4 w-80 cursor-pointer rounded-2xl border-2 border-gray-600 bg-white p-2.5 text-sm hover:bg-[#FEEFFB]">
       <div className="flex items-center space-x-3">
-        <div className="text-sm pl-4 w-12 text-gray-400 font-bold">{rank}</div>
-        <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-bold text-gray-800 group-hover:text-[#9346F5] transition-colors truncate">
+        <div className="w-12 pl-4 text-sm font-bold text-gray-600">{rank}</div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[13px] font-bold text-gray-900">
             Thanh lịch & Hiện đại
           </div>
-          <div className="flex items-center gap-2 mt-0.5">
+          <div className="mt-0.5 flex items-center gap-2">
             <span className="text-[11px] font-semibold text-gray-400">
               Đã dùng:
             </span>
@@ -28,75 +43,31 @@ export default function TopCVList() {
   const [active, setActive] = useState("t1");
 
   return (
-    <div className="w-full bg-[#F5F1FB] border-2 border-gray-300 rounded-3xl p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-2">
-        <div className="font-bold text-lg text-gray-900 tracking-tight pl-3">
+    <div className="w-full rounded-3xl border-2 border-gray-300 bg-[#F5F1FB] p-5 shadow-sm">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="pl-3 text-lg font-bold tracking-tight text-gray-900">
           Những mẫu CV chuyên nghiệp nhất
         </div>
-        <button className="text-[11px] font-bold text-[#9346F5] hover:underline uppercase tracking-widest px-2">
+        <button className="px-2 text-[11px] font-bold uppercase tracking-widest text-[#9346F5] hover:underline">
           Xem tất cả mẫu CV &rarr;
         </button>
       </div>
-      <div className="pl-13 pt-2 pb-5">
-        <div className="flex flex-wrap gap-2 mt-3">
-          <Button
-            color="light"
-            size="xs"
-            className={`pill mr-2 shadow-sm transition-all ${
-              active === "t1"
-                ? "bg-linear-to-r from-[#E49AF6] to-[#CBA3FF] text-white"
-                : "bg-white text-gray-600 hover:bg-gray-50"
-            }`}
-            onClick={() => setActive("t1")}
-          >
-            <span className="text-[9px] font-bold uppercase tracking-wider px-2">
-              Dùng nhiều nhất
-            </span>
-          </Button>
-          <Button
-            color="light"
-            size="xs"
-            className={`pill mr-2 shadow-sm transition-all ${
-              active === "t2"
-                ? "bg-linear-to-r from-[#E49AF6] to-[#CBA3FF] text-white"
-                : "bg-white text-gray-600 hover:bg-gray-50"
-            }`}
-            onClick={() => setActive("t2")}
-          >
-            <span className="text-[9px] font-bold uppercase tracking-wider px-2">
-              Xem nhiều nhất
-            </span>
-          </Button>
-          <Button
-            color="light"
-            size="xs"
-            className={`pill mr-2 shadow-sm transition-all ${
-              active === "t3"
-                ? "bg-linear-to-r from-[#E49AF6] to-[#CBA3FF] text-white"
-                : "bg-white text-gray-600 hover:bg-gray-50"
-            }`}
-            onClick={() => setActive("t3")}
-          >
-            <span className="text-[9px] font-bold uppercase tracking-wider px-2">
-              Mới nhất
-            </span>
-          </Button>
-          <Button
-            color="light"
-            size="xs"
-            className={`pill shadow-sm transition-all ${
-              active === "t4"
-                ? "bg-linear-to-r from-[#E49AF6] to-[#CBA3FF] text-white"
-                : "bg-white text-gray-600 hover:bg-gray-50"
-            }`}
-            onClick={() => setActive("t4")}
-          >
-            <span className="text-[9px] font-bold uppercase tracking-wider px-2">
-              Phổ biến
-            </span>
-          </Button>
+      <div className="pl-13 pb-5 pt-2">
+        <div className="mt-3 flex flex-wrap gap-2">
+          <TabButton active={active === "t1"} onClick={() => setActive("t1")}>
+            Dùng nhiều nhất
+          </TabButton>
+          <TabButton active={active === "t2"} onClick={() => setActive("t2")}>
+            Xem nhiều nhất
+          </TabButton>
+          <TabButton active={active === "t3"} onClick={() => setActive("t3")}>
+            Mới nhất
+          </TabButton>
+          <TabButton active={active === "t4"} onClick={() => setActive("t4")}>
+            Phổ biến
+          </TabButton>
         </div>
-        <div className="p-3 grid grid-cols-2 gap-x-4 gap-y-1">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 p-3">
           {[
             "1st",
             "2nd",
@@ -108,8 +79,8 @@ export default function TopCVList() {
             "8th",
             "9th",
             "10th",
-          ].map((rank) => (
-            <ListCV key={rank} rank={rank} />
+          ].map((item) => (
+            <ListCV key={item} rank={item} />
           ))}
         </div>
       </div>

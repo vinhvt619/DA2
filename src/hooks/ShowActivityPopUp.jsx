@@ -1,5 +1,5 @@
 import React from "react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export default function ShowActivityPopUp(initial) {
   const [openPopUp, setOpenPopUp] = useState(initial);
