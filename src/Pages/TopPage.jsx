@@ -6,39 +6,51 @@ import ListNews from "../Components/NewsList.jsx";
 import StickySettings from "../Components/StickySettings.jsx";
 
 function TopPage() {
-
   return (
     <div className="min-h-screen bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] flex flex-col">
-      <Header />    
-      <div className="flex-1 max-w-360 mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 flex items-start gap-8">
-        
-        {/* <div className="hidden lg:block sticky top-24 z-10 2xl:w-64">
-           <StickySettings />
+      <Header />
+
+      <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 flex items-start gap-8">
+        {/* Sticky sidebar bên trái */}
+        {/* <div className="hidden xl:block sticky top-6 shrink-0 w-64">
+          <StickySettings />
         </div> */}
 
-        <div className="flex-1 flex flex-col gap-12 max-w-5xl mx-auto w-full pb-20">
-          
-          <div className="flex flex-col items-center justify-center text-center space-y-4 mb-2">
-             <h1 className="text-4xl font-extrabold text-[#9346F5] drop-shadow-sm">
-                Nổi bật hôm nay
-             </h1>
-             <p className="text-gray-600 text-lg max-w-2xl">
-                Khám phá các công ty hàng đầu, những hồ sơ chuyên nghiệp và tin tức mới nhất về tuyển dụng.
-             </p>
+        {/* Main content */}
+        <div className="flex-1 flex flex-col gap-6 max-w-5xl mx-auto w-full pb-20">
+          {/* Hero header */}
+          <div className="flex flex-col items-center justify-center text-center py-8">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-violet-200 border border-violet-300 text-violet-900 px-3 py-1 text-xs font-semibold mb-4">
+              ✦ Bảng xếp hạng
+            </div>
+            <h1 className="text-4xl font-extrabold text-gray-900 mb-3">
+              Nổi bật hôm nay
+            </h1>
+            <p className="text-gray-500 text-base max-w-xl leading-relaxed">
+              Khám phá các công ty hàng đầu, những mẫu CV chuyên nghiệp nhất và tin tức mới nhất về tuyển dụng.
+            </p>
           </div>
 
-          <div className="w-full bg-white/50 backdrop-blur-xl rounded-3xl shadow-sm border border-white/60 p-6 lg:p-8">
+          {/* Top Company */}
+          <div
+            className="w-full bg-white rounded-3xl shadow-md shadow-violet-200/30 border border-violet-200 p-6 lg:p-8"
+          >
             <TopCompany />
           </div>
-          
-          <div className="w-full bg-white/50 backdrop-blur-xl rounded-3xl shadow-sm border border-white/60 p-6 lg:p-8">
+
+          {/* Top CV */}
+          <div
+            className="w-full bg-white rounded-3xl shadow-md shadow-violet-200/30 border border-violet-200 p-6 lg:p-8"
+          >
             <TopCVList />
           </div>
-          
-          <div className="w-full bg-white/50 backdrop-blur-xl rounded-3xl shadow-sm border border-white/60 p-6 lg:p-8">
+
+          {/* News */}
+          <div
+            className="w-full bg-white rounded-3xl shadow-md shadow-violet-200/30 border border-violet-200 p-6 lg:p-8"
+          >
             <ListNews />
           </div>
-
         </div>
       </div>
     </div>

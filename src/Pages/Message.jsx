@@ -15,7 +15,7 @@ function Messenger() {
   const [openSettingChat, setOpenSettingChat] = useState(false);
 
   return (
-    <div className="bg-[#F8F4FC] h-screen flex flex-col font-sans overflow-hidden">
+    <div className="bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] h-screen flex flex-col font-sans overflow-hidden">
       <Header />
 
       <div className="flex flex-1 items-start h-[calc(100vh-80px)] w-full max-w-[1600px] mx-auto p-4 gap-4 overflow-hidden">

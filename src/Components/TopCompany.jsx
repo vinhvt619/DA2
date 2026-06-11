@@ -1,77 +1,89 @@
 import React, { useState } from "react";
+import { BuildingOffice2Icon, StarIcon } from "@heroicons/react/24/outline";
+import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
 
-function TabButton({ active, onClick, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`mr-3 rounded-full px-4 py-2 text-[9px] font-bold uppercase tracking-wider ${
-        active
-          ? "bg-linear-to-r from-[#E49AF6] to-[#CBA3FF] text-white"
-          : "bg-white text-gray-600 hover:bg-gray-50"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
+const tabs = [
+  { key: "t1", label: "Theo đánh giá" },
+  { key: "t2", label: "Lượt sử dụng" },
+  { key: "t3", label: "Mới cập nhật" },
+];
 
-const ListCompany = React.memo(({ rank }) => {
+const companies = [
+  { rank: 1, name: "VNG Corporation", rating: 4.8, reviews: 2520, industry: "Công nghệ" },
+  { rank: 2, name: "FPT Software", rating: 4.7, reviews: 1980, industry: "Phần mềm" },
+  { rank: 3, name: "Tiki JSC", rating: 4.6, reviews: 1543, industry: "Thương mại điện tử" },
+  { rank: 4, name: "Momo (M_Service)", rating: 4.5, reviews: 1320, industry: "Fintech" },
+  { rank: 5, name: "Shopee Vietnam", rating: 4.5, reviews: 1100, industry: "Thương mại điện tử" },
+  { rank: 6, name: "Grab Vietnam", rating: 4.4, reviews: 980, industry: "Công nghệ" },
+  { rank: 7, name: "Sorimachi VN", rating: 4.3, reviews: 820, industry: "Phần mềm" },
+  { rank: 8, name: "VNPT Technology", rating: 4.2, reviews: 760, industry: "Viễn thông" },
+  { rank: 9, name: "KMS Technology", rating: 4.2, reviews: 710, industry: "Phần mềm" },
+  { rank: 10, name: "NTT Data Vietnam", rating: 4.1, reviews: 650, industry: "Công nghệ" },
+];
+
+const rankColors = [
+  "text-yellow-500 font-black",
+  "text-slate-400 font-black",
+  "text-amber-600 font-black",
+];
+
+function CompanyRow({ company }) {
+  const rankClass = rankColors[company.rank - 1] || "text-gray-400 font-bold";
   return (
-    <div className="mt-4 w-120 rounded-2xl border-2 border-black bg-white p-2.5">
-      <div className="flex items-center space-x-3">
-        <div className="w-12 pl-4 text-sm font-black text-gray-500">{rank}</div>
-        <div className="ml-2.5 mr-4 h-10 w-10 shrink-0 rounded-full border border-black bg-gray-300" />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[14px] font-bold text-gray-800">
-            Công ty TNHH Sorimachi VN
-          </div>
-          <div className="mt-0.5 flex items-center space-x-2 text-[11px]">
-            <div className="font-semibold text-gray-500">Review</div>
-            <div className="font-bold text-yellow-500">★★★★★</div>
-            <div className="font-bold text-gray-600">4.8</div>
-            <div className="font-semibold text-gray-400">(2520 đánh giá)</div>
-          </div>
+    <div className="flex items-center gap-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50/60 -mx-2 px-2 rounded-lg transition-colors group cursor-pointer">
+      <span className={`w-7 text-sm text-right shrink-0 ${rankClass}`}>
+        {company.rank}
+      </span>
+      <div className="w-9 h-9 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 group-hover:border-[#9346F5]/30 transition-colors">
+        <BuildingOffice2Icon className="w-4 h-4 text-gray-400 group-hover:text-[#9346F5] transition-colors" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-bold text-gray-900 truncate group-hover:text-[#9346F5] transition-colors">
+          {company.name}
         </div>
+        <div className="text-[11px] text-gray-400 font-medium">{company.industry}</div>
+      </div>
+      <div className="flex items-center gap-1 shrink-0">
+        <StarSolid className="w-3.5 h-3.5 text-yellow-400" />
+        <span className="text-xs font-bold text-gray-700">{company.rating}</span>
+        <span className="text-[10px] text-gray-400 font-medium hidden sm:block">
+          ({company.reviews.toLocaleString()})
+        </span>
       </div>
     </div>
   );
-});
+}
 
 export default function TopCompany() {
   const [active, setActive] = useState("t1");
 
   return (
-    <div className="w-full rounded-3xl border border-gray-300 bg-[#E8DEF5] p-5 shadow-sm">
-      <div className="pl-3 text-lg font-bold tracking-tight text-gray-900">
-        Top Công ty / Doanh nghiệp tiêu biểu
-      </div>
-      <div className="pl-13 pb-5 pt-2">
-        <div className="mt-3 flex">
-          <TabButton active={active === "t1"} onClick={() => setActive("t1")}>
-            Theo lượt đánh giá
-          </TabButton>
-          <TabButton active={active === "t2"} onClick={() => setActive("t2")}>
-            Theo số lượng sử dụng
-          </TabButton>
-          <TabButton active={active === "t3"} onClick={() => setActive("t3")}>
-            Mới được cập nhật
-          </TabButton>
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-base font-extrabold text-gray-900">
+          Top Công ty tiêu biểu
+        </h2>
+        <div className="flex gap-1.5">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActive(tab.key)}
+              className={`rounded-full px-3 py-1.5 text-[11px] font-bold transition-all ${
+                active === tab.key
+                  ? "bg-[#9346F5] text-white shadow-sm shadow-[#9346F5]/20"
+                  : "bg-white text-gray-500 hover:text-[#9346F5] border border-gray-200"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
+      </div>
 
-        {[
-          "1st",
-          "2nd",
-          "3rd",
-          "4th",
-          "5th",
-          "6th",
-          "7th",
-          "8th",
-          "9th",
-          "10th",
-        ].map((item) => (
-          <ListCompany key={item} rank={item} />
+      <div>
+        {companies.map((company) => (
+          <CompanyRow key={company.rank} company={company} />
         ))}
       </div>
     </div>

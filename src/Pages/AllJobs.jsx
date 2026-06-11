@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import "../App.css";
 import Jobs from "../Components/ListJob.jsx";
 import Header from "../Components/Header.jsx";
@@ -25,7 +25,6 @@ function AllJobs() {
   const [selectedFilter, setSelectedFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [dbJobs, setDbJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -44,8 +43,6 @@ function AllJobs() {
         }
       } catch (err) {
         console.error("Lỗi khi tải danh sách công việc từ DB:", err);
-      } finally {
-        setLoading(false);
       }
     };
     fetchJobs();
@@ -71,7 +68,10 @@ function AllJobs() {
           Quay lại trang chủ
         </button>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8">
+        <div
+          className="bg-white/70 rounded-2xl border border-white/80 shadow-sm p-5 sm:p-8"
+          style={{ backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}
+        >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 mb-1">Tất cả việc làm</h1>

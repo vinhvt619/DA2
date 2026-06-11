@@ -1,157 +1,151 @@
 import React, { useMemo } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import Header from "../Components/Header.jsx";
-import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  CalendarDaysIcon,
-  ClockIcon,
-  NewspaperIcon,
-  TagIcon,
-} from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, ArrowRightIcon, CalendarDaysIcon } from "@heroicons/react/24/outline";
 import { getArticleBySlug, newsArticles } from "../data/newsArticles.js";
 
-function NewsDetail() {
+export default function NewsDetail() {
   const { slug } = useParams();
   const article = getArticleBySlug(slug);
 
-  const relatedArticles = useMemo(() => {
+  const related = useMemo(() => {
     if (!article) return [];
-
     return newsArticles
-      .filter(
-        (item) => item.slug !== article.slug && item.category === article.category,
-      )
-      .concat(newsArticles.filter((item) => item.slug !== article.slug))
-      .filter(
-        (item, index, list) =>
-          list.findIndex((candidate) => candidate.slug === item.slug) === index,
-      )
+      .filter((a) => a.slug !== article.slug && a.category === article.category)
+      .concat(newsArticles.filter((a) => a.slug !== article.slug))
+      .filter((a, i, arr) => arr.findIndex((b) => b.slug === a.slug) === i)
       .slice(0, 3);
   }, [article]);
 
-  if (!article) {
-    return <Navigate to="/News" replace />;
-  }
+  if (!article) return <Navigate to="/News" replace />;
 
   return (
     <div className="min-h-screen bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA]">
       <Header />
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+
+        {/* Back */}
         <Link
           to="/News"
-          className="inline-flex items-center gap-2 text-sm font-bold text-[#6B3DB8] hover:text-[#9346F5]"
+          className="inline-flex items-center gap-1.5 text-sm mb-6 transition-colors hover:text-[#9346F5]"
+          style={{ color: "#9B87B8" }}
         >
-          <ArrowLeftIcon className="h-4 w-4" />
+          <ArrowLeftIcon className="w-4 h-4" />
           Quay lại tin tức
         </Link>
 
-        <article className="mt-6 overflow-hidden rounded-[28px] border border-white bg-white shadow-sm">
-          <div className={`bg-[#9346F5] px-6 py-10 text-white sm:px-10 lg:px-14`}>
-            <div className="flex flex-wrap items-center gap-3 text-sm font-semibold text-white/85">
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/20 px-4 py-2 backdrop-blur">
-                <TagIcon className="h-4 w-4" />
-                {article.category}
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2">
-                <CalendarDaysIcon className="h-4 w-4" />
-                {article.date}
-              </span>
-              {/* <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2">
-                <ClockIcon className="h-4 w-4" />
-                {article.readTime}
-              </span> */}
-            </div>
+        <div className="grid gap-6 lg:grid-cols-[1fr_260px] items-start">
 
-            <div className="mt-8">
-              <div>
-                <h1 className="max-w-4xl text-3xl font-black leading-tight sm:text-5xl">
-                  {article.title}
-                </h1>
-                <p className="mt-5 max-w-4xl text-base leading-8 text-white/85 sm:text-lg">
-                  {article.summary}
-                </p>
+          {/* Article */}
+          <article
+            className="rounded-xl overflow-hidden"
+            style={{ background: "#FDFAFF", border: "1px solid #E4D9F5" }}
+          >
+            {/* Header */}
+            <div className="px-6 py-8 sm:px-8" style={{ background: "#2D1B4E" }}>
+              <div className="flex items-center gap-2 mb-4 text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
+                <span>{article.category}</span>
+                <span>·</span>
+                <CalendarDaysIcon className="w-3.5 h-3.5" />
+                <span>{article.date}</span>
               </div>
-
-              {/* <div className="hidden min-h-48 rounded-3xl border border-white/25 bg-black/10 p-5 backdrop-blur lg:flex lg:flex-col lg:justify-between">
-                <NewspaperIcon className="h-12 w-12 text-white/80" />
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/70">
-                    {article.coverLabel}
-                  </p>
-                  <p className="mt-2 text-xl font-black leading-tight">
-                    Đọc sâu hơn trong 5 phút nghỉ
-                  </p>
-                </div>
-              </div> */}
+              <h1 className="text-xl font-bold text-white leading-snug sm:text-2xl">
+                {article.title}
+              </h1>
+              <p className="mt-3 text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+                {article.summary}
+              </p>
             </div>
-          </div>
 
-          <div className="grid gap-10 px-6 py-9 sm:px-10 lg:grid-cols-[minmax(0,1fr)_280px] lg:px-14 lg:py-12">
-            <div className="min-w-0">
-              <p className="text-base font-medium leading-9 text-gray-700">
+            {/* Body */}
+            <div className="px-6 py-7 sm:px-8">
+
+              {/* Intro */}
+              <p className="text-sm leading-7 mb-7 pb-7 font-medium" style={{ color: "#4C1D95", borderBottom: "1px solid #E4D9F5" }}>
                 {article.intro}
               </p>
 
-              <div className="mt-9 space-y-9">
-                {article.sections.map((section) => (
-                  <section key={section.heading}>
-                    <h2 className="text-2xl font-black text-gray-950">
-                      {section.heading}
-                    </h2>
-                    <div className="mt-4 space-y-4 text-base leading-8 text-gray-700">
-                      {section.paragraphs.map((paragraph) => (
-                        <p key={paragraph}>{paragraph}</p>
+              {/* Sections */}
+              <div className="space-y-7">
+                {article.sections.map((section, i) => (
+                  <div key={i}>
+                    {section.heading && (
+                      <h2 className="text-sm font-bold mb-2.5" style={{ color: "#1E0B38" }}>
+                        {section.heading}
+                      </h2>
+                    )}
+                    <div className="space-y-2.5 text-sm leading-7" style={{ color: "#3D2266" }}>
+                      {section.paragraphs.map((p, j) => (
+                        <p key={j}>{p}</p>
                       ))}
                     </div>
-                    {section.bullets ? (
-                      <ul className="mt-5 space-y-3 rounded-2xl bg-[#F7F2FF] p-5 text-sm font-semibold leading-7 text-gray-700">
-                        {section.bullets.map((bullet) => (
-                          <li key={bullet} className="flex gap-3">
-                            <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#9346F5]" />
-                            <span>{bullet}</span>
+                    {section.bullets && (
+                      <ul className="mt-3 space-y-2 pl-4">
+                        {section.bullets.map((b, k) => (
+                          <li key={k} className="flex gap-2.5 text-sm leading-6" style={{ color: "#4C1D95" }}>
+                            <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "#9346F5" }} />
+                            {b}
                           </li>
                         ))}
                       </ul>
-                    ) : null}
-                  </section>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Footer */}
+              <div className="mt-8 pt-6 flex justify-between items-center" style={{ borderTop: "1px solid #E4D9F5" }}>
+                <Link
+                  to="/News"
+                  className="inline-flex items-center gap-1.5 text-sm transition-colors hover:text-[#9346F5]"
+                  style={{ color: "#9B87B8" }}
+                >
+                  <ArrowLeftIcon className="w-4 h-4" />
+                  Tất cả bài viết
+                </Link>
+                <span className="text-xs" style={{ color: "#C4B0E4" }}>{article.date}</span>
+              </div>
+            </div>
+          </article>
+
+          {/* Sidebar */}
+          <aside className="lg:sticky lg:top-6">
+            <div className="rounded-xl p-4" style={{ background: "#F5F0FB", border: "1px solid #DDD4F0" }}>
+              <h3 className="text-sm font-semibold mb-3" style={{ color: "#1E0B38" }}>
+                Bài viết liên quan
+              </h3>
+              <div className="space-y-2">
+                {related.map((item) => (
+                  <Link
+                    key={item.slug}
+                    to={`/News/${item.slug}`}
+                    className="group block rounded-lg p-3 transition-colors"
+                    style={{ background: "#EDE6F5", border: "1px solid #D5CAE8" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#DDD4F0"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "#EDE6F5"; }}
+                  >
+                    <p className="text-[10px] mb-1 font-medium" style={{ color: "#9346F5" }}>
+                      {item.category}
+                    </p>
+                    <h4
+                      className="text-xs font-medium leading-snug line-clamp-2 group-hover:text-[#7C3AED] transition-colors"
+                      style={{ color: "#2D1B4E" }}
+                    >
+                      {item.title}
+                    </h4>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-[10px]" style={{ color: "#9B87B8" }}>{item.date}</span>
+                      <ArrowRightIcon className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" style={{ color: "#C4B0E4" }} />
+                    </div>
+                  </Link>
                 ))}
               </div>
             </div>
+          </aside>
 
-            <aside className="lg:sticky lg:top-6 lg:self-start">
-              <div className="rounded-3xl border border-gray-100 bg-gray-50 p-5">
-                <h2 className="text-base font-black text-gray-950">
-                  Bài viết liên quan
-                </h2>
-                <div className="mt-4 space-y-3">
-                  {relatedArticles.map((item) => (
-                    <Link
-                      key={item.slug}
-                      to={`/News/${item.slug}`}
-                      className="group block rounded-2xl bg-white p-4 shadow-sm hover:-translate-y-0.5 hover:shadow-md"
-                    >
-                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#9346F5]">
-                        {item.category}
-                      </p>
-                      <h3 className="mt-2 line-clamp-2 text-sm font-bold leading-6 text-gray-900 group-hover:text-[#6B3DB8]">
-                        {item.title}
-                      </h3>
-                      <span className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-gray-500">
-                        Đọc tiếp
-                        <ArrowRightIcon className="h-3.5 w-3.5 group-hover:translate-x-1" />
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </aside>
-          </div>
-        </article>
-      </main>
+        </div>
+      </div>
     </div>
   );
 }
-
-export default NewsDetail;

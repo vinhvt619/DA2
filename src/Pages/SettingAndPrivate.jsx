@@ -14,7 +14,9 @@ import StickyProfileSettings from "../Components/StickyProfileSettings.jsx";
 import InputPassword from "../Components/InputPassword.jsx";
 import AddEmail from "../Components/AddEmail.jsx";
 import ConfirmPopUp from "../Components/ConfirmPopUp.jsx";
+import { useToastContext } from "../Components/Toast.jsx";
 export default function SettingAndPrivate() {
+  const showToast = useToastContext();
   const [emailValue, setEmailValue] = useState("");
   const [phoneNumberValue, setPhoneNumberValue] = useState("");
   const [pinValue, setPinValue] = useState("");
@@ -64,21 +66,21 @@ export default function SettingAndPrivate() {
         body: JSON.stringify(payload),
       });
       if (response.ok) {
-        alert("Cập nhật thành công!");
+        showToast("Cập nhật thành công!", "success");
       } else {
         const err = await response.json();
-        alert(err.message || "Có lỗi xảy ra!");
+        showToast(err.message || "Có lỗi xảy ra!", "error");
         fetchUserData();
       }
     } catch {
-      alert("Lỗi kết nối!");
+      showToast("Lỗi kết nối!", "error");
       fetchUserData();
     }
   };
 
   const handleUpdatePassword = async () => {
     if (password.newPassword !== password.newPassword2) {
-      alert("Mật khẩu mới không khớp!");
+      showToast("Mật khẩu mới không khớp!", "error");
       return;
     }
     try {
@@ -92,14 +94,14 @@ export default function SettingAndPrivate() {
         }),
       });
       if (response.ok) {
-        alert("Đổi mật khẩu thành công!");
+        showToast("Đổi mật khẩu thành công!", "success");
         setPassword({ oldPassword: "", newPassword: "", newPassword2: "" });
       } else {
         const err = await response.json();
-        alert(err.message || "Có lỗi xảy ra!");
+        showToast(err.message || "Có lỗi xảy ra!", "error");
       }
     } catch {
-      alert("Lỗi kết nối!");
+      showToast("Lỗi kết nối!", "error");
     }
   };
 

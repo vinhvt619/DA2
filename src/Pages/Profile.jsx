@@ -4,7 +4,8 @@ import React from "react";
 import Header from "../Components/Header.jsx";
 import StickyProfileSettings from "../Components/StickyProfileSettings.jsx";
 import AddActivityPopUp from "../Components/AddActivityPopUp.jsx";
-import { PlusIcon, PencilIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, PencilIcon } from "@heroicons/react/24/outline";
+import { useToastContext } from "../Components/Toast.jsx";
 
 const TagInput = ({ tag, name, value, onChange, type = "text" }) => (
   <div className="w-full">
@@ -60,7 +61,7 @@ const SectionHeader = ({ title, onAdd }) => (
 );
 
 function Profile() {
-  const [notify, setNotify] = useState({ show: false, success: true });
+  const showToast = useToastContext();
   const [formData, setFormData] = useState({
     fullName: "",
     address: "",
@@ -171,12 +172,13 @@ function Profile() {
         body: JSON.stringify(formData),
       });
 
-      const isSuccess = response.ok;
-      setNotify({ show: true, success: isSuccess });
-      setTimeout(() => setNotify({ show: false, success: isSuccess }), 2000);
+      if (response.ok) {
+        showToast("Lưu thông tin thành công!", "success");
+      } else {
+        showToast("Lưu thông tin thất bại. Vui lòng thử lại.", "error");
+      }
     } catch (error) {
-      setNotify({ show: true, success: false });
-      setTimeout(() => setNotify({ show: false, success: false }), 2000);
+      showToast("Lỗi kết nối đến máy chủ.", "error");
       console.error("Lỗi khi lưu dữ liệu profile:", error);
     }
   };
@@ -199,29 +201,6 @@ function Profile() {
         </div>
 
         <div className="flex-1 min-w-0 flex justify-center relative">
-          <div className="fixed right-6 top-24 z-50 pointer-events-none">
-            <div
-              className={`relative bg-gray-200 border rounded-xl px-6 py-3 flex items-center gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.12)] 
-              ${notify.show ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-4 pointer-events-none"}
-              ${notify.success ? "border-green-400 text-green-700" : "border-red-400 text-red-700"}`}
-            >
-              <div
-                className={`w-2 h-2 rounded-full ${notify.success ? "bg-green-500" : "bg-red-500"}`}
-              ></div>
-              <span className="text-sm font-medium">
-                {notify.success
-                  ? "Lưu thông tin thành công"
-                  : "Lưu thông tin thất bại"}
-              </span>
-              <button
-                onClick={() => setNotify((prev) => ({ ...prev, show: false }))}
-                className="ml-4 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-0"
-              >
-                <XMarkIcon className="size-4" />
-              </button>
-            </div>
-          </div>
-
           <div className="w-full max-w-[800px] bg-white rounded-3xl border border-gray-50 shadow-[0_2px_20px_rgba(0,0,0,0.03)] overflow-hidden pb-12">
             <div className="relative bg-[#f1f1f1] h-32 w-full border-b">
               <div className="absolute left-8 -bottom-10">
