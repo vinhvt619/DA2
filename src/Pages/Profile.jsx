@@ -1,21 +1,19 @@
 import { useState, useEffect } from "react";
-import "../App.css";
-import React from "react";
-import Header from "../Components/Header.jsx";
-import StickyProfileSettings from "../Components/StickyProfileSettings.jsx";
+import SettingsPageLayout, { SettingsCard } from "../Components/SettingsLayout.jsx";
 import AddActivityPopUp from "../Components/AddActivityPopUp.jsx";
-import { PlusIcon, PencilIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, PencilIcon, UserIcon } from "@heroicons/react/24/outline";
 import { useToastContext } from "../Components/Toast.jsx";
+
+const inputClass =
+  "w-full max-w-[300px] border border-violet-200 rounded-xl p-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200 transition-all";
 
 const TagInput = ({ tag, name, value, onChange, type = "text" }) => (
   <div className="w-full">
-    <label className="text-xs font-medium text-gray-500 mb-1.5 block">
-      {tag}
-    </label>
+    <label className="text-xs font-medium text-gray-600 mb-1.5 block">{tag}</label>
     <input
       type={type}
       name={name}
-      className="w-full max-w-[300px] border-2 border-gray-400 rounded-lg p-2.5 text-sm text-gray-900 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-black"
+      className={inputClass}
       placeholder={`Nhập ${tag.toLowerCase()}...`}
       value={value}
       onChange={onChange}
@@ -24,34 +22,35 @@ const TagInput = ({ tag, name, value, onChange, type = "text" }) => (
 );
 
 const ExperienceTag = ({ CompanyName, DegreeName, Date, onEdit }) => (
-  <div className="flex items-start gap-4 p-4 border-2 border-gray-300 rounded-xl hover:bg-gray-50 hover:border-purple-200 w-full max-w-[500px] group relative">
-    <div className="bg-gray-100 rounded-full place-self-center h-12 w-12 shrink-0 border border-gray-400"></div>
-    <div className="flex-1">
-      <div className="text-sm font-semibold text-gray-900 group-hover:text-purple-600">
+  <div className="flex items-start gap-4 p-4 border border-violet-200 rounded-xl hover:bg-violet-50/50 hover:border-violet-300 w-full max-w-[500px] group relative transition-colors">
+    <div className="bg-violet-100 rounded-full place-self-center h-12 w-12 shrink-0 border border-violet-200" />
+    <div className="flex-1 min-w-0">
+      <div className="text-sm font-semibold text-gray-900 group-hover:text-violet-900">
         {CompanyName}
       </div>
-      <div className="text-sm text-gray-500 mt-0.5">{DegreeName}</div>
+      <div className="text-sm text-gray-600 mt-0.5">{DegreeName}</div>
       <div className="text-xs text-gray-400 mt-1">{Date}</div>
     </div>
     {onEdit && (
-      <div
-        className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-black bg-white rounded-full shadow-sm border border-gray-200 opacity-0 group-hover:opacity-100 cursor-pointer"
+      <button
+        type="button"
+        className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-violet-800 bg-white rounded-full shadow-sm border border-violet-200 opacity-0 group-hover:opacity-100 cursor-pointer transition-all"
         onClick={onEdit}
       >
         <PencilIcon className="size-4" />
-      </div>
+      </button>
     )}
   </div>
 );
 
 const SectionHeader = ({ title, onAdd }) => (
   <div className="flex items-center mt-10 mb-5 justify-between max-w-[500px]">
-    <h2 className="font-semibold text-lg text-gray-900">{title}</h2>
+    <h2 className="font-semibold text-base text-gray-900">{title}</h2>
     {onAdd && (
       <button
         onClick={onAdd}
         type="button"
-        className="text-gray-400 hover:text-black bg-gray-50 p-1.5 rounded-full border border-gray-200 hover:bg-gray-100"
+        className="text-violet-600 hover:text-violet-900 bg-violet-100 p-1.5 rounded-full border border-violet-200 hover:bg-violet-200 transition-colors"
         title="Thêm mới"
       >
         <PlusIcon className="size-4" />
@@ -184,8 +183,7 @@ function Profile() {
   };
 
   return (
-    <div className="bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] min-h-screen font-sans text-gray-900 overflow-x-hidden">
-      <Header />
+    <>
       <AddActivityPopUp
         active={popupState.active}
         popUp={closePopup}
@@ -195,42 +193,42 @@ function Profile() {
         onDelete={handleDeleteItem}
       />
 
-      <div className="pt-10 flex items-start max-w-6xl mx-auto w-full px-4 lg:px-8 gap-8 pb-20">
-        <div className="top-0 bg-white rounded-3xl pr-2 pl-7 pb-5 shrink-0 shadow-[0_2px_20px_rgba(0,0,0,0.03)] border border-[#ffffff]">
-          <StickyProfileSettings />
-        </div>
-
-        <div className="flex-1 min-w-0 flex justify-center relative">
-          <div className="w-full max-w-[800px] bg-white rounded-3xl border border-gray-50 shadow-[0_2px_20px_rgba(0,0,0,0.03)] overflow-hidden pb-12">
-            <div className="relative bg-[#f1f1f1] h-32 w-full border-b">
-              <div className="absolute left-8 -bottom-10">
-                <div className="h-20 w-20 rounded-full border bg-white shadow-xs flex items-center justify-center overflow-hidden">
-                  <img
-                    src="/RabbitCV.png"
-                    alt="Avatar"
-                    className="w-[60%] h-[60%] object-contain"
-                  />
+      <SettingsPageLayout>
+        <SettingsCard padding={false}>
+              <div className="relative bg-violet-200 h-28 w-full border-b border-violet-300">
+                <div className="absolute left-6 sm:left-8 -bottom-10">
+                  <div className="h-20 w-20 rounded-full border-4 border-white bg-violet-100 shadow-md flex items-center justify-center overflow-hidden">
+                    <img
+                      src="/RabbitCV.png"
+                      alt="Avatar"
+                      className="w-[60%] h-[60%] object-contain"
+                    />
+                  </div>
+                </div>
+                <div className="absolute right-6 sm:right-8 bottom-4">
+                  <button
+                    type="button"
+                    className="bg-violet-800 text-white hover:bg-violet-900 rounded-xl text-sm font-semibold px-5 py-2 shadow-md transition-colors"
+                    onClick={handleSave}
+                  >
+                    Lưu thay đổi
+                  </button>
                 </div>
               </div>
-              <div className="absolute right-8 -bottom-5 z-10">
-                <button
-                  className="bg-black text-white hover:bg-gray-800 rounded-lg text-sm font-medium px-5 py-2"
-                  onClick={handleSave}
-                >
-                  Lưu thay đổi
-                </button>
-              </div>
-            </div>
 
-            <div className="px-8 mt-16 mb-8">
-              <div className="mb-10">
-                <h1 className="text-2xl font-bold tracking-tight">
-                  {formData.fullName || "Chưa có tên"}
-                </h1>
-                <p className="text-sm text-gray-500 mt-1">
-                  Quản lý hồ sơ và chi tiết liên hệ
-                </p>
-              </div>
+              <div className="px-6 sm:px-8 pt-14 pb-8">
+                <div className="mb-8">
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-violet-200 border border-violet-300 text-violet-900 px-3 py-1 text-xs font-semibold mb-3">
+                    <UserIcon className="h-3.5 w-3.5" />
+                    Hồ sơ cá nhân
+                  </div>
+                  <h1 className="text-2xl font-extrabold text-gray-900">
+                    {formData.fullName || "Chưa có tên"}
+                  </h1>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Quản lý hồ sơ và chi tiết liên hệ
+                  </p>
+                </div>
 
               <section className="mb-10">
                 <SectionHeader title="Thông tin cá nhân"/>
@@ -258,7 +256,7 @@ function Profile() {
                       type="number"
                       value={formData.age}
                       onChange={handleChange}
-                      className="w-15 text-center border-2 border-gray-400 rounded-lg p-2.5 text-sm text-gray-900 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-black"
+                      className="w-20 text-center border border-violet-200 rounded-xl p-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
                     />
                   </div>
                   <TagInput
@@ -289,7 +287,7 @@ function Profile() {
                 </div>
               </section>
 
-              <div className="h-px bg-gray-100 max-w-[500px]"></div>
+              <div className="h-px bg-violet-100 max-w-[500px]" />
 
               <section className="mb-10">
                 <SectionHeader
@@ -319,7 +317,7 @@ function Profile() {
                 </div>
               </section>
 
-              <div className="h-px bg-gray-100 max-w-[500px]"></div>
+              <div className="h-px bg-violet-100 max-w-[500px]" />
 
               <section className="mb-10">
                 <SectionHeader
@@ -345,7 +343,7 @@ function Profile() {
                 </div>
               </section>
 
-              <div className="h-px bg-gray-100 max-w-[500px]"></div>
+              <div className="h-px bg-violet-100 max-w-[500px]" />
 
               <section className="mb-6">
                 <SectionHeader
@@ -365,24 +363,26 @@ function Profile() {
                     ))
                   ) : (
                     <div
-                      className="border border-dashed border-gray-200 rounded-xl py-10 px-6 text-center max-w-[500px] hover:border-gray-400 cursor-pointer group"
+                      className="border border-dashed border-violet-300 rounded-xl py-10 px-6 text-center max-w-[500px] hover:border-violet-400 hover:bg-violet-50/50 cursor-pointer group transition-colors"
                       onClick={() => openPopup("activity")}
                     >
-                      <p className="text-sm font-medium text-gray-600 group-hover:text-black">
+                      <p className="text-sm font-medium text-gray-600 group-hover:text-violet-900">
                         Bạn vẫn chưa có hoạt động nào
                       </p>
-                      <button className="mt-4 px-5 py-2 text-sm font-medium text-black border border-gray-200 rounded-lg hover:bg-gray-50 outline-none focus:ring-0">
+                      <button
+                        type="button"
+                        className="mt-4 px-5 py-2 text-sm font-semibold text-violet-800 border border-violet-200 rounded-xl hover:bg-violet-100 outline-none"
+                      >
                         Thêm hoạt động
                       </button>
                     </div>
                   )}
                 </div>
               </section>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+              </div>
+        </SettingsCard>
+      </SettingsPageLayout>
+    </>
   );
 }
 

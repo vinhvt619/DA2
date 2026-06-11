@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useToastContext } from "./Toast";
+import { useToastContext } from "./Toast.jsx";
 import {
   ChatBubbleOvalLeftIcon,
   UserIcon,
@@ -11,25 +11,45 @@ import {
   HomeIcon,
 } from "@heroicons/react/24/outline";
 
-function Tab({ icon, content, active, onClick }) {
+const NAV_ITEMS = [
+  { path: "/UserDashboard", match: "/userdashboard", label: "Tổng quan", icon: HomeIcon },
+  { path: "/Profile", match: "/profile", label: "Thông tin cá nhân", icon: UserIcon },
+  { path: "/Accessibility", match: "/accessibility", label: "Trợ năng & Giao diện", icon: MoonIcon },
+  { path: "/SettingAndPrivate", match: "/settingandprivate", label: "Quyền riêng tư", icon: Cog6ToothIcon },
+];
+
+function Tab({ icon: Icon, content, active, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full cursor-pointer items-center rounded-xl p-3 text-left ${
-        active ? "bg-gray-100 text-gray-900" : "text-gray-600 hover:bg-gray-50"
+      className={`flex w-full cursor-pointer items-center rounded-xl p-3 text-left transition-colors ${
+        active
+          ? "bg-violet-200 text-violet-900 font-semibold"
+          : "text-gray-700 hover:bg-violet-100"
       }`}
     >
-      <span className="mr-4 text-gray-400">{icon}</span>
-      <span className="text-[15px] font-medium">{content}</span>
+      <span className={`mr-3 shrink-0 ${active ? "text-violet-800" : "text-gray-400"}`}>
+        <Icon className="size-5" />
+      </span>
+      <span className="text-sm font-medium">{content}</span>
     </button>
   );
+}
+
+function normalizePath(pathname) {
+  return pathname.toLowerCase().replace(/\/$/, "") || "/";
+}
+
+function isNavActive(currentPath, matchPath) {
+  return currentPath === matchPath;
 }
 
 export default function StickyProfileSettings() {
   const navigate = useNavigate();
   const location = useLocation();
   const showToast = useToastContext();
+  const currentPath = normalizePath(location.pathname);
 
   const handleLogout = async () => {
     try {
@@ -40,58 +60,50 @@ export default function StickyProfileSettings() {
       showToast("Bạn đã đăng xuất khỏi thiết bị.", "info");
       setTimeout(() => navigate("/login"), 800);
     } catch (err) {
-      console.log("Logout error: ", err);
+      console.error("Logout error:", err);
       navigate("/login");
     }
   };
 
-  const path = location.pathname.toLowerCase();
-
   return (
-    <aside className="hidden w-[280px] shrink-0 md:block lg:sticky lg:top-4">
-      <div className="pr-6 pt-8">
-        <h2 className="mb-6 pl-3 text-2xl font-bold text-gray-900">Cài đặt</h2>
-        <div className="flex flex-col gap-1">
+    <aside className="w-full md:w-[260px] shrink-0 lg:sticky lg:top-6">
+      <div className="rounded-2xl border border-violet-200 bg-white p-4 shadow-md shadow-violet-200/30">
+        <h2 className="mb-4 px-2 text-lg font-bold text-gray-900">Cài đặt</h2>
+        <nav className="flex flex-col gap-1">
+          {NAV_ITEMS.map(({ path, match, label, icon }) => (
+            <Tab
+              key={path}
+              icon={icon}
+              content={label}
+              active={isNavActive(currentPath, match)}
+              onClick={() => navigate(path)}
+            />
+          ))}
+
+          <div className="mx-2 my-3 border-t border-violet-100" />
+
           <Tab
-            active={path.includes("userdashboard")}
-            onClick={() => navigate("/UserDashboard")}
-            icon={<HomeIcon className="size-6" />}
-            content="Tổng quan"
-          />
-          <Tab
-            active={path.includes("profile")}
-            onClick={() => navigate("/Profile")}
-            icon={<UserIcon className="size-6" />}
-            content="Thông tin cá nhân"
-          />
-          <Tab
-            active={path.includes("accessibility")}
-            onClick={() => navigate("/Accessibility")}
-            icon={<MoonIcon className="size-6" />}
-            content="Trợ năng & Giao diện"
-          />
-          <Tab
-            active={path.includes("settingandprivate")}
-            onClick={() => navigate("/SettingAndPrivate")}
-            icon={<Cog6ToothIcon className="size-6" />}
-            content="Cài đặt Quyền riêng tư"
-          />
-          <div className="mx-3 my-4 border-t-2 border-gray-300" />
-          <Tab
-            icon={<QuestionMarkCircleIcon className="size-6" />}
+            icon={QuestionMarkCircleIcon}
             content="Trợ giúp & hỗ trợ"
+            active={false}
+            onClick={() => showToast("Tính năng đang được phát triển.", "info")}
           />
           <Tab
-            icon={<ChatBubbleOvalLeftIcon className="size-6" />}
+            icon={ChatBubbleOvalLeftIcon}
             content="Đóng góp ý kiến"
+            active={false}
+            onClick={() => showToast("Tính năng đang được phát triển.", "info")}
           />
-          <div className="mx-3 my-4 border-t-2 border-gray-300" />
+
+          <div className="mx-2 my-3 border-t border-violet-100" />
+
           <Tab
-            onClick={handleLogout}
-            icon={<ArrowRightStartOnRectangleIcon className="size-6" />}
+            icon={ArrowRightStartOnRectangleIcon}
             content="Đăng xuất"
+            active={false}
+            onClick={handleLogout}
           />
-        </div>
+        </nav>
       </div>
     </aside>
   );

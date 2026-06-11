@@ -5,10 +5,10 @@ function InputPassword({ name, value, show, onChange, onToggle }) {
   return (
     <div className="mt-3">
       <div className="text-sm text-gray-600">{name}</div>
-      <div className="flex relative w-[70%] mb-4">
+      <div className="flex relative w-full max-w-md mb-2">
         <input
           type={show ? "text" : "password"}
-          className="rounded-2xl p-2.5 px-4 text-xs mt-2 w-full pr-8 border border-gray-300"
+          className="rounded-xl p-2.5 px-4 text-sm mt-1 w-full pr-10 border border-violet-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all"
           value={value}
           onChange={onChange}
           autoComplete="new-password"

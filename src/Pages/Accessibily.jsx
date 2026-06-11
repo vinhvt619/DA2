@@ -1,22 +1,23 @@
 import { useState } from "react";
-import "../App.css";
-import React from "react";
-import Header from "../Components/Header.jsx";
-import { ChevronDownIcon } from "@heroicons/react/24/outline";
+import { MoonIcon } from "@heroicons/react/24/outline";
 import NotificationItem from "../Components/NotificationSetting.jsx";
-import StickyProfileSettings from "../Components/StickyProfileSettings.jsx";
+import SettingsPageLayout, {
+  SettingsCard,
+  SettingsPageHeader,
+  SettingsSectionTitle,
+} from "../Components/SettingsLayout.jsx";
+
+const notificationSettingLists = [
+  { key: "jobSearch", label: "Tìm kiếm việc làm" },
+  { key: "message", label: "Nhắn tin" },
+  { key: "updateMarket", label: "Cập nhật xu hướng thị trường" },
+  { key: "news", label: "Tin tức và báo cáo" },
+  { key: "postComment", label: "Đăng và bình luận", placement: "top" },
+];
 
 export default function Accessibility() {
-  const [enabled, setEnabled] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
   const [openDropDown, setOpenDropDown] = useState(null);
-
-  const notificationSettingLists = [
-    { key: "jobSearch", label: "Tìm kiếm việc làm" },
-    { key: "message", label: "Nhắn tin" },
-    { key: "updateMarket", label: "Cập nhật xu hướng thị trường" },
-    { key: "news", label: "Tin tức và báo cáo" },
-    { key: "postComment", label: "Đăng và bình luận", placement: "top" },
-  ];
   const [notificationSettings, setNotificationSettings] = useState({
     jobSearch: "Chưa chọn",
     message: "Chưa chọn",
@@ -24,87 +25,77 @@ export default function Accessibility() {
     news: "Chưa chọn",
     postComment: "Chưa chọn",
   });
+
   const updateNotificationSetting = (key, value) => {
-    setNotificationSettings((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+    setNotificationSettings((prev) => ({ ...prev, [key]: value }));
   };
+
   return (
-    <div className="bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] min-h-screen font-sans text-gray-900 overflow-x-hidden">
-      <Header />
+    <SettingsPageLayout>
+      <SettingsCard>
+        <SettingsPageHeader
+          badge={
+            <>
+              <MoonIcon className="h-3.5 w-3.5" />
+              Trải nghiệm người dùng
+            </>
+          }
+          title="Trợ năng & Giao diện"
+          description="Đơn giản hóa trải nghiệm và tùy chỉnh giao diện ứng dụng theo cách của bạn."
+        />
 
-      <div className="pt-10 flex items-start max-w-6xl mx-auto w-full px-4 lg:px-8 gap-8 pb-20">
-        <div className="top-0 bg-white rounded-3xl pr-2 pl-7 pb-5 shrink-0 shadow-[0_2px_20px_rgba(0,0,0,0.03)] border border-[#ffffff]">
-          <StickyProfileSettings />
-        </div>
-
-        <div className="flex-1 min-w-0 flex justify-center relative">
-          <div className="w-full max-w-[800px] bg-white rounded-3xl border border-gray-50 shadow-[0_2px_20px_rgba(0,0,0,0.03)] pb-12">
-            <div className="px-10 pt-10 mb-12">
-              <h1 className="text-3xl font-bold tracking-tight mb-2">
-                Trợ năng & Giao diện
-              </h1>
-              <p className="text-gray-500 text-sm">
-                Đơn giản hóa trải nghiệm và tùy chỉnh giao diện ứng dụng theo
-                cách của bạn.
-              </p>
-            </div>
-
-            <div className="space-y-12 px-10">
-              <div>
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">
-                  Hiển thị
-                </h3>
-                <div className="border-b border-gray-100 py-5 flex justify-between items-center">
-                  <span className="text-[15px] font-medium">
+        <div className="space-y-10">
+          <section>
+            <SettingsSectionTitle>Hiển thị</SettingsSectionTitle>
+            <div className="border-t border-violet-100">
+              <div className="py-4 flex justify-between items-center border-b border-violet-50">
+                <div>
+                  <span className="text-sm font-semibold text-gray-900 block">
                     Chế độ tối (Dark Mode)
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setEnabled(!enabled)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full ${
-                      enabled ? "bg-black" : "bg-gray-200"
+                  <span className="text-xs text-gray-500 mt-0.5">
+                    Giảm ánh sáng màn hình, dễ nhìn hơn ban đêm
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={darkMode}
+                  onClick={() => setDarkMode(!darkMode)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                    darkMode ? "bg-violet-800" : "bg-violet-200"
+                  }`}
+                >
+                  <span
+                    className={`size-4 rounded-full bg-white shadow-sm transition-transform ${
+                      darkMode ? "translate-x-6" : "translate-x-1"
                     }`}
-                  >
-                    <span
-                      className={`size-4 rounded-full bg-white drop-shadow-sm ${
-                        enabled ? "translate-x-6" : "translate-x-1"
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">
-                  Thông báo
-                </h3>
-                <div className="flex flex-col divide-y divide-gray-100">
-                  {notificationSettingLists.map((item) => (
-                    <div key={item.key} className="py-2">
-                      <NotificationItem
-                        label={item.label}
-                        value={notificationSettings[item.key]}
-                        onChange={(val) =>
-                          updateNotificationSetting(item.key, val)
-                        }
-                        isOpen={openDropDown === item.key}
-                        onToggle={() =>
-                          setOpenDropDown(
-                            openDropDown === item.key ? null : item.key,
-                          )
-                        }
-                        placement={item.placement || "bottom"}
-                      />
-                    </div>
-                  ))}
-                </div>
+                  />
+                </button>
               </div>
             </div>
-          </div>
+          </section>
+
+          <section>
+            <SettingsSectionTitle>Thông báo</SettingsSectionTitle>
+            <div className="border-t border-violet-100 divide-y divide-violet-50">
+              {notificationSettingLists.map((item) => (
+                <NotificationItem
+                  key={item.key}
+                  label={item.label}
+                  value={notificationSettings[item.key]}
+                  onChange={(val) => updateNotificationSetting(item.key, val)}
+                  isOpen={openDropDown === item.key}
+                  onToggle={() =>
+                    setOpenDropDown(openDropDown === item.key ? null : item.key)
+                  }
+                  placement={item.placement || "bottom"}
+                />
+              ))}
+            </div>
+          </section>
         </div>
-      </div>
-    </div>
+      </SettingsCard>
+    </SettingsPageLayout>
   );
 }
