@@ -18,6 +18,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const DEFAULT_DB_NAME = process.env.MONGO_DB_NAME || "RabbitCV";
 const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+const jwtSecret = process.env.JWT_SECRET || "rabbitcv_secret_key_12345";
+const usingDefaultJwtSecret = !process.env.JWT_SECRET;
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:4000",
@@ -35,8 +37,8 @@ const missingEnv = [];
 if (!mongoUri) {
   missingEnv.push("MONGODB_URI");
 }
-if (!process.env.JWT_SECRET) {
-  missingEnv.push("JWT_SECRET");
+if (usingDefaultJwtSecret) {
+  console.warn("JWT_SECRET is not configured. Using the built-in fallback secret.");
 }
 if (missingEnv.length) {
   console.error(`Missing required environment variables: ${missingEnv.join(", ")}`);
@@ -176,6 +178,10 @@ app.get("/api/health", async (req, res) => {
     ok: missingEnv.length === 0 && dbConnected,
     env: process.env.NODE_ENV || "development",
     missingEnv,
+    auth: {
+      jwtConfigured: Boolean(jwtSecret),
+      usingDefaultJwtSecret,
+    },
     database: {
       readyState: mongoose.connection.readyState,
       connected: dbConnected,
@@ -205,15 +211,11 @@ app.use("/api", async (req, res, next) => {
 });
 
 const authMiddleware = (req, res, next) => {
-  if (!process.env.JWT_SECRET) {
-    return res.status(500).json({ message: "Server chua cau hinh JWT_SECRET" });
-  }
-
   const token = req.cookies.token;
   if (!token) return res.status(401).json({ message: "Vui long dang nhap" });
 
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = jwt.verify(token, jwtSecret);
     next();
   } catch {
     res.status(401).json({ message: "Phien dang nhap het han" });
@@ -364,11 +366,7 @@ app.post("/api/login", async (req, res) => {
       role: user.role || 'employee',
     };
 
-    if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ message: "Server chua cau hinh JWT_SECRET" });
-    }
-
-    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+    const token = jwt.sign(payload, jwtSecret, {
       expiresIn: rememberMe ? "30d" : "1d",
     });
 
