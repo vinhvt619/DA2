@@ -16,6 +16,8 @@ mongoose.set("bufferCommands", false);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const DEFAULT_DB_NAME = process.env.MONGO_DB_NAME || "RabbitCV";
+const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:4000",
@@ -29,8 +31,13 @@ const allowedOrigins = [
     : undefined,
 ].filter(Boolean);
 
-const requiredEnv = ["MONGO_URI", "JWT_SECRET"];
-const missingEnv = requiredEnv.filter((key) => !process.env[key]);
+const missingEnv = [];
+if (!mongoUri) {
+  missingEnv.push("MONGODB_URI");
+}
+if (!process.env.JWT_SECRET) {
+  missingEnv.push("JWT_SECRET");
+}
 if (missingEnv.length) {
   console.error(`Missing required environment variables: ${missingEnv.join(", ")}`);
 }
@@ -59,6 +66,22 @@ const mongoCache = globalThis.mongoCache || {
 };
 globalThis.mongoCache = mongoCache;
 
+const resolveMongoUri = (uri) => {
+  if (!uri) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(uri);
+    if (!parsed.pathname || parsed.pathname === "/") {
+      parsed.pathname = `/${DEFAULT_DB_NAME}`;
+    }
+    return parsed.toString();
+  } catch {
+    return uri;
+  }
+};
+
 app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
@@ -86,8 +109,8 @@ const seedAdmin = async () => {
 };
 
 const connectDB = async () => {
-  if (!process.env.MONGO_URI) {
-    throw new Error("Missing MONGO_URI");
+  if (!mongoUri) {
+    throw new Error("Missing MONGODB_URI");
   }
 
   if (mongoCache.conn) {
@@ -95,7 +118,7 @@ const connectDB = async () => {
   }
 
   if (!mongoCache.promise) {
-    mongoCache.promise = mongoose.connect(process.env.MONGO_URI, {
+    mongoCache.promise = mongoose.connect(resolveMongoUri(mongoUri), {
       serverSelectionTimeoutMS: 5000,
       maxPoolSize: 10,
       family: 4,
@@ -141,7 +164,7 @@ const getPublicErrorMessage = (err, fallbackMessage) => {
 app.get("/api/health", async (req, res) => {
   let dbError = null;
 
-  if (!missingEnv.includes("MONGO_URI")) {
+  if (!missingEnv.includes("MONGODB_URI")) {
     try {
       await connectDB();
     } catch (err) {
@@ -177,7 +200,7 @@ app.use("/api", async (req, res, next) => {
     console.error("Loi ket noi MongoDB:", err.message);
     return res.status(503).json({
       message:
-        "Khong ket noi duoc database. Vui long kiem tra MONGO_URI va Network Access tren MongoDB Atlas.",
+        "Khong ket noi duoc database. Vui long kiem tra MONGODB_URI, them /RabbitCV vao URI, va mo Network Access tren MongoDB Atlas.",
       error: process.env.NODE_ENV === "production" ? undefined : err.message,
     });
   }

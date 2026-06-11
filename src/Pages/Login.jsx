@@ -16,6 +16,15 @@ function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const readApiMessage = async (response) => {
+    try {
+      const data = await response.json();
+      return data?.message || data?.error || "";
+    } catch {
+      return "";
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -47,7 +56,7 @@ function Login() {
           rememberMe: formData.rememberMe,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
         showToast("Đăng nhập thành công!", "success");
@@ -59,10 +68,15 @@ function Login() {
           setTimeout(() => navigate("/WelcomePageCustomer"), 800);
         }
       } else {
-        setError(data.message || "Tài khoản hoặc mật khẩu không chính xác.");
+        setError(
+          data.message ||
+            data.error ||
+            (await readApiMessage(res)) ||
+            "Tài khoản hoặc mật khẩu không chính xác.",
+        );
       }
-    } catch {
-      setError("Lỗi kết nối đến máy chủ.");
+    } catch (err) {
+      setError(err?.message || "Lỗi kết nối đến máy chủ.");
     } finally {
       setLoading(false);
     }
@@ -149,7 +163,7 @@ function Login() {
               type="submit"
               disabled={loading}
               className={`w-full text-white font-bold py-3 rounded-xl shadow-md mt-4 
-                ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-linear-to-r from-[#9346F5] to-[#7c38c9] hover:shadow-xl cursor-pointer]"}`}
+                ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-linear-to-r from-[#9346F5] to-[#7c38c9] hover:shadow-xl cursor-pointer"}`}
             >
               {loading ? "Đang xử lý..." : "Đăng nhập"}
             </button>

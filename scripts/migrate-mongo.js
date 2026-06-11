@@ -7,12 +7,12 @@ const args = new Set(process.argv.slice(2));
 const shouldApply = args.has("--apply");
 
 const sourceUri = process.env.LOCAL_MONGO_URI || "mongodb://127.0.0.1:27017/RabbitCV";
-const targetUri = process.env.ATLAS_MONGO_URI || process.env.MONGO_URI;
+const targetUri = process.env.ATLAS_MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URI;
 const dbName = process.env.MONGO_DB_NAME || "RabbitCV";
 const collections = ["users", "resumes", "jobs", "applications", "messages"];
 
 if (!targetUri) {
-  console.error("Missing ATLAS_MONGO_URI or MONGO_URI.");
+  console.error("Missing ATLAS_MONGO_URI, MONGODB_URI, or MONGO_URI.");
   process.exit(1);
 }
 

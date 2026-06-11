@@ -55,7 +55,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // Kết nối tài khoản MongoDB Compass (Local)
-const MONGO_URI = process.env.MONGO_URI;
+const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
 
 async function importData() {
   try {

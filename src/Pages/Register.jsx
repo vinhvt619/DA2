@@ -18,6 +18,15 @@ function Register() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const readApiMessage = async (response) => {
+    try {
+      const data = await response.json();
+      return data?.message || data?.error || "";
+    } catch {
+      return "";
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -64,7 +73,6 @@ function Register() {
           role: formData.role,
         }),
       });
-      const data = await res.json();
       if (res.ok) {
         const loginRes = await fetch("/api/login", {
           method: "POST",
@@ -75,7 +83,16 @@ function Register() {
             password: formData.password,
           }),
         });
-        const loginData = await loginRes.json();
+        const loginData = await loginRes.json().catch(() => ({}));
+
+        if (!loginRes.ok) {
+          setError(
+            loginData.message ||
+              loginData.error ||
+              "Đăng ký xong nhưng không đăng nhập tự động được.",
+          );
+          return;
+        }
 
         showToast(
           "Đăng ký thành công! Chào mừng bạn đến với RabbitCV 🎉",
@@ -88,10 +105,12 @@ function Register() {
           setTimeout(() => navigate("/WelcomePageCustomer"), 1000);
         }
       } else {
-        setError(data.message || "Có lỗi xảy ra khi đăng ký.");
+        const message =
+          (await readApiMessage(res)) || "Có lỗi xảy ra khi đăng ký.";
+        setError(message);
       }
-    } catch {
-      setError("Lỗi kết nối đến máy chủ.");
+    } catch (err) {
+      setError(err?.message || "Lỗi kết nối đến máy chủ.");
     } finally {
       setLoading(false);
     }
@@ -234,7 +253,7 @@ function Register() {
               type="submit"
               disabled={loading}
               className={`w-full text-white font-bold py-2.5 px-4 rounded-xl shadow-md 
-                ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-linear-to-r from-[#9346F5] to-[#7c38c9] hover:shadow-xl cursor-pointer]"}`}
+                ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-linear-to-r from-[#9346F5] to-[#7c38c9] hover:shadow-xl cursor-pointer"}`}
             >
               {loading ? "Đang xử lý..." : "Đăng ký tài khoản"}
             </button>
