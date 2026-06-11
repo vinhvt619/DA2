@@ -12,6 +12,7 @@ import Job from "./models/Job.js";
 import Application from "./models/Application.js";
 
 dotenv.config();
+mongoose.set("bufferCommands", false);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -51,6 +52,13 @@ const cookieOptions = {
   sameSite: "lax",
 };
 
+const mongoCache = globalThis.mongoCache || {
+  conn: null,
+  promise: null,
+  adminSeeded: false,
+};
+globalThis.mongoCache = mongoCache;
+
 app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
@@ -77,21 +85,73 @@ const seedAdmin = async () => {
   }
 };
 
-mongoose
-  .connect(process.env.MONGO_URI, {
-    serverSelectionTimeoutMS: 5000,
-    family: 4,
-  })
-  .then(() => {
-    console.log("Da ket noi MongoDB");
-    seedAdmin();
-  })
-  .catch((err) => console.log("Loi ket noi MongoDB:", err.message));
+const connectDB = async () => {
+  if (!process.env.MONGO_URI) {
+    throw new Error("Missing MONGO_URI");
+  }
 
-app.get("/api/health", (req, res) => {
+  if (mongoCache.conn) {
+    return mongoCache.conn;
+  }
+
+  if (!mongoCache.promise) {
+    mongoCache.promise = mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 5000,
+      maxPoolSize: 10,
+      family: 4,
+    });
+  }
+
+  try {
+    mongoCache.conn = await mongoCache.promise;
+
+    if (!mongoCache.adminSeeded) {
+      await seedAdmin();
+      mongoCache.adminSeeded = true;
+    }
+
+    return mongoCache.conn;
+  } catch (err) {
+    mongoCache.promise = null;
+    mongoCache.conn = null;
+    throw err;
+  }
+};
+
+const getPublicErrorMessage = (err, fallbackMessage) => {
+  if (err?.code === 11000) {
+    return "Ten dang nhap hoac email da ton tai";
+  }
+
+  if (err?.name === "ValidationError") {
+    return "Thong tin dang ky khong hop le";
+  }
+
+  if (err?.name === "MongooseServerSelectionError") {
+    return "Khong ket noi duoc database. Vui long kiem tra MongoDB Atlas.";
+  }
+
+  if (err?.message?.includes("JWT_SECRET")) {
+    return "Server chua cau hinh JWT_SECRET";
+  }
+
+  return fallbackMessage;
+};
+
+app.get("/api/health", async (req, res) => {
+  let dbError = null;
+
+  if (!missingEnv.includes("MONGO_URI")) {
+    try {
+      await connectDB();
+    } catch (err) {
+      dbError = err.message;
+    }
+  }
+
   const dbConnected = mongoose.connection.readyState === 1;
 
-  res.status(missingEnv.length || !dbConnected ? 500 : 200).json({
+  res.status(missingEnv.length || dbError || !dbConnected ? 500 : 200).json({
     ok: missingEnv.length === 0 && dbConnected,
     env: process.env.NODE_ENV || "development",
     missingEnv,
@@ -100,11 +160,34 @@ app.get("/api/health", (req, res) => {
       connected: dbConnected,
       name: mongoose.connection.name || null,
       host: mongoose.connection.host || null,
+      error: dbError,
     },
   });
 });
 
+app.use("/api", async (req, res, next) => {
+  if (req.path === "/health") {
+    return next();
+  }
+
+  try {
+    await connectDB();
+    return next();
+  } catch (err) {
+    console.error("Loi ket noi MongoDB:", err.message);
+    return res.status(503).json({
+      message:
+        "Khong ket noi duoc database. Vui long kiem tra MONGO_URI va Network Access tren MongoDB Atlas.",
+      error: process.env.NODE_ENV === "production" ? undefined : err.message,
+    });
+  }
+});
+
 const authMiddleware = (req, res, next) => {
+  if (!process.env.JWT_SECRET) {
+    return res.status(500).json({ message: "Server chua cau hinh JWT_SECRET" });
+  }
+
   const token = req.cookies.token;
   if (!token) return res.status(401).json({ message: "Vui long dang nhap" });
 
@@ -226,7 +309,10 @@ app.post("/api/register", async (req, res) => {
     await newUser.save();
     res.status(201).json({ message: "Dang ky thanh cong" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      message: getPublicErrorMessage(err, "Co loi xay ra khi dang ky"),
+      error: process.env.NODE_ENV === "production" ? undefined : err.message,
+    });
   }
 });
 
@@ -256,6 +342,11 @@ app.post("/api/login", async (req, res) => {
       email: user.email,
       role: user.role || 'employee',
     };
+
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ message: "Server chua cau hinh JWT_SECRET" });
+    }
+
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: rememberMe ? "30d" : "1d",
     });
@@ -267,7 +358,10 @@ app.post("/api/login", async (req, res) => {
 
     res.status(200).json({ message: "Dang nhap thanh cong", user: payload });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      message: getPublicErrorMessage(err, "Co loi xay ra khi dang nhap"),
+      error: process.env.NODE_ENV === "production" ? undefined : err.message,
+    });
   }
 });
 
