@@ -73,9 +73,7 @@ const resolveMongoUri = (uri) => {
 
   try {
     const parsed = new URL(uri);
-    if (!parsed.pathname || parsed.pathname === "/") {
-      parsed.pathname = `/${DEFAULT_DB_NAME}`;
-    }
+    parsed.pathname = `/${DEFAULT_DB_NAME}`;
     return parsed.toString();
   } catch {
     return uri;
