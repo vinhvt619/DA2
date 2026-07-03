@@ -117,3 +117,163 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="password"]::-ms-clear {
   display: none;
 } */
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  body, html {
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* --- Hide header & footer when printing --- */
+  header,
+  footer,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* --- Layout resets for print wrappers --- */
+  .view-resume-root,
+  .view-resume-scroll,
+  .view-resume-content,
+  .view-resume-preview,
+  .view-resume-preview-scroll {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    transform: none !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding-bottom: 0 !important;
+    flex: none !important;
+  }
+
+  /* --- CV layout root: stretch to full A4 page height (297mm) --- */
+  .cv-print-layout {
+    height: auto !important;
+    min-height: 297mm !important;
+    max-height: none !important;
+    overflow: visible !important;
+    transform: none !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding-bottom: 0 !important;
+    flex: none !important;
+  }
+
+  /* --- Basic Template padding (acts as layout margin since @page is 0) --- */
+  .cv-basic-layout {
+    padding: 10mm !important;
+  }
+
+  /* --- Sidebar layout padding & background colors --- */
+  .cv-sidebar {
+    background-color: #111827 !important;
+    color: white !important;
+    height: auto !important;
+    min-height: 100% !important;
+    padding-top: 10mm !important;
+    padding-bottom: 10mm !important;
+    padding-left: 10mm !important;
+    padding-right: 8mm !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .cv-modern-sidebar {
+    background-color: #f9fafb !important;
+    border-left: 1px solid #f3f4f6 !important;
+    height: auto !important;
+    min-height: 100% !important;
+    padding-top: 10mm !important;
+    padding-bottom: 10mm !important;
+    padding-left: 8mm !important;
+    padding-right: 10mm !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* --- Main Content padding (acts as layout margin since @page is 0) --- */
+  .cv-main-content {
+    padding-top: 10mm !important;
+    padding-bottom: 10mm !important;
+    padding-left: 10mm !important;
+    padding-right: 10mm !important;
+    gap: 0 !important;
+  }
+  .cv-modern-main {
+    padding-top: 10mm !important;
+    padding-bottom: 10mm !important;
+    padding-left: 10mm !important;
+    padding-right: 8mm !important;
+  }
+
+  /* --- P2: Light compaction for avatar in print --- */
+  .cv-sidebar .cv-avatar {
+    width: 112px !important;
+    height: 112px !important;
+    margin-bottom: 12px !important;
+  }
+
+  /* --- Compact spacing for main content sections with safety cap --- */
+  .cv-main-content > section,
+  .cv-modern-main > section {
+    margin-bottom: clamp(12px, 2.5vh, 28px) !important;
+  }
+  .cv-main-content > section:last-child,
+  .cv-modern-main > section:last-child {
+    margin-bottom: 0 !important;
+  }
+
+  /* --- Force background colors in print --- */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .cv-wrapper {
+    zoom: 1 !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
+
+/* --- CV Wrapper Layout (Desktop & Responsive Mobile) --- */
+.cv-wrapper {
+  width: 210mm;
+  min-height: 297mm;
+  zoom: var(--cv-zoom, 0.9);
+  margin-left: auto;
+  margin-right: auto;
+  transition: zoom 0.15s ease;
+}
+
+/* Fallback cho trình duyệt không hỗ trợ zoom (Firefox cũ) */
+@supports not (zoom: 1) {
+  .cv-wrapper {
+    transform: scale(var(--cv-zoom, 0.9));
+    transform-origin: top center;
+    width: calc(210mm * var(--cv-zoom, 0.9)) !important;
+    min-height: calc(297mm * var(--cv-zoom, 0.9)) !important;
+    transition: transform 0.15s ease, width 0.15s ease, min-height 0.15s ease;
+  }
+}

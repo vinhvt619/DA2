@@ -9,38 +9,47 @@ import {
   SparklesIcon,
   TagIcon,
 } from "@heroicons/react/24/outline";
-import { featuredArticle, newsArticles, newsCategories } from "../data/newsArticles.js";
+import { featuredArticle, getCategoryImg, newsArticles, newsCategories } from "../data/newsArticles.js";
 
 const popularArticles = newsArticles.slice(1, 5);
 const allCategory = newsCategories[0];
 
 function ArticleCard({ article }) {
+  const imageUrl = getCategoryImg(article.slug, article.category);
+
   return (
     <Link
       to={`/News/${article.slug}`}
-      className="group flex flex-col rounded-2xl border border-violet-200 bg-white shadow-md shadow-violet-200/30 overflow-hidden hover:-translate-y-0.5 hover:shadow-lg hover:shadow-violet-300/35 transition-all duration-200"
+      className="group flex flex-col rounded-xl border border-gray-200 bg-white overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all"
     >
-      <div className="h-16 bg-violet-200 border-b border-violet-300 flex items-end p-3">
-        <span className="inline-flex items-center gap-1.5 rounded-md bg-white border border-violet-300 px-2.5 py-1 text-[10px] font-semibold text-violet-800">
-          <TagIcon className="w-3 h-3 text-violet-600" />
-          {article.category}
-        </span>
+      <div className="h-40 bg-gray-100 relative overflow-hidden">
+        <img
+          src={imageUrl}
+          alt={article.title}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
+        <div className="absolute bottom-2 left-2.5">
+          <span className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+            <TagIcon className="w-2.5 h-2.5" />
+            {article.category}
+          </span>
+        </div>
       </div>
-      <div className="p-4 flex flex-col flex-1">
-        <h2 className="line-clamp-2 text-sm font-bold leading-snug text-gray-900 group-hover:text-violet-800 transition-colors mb-2">
+      <div className="p-4 flex flex-col flex-1 text-left">
+        <h2 className="line-clamp-2 text-sm font-semibold leading-snug text-slate-800 group-hover:text-violet-600 mb-1.5">
           {article.title}
         </h2>
-        <p className="line-clamp-2 text-xs text-gray-600 leading-relaxed flex-1">
+        <p className="line-clamp-2 text-xs text-slate-400 leading-relaxed flex-1">
           {article.summary}
         </p>
-        <div className="mt-3 flex items-center justify-between border-t border-violet-100 pt-3">
-          <span className="flex items-center gap-1 text-[10px] font-medium text-gray-500">
-            <CalendarDaysIcon className="w-3.5 h-3.5" />
+        <div className="mt-4 flex items-center justify-between border-t border-gray-50 pt-3">
+          <span className="flex items-center gap-1 text-[11px] text-slate-400">
+            <CalendarDaysIcon className="w-3 h-3 text-slate-400" />
             {article.date}
           </span>
-          <span className="flex items-center gap-1 text-[11px] font-semibold text-violet-800 group-hover:gap-1.5 transition-all">
-            Đọc tiếp
-            <ArrowRightIcon className="w-3 h-3" />
+          <span className="text-[11px] font-medium text-violet-600 group-hover:underline">
+            Đọc tiếp →
           </span>
         </div>
       </div>
@@ -64,81 +73,88 @@ export default function News() {
   }, [activeCategory, keyword]);
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA]">
+    <div className="min-h-screen bg-gradient-to-br from-[#F8F4FC] to-[#EDE5F7] page-transition">
       <Header />
 
       <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 pb-16">
-        {/* Hero */}
-        <div className="flex flex-col items-center text-center py-6 sm:py-10 mb-8">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-violet-200 border border-violet-300 text-violet-900 px-3 py-1 text-xs font-semibold mb-4">
+        <div className="flex flex-col items-center text-center py-6 sm:py-8 mb-6">
+          <div className="inline-flex items-center gap-1.5 rounded-md bg-white border border-gray-200 text-slate-600 px-3 py-1 text-[11px] font-semibold mb-4">
             <NewspaperIcon className="h-3.5 w-3.5" />
             RabbitCV · Tin tức
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-3 max-w-2xl">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3 max-w-2xl">
             Nghề nghiệp & Thị trường việc làm
           </h1>
-          <p className="text-gray-500 text-sm sm:text-base max-w-xl leading-relaxed mb-6">
-            Cập nhật xu hướng tuyển dụng, kỹ năng nghề nghiệp và những góc nhìn thực tế
+          <p className="text-gray-500 text-sm max-w-xl leading-relaxed mb-6">
+            Cập nhật xu hướng tuyển dụng, kỹ năng nghề nghiệp và góc nhìn thực tế
             giúp bạn chuẩn bị tốt hơn cho hành trình tìm việc.
           </p>
 
-          <label className="flex h-11 w-full max-w-md items-center gap-2.5 rounded-xl border border-violet-200 bg-white px-4 shadow-md shadow-violet-200/25 transition-shadow focus-within:shadow-lg focus-within:border-violet-400">
-            <MagnifyingGlassIcon className="h-4.5 w-4.5 shrink-0 text-violet-600" />
+          <label className="flex h-10 w-full max-w-md items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 shadow-xs">
+            <MagnifyingGlassIcon className="h-4 w-4 shrink-0 text-gray-400" />
             <input
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              className="h-full w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
+              className="h-full w-full bg-transparent text-sm outline-none placeholder:text-gray-450"
               placeholder="Tìm bài viết theo từ khóa..."
             />
           </label>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-[1fr_17rem] xl:grid-cols-[1fr_19rem]">
-          {/* Main column */}
-          <div className="space-y-6">
-            {/* Featured */}
+        <div className="grid gap-6 lg:grid-cols-[1fr_17rem] xl:grid-cols-[1fr_19rem]">
+          <div className="space-y-5">
             <Link
               to={`/News/${featuredArticle.slug}`}
-              className="group block rounded-2xl overflow-hidden border border-violet-200 bg-white shadow-md shadow-violet-200/30 hover:shadow-lg hover:shadow-violet-300/35 transition-all duration-200"
+              className="group flex flex-col md:flex-row rounded-xl overflow-hidden border border-gray-200 bg-white hover:shadow-md hover:-translate-y-0.5 transition-all"
             >
-              <div className="px-6 py-8 sm:px-8 sm:py-10 border-b-4 border-violet-300">
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-violet-200 border border-violet-300 px-3 py-1 text-[11px] font-semibold text-violet-900 mb-4">
-                  <SparklesIcon className="h-3.5 w-3.5" />
-                  Bài viết nổi bật
-                </span>
-                <h2 className="text-lg sm:text-xl font-bold leading-snug text-gray-900 group-hover:text-violet-800 transition-colors max-w-2xl">
-                  {featuredArticle.title}
-                </h2>
-                <p className="mt-3 line-clamp-2 text-sm text-gray-500 leading-relaxed max-w-xl">
-                  {featuredArticle.summary}
-                </p>
-                <div className="mt-5 flex flex-wrap items-center gap-3">
-                  <span className="rounded-md bg-violet-200 border border-violet-300 px-2.5 py-1 text-xs font-medium text-violet-900">
+              <div className="w-full md:w-[40%] h-48 md:h-auto bg-gray-100 relative overflow-hidden">
+                <img
+                  src={getCategoryImg(featuredArticle.slug, featuredArticle.category)}
+                  alt={featuredArticle.title}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+              
+              <div className="w-full md:w-[60%] p-6 flex flex-col justify-between text-left">
+                <div>
+                  <span className="inline-flex items-center gap-1 rounded-md bg-violet-50 text-violet-700 border border-violet-100 px-2.5 py-0.5 text-[11px] font-semibold mb-3">
+                    <SparklesIcon className="h-3 w-3 text-violet-600" />
+                    Bài viết nổi bật
+                  </span>
+                  <h2 className="text-lg font-bold leading-snug text-slate-800 group-hover:text-violet-600">
+                    {featuredArticle.title}
+                  </h2>
+                  <p className="mt-2 line-clamp-2 text-xs sm:text-sm text-slate-400 leading-relaxed">
+                    {featuredArticle.summary}
+                  </p>
+                </div>
+                
+                <div className="mt-5 flex flex-wrap items-center gap-3 pt-4 border-t border-gray-50">
+                  <span className="rounded-md border border-violet-100 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-600">
                     {featuredArticle.category}
                   </span>
-                  <span className="flex items-center gap-1 text-xs text-gray-400">
-                    <CalendarDaysIcon className="h-3.5 w-3.5" />
+                  <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                    <CalendarDaysIcon className="h-3.5 w-3.5 text-slate-400" />
                     {featuredArticle.date}
                   </span>
-                  <span className="ml-auto flex items-center gap-1.5 text-sm font-semibold text-violet-800 group-hover:gap-2.5 transition-all">
-                    Đọc bài viết
-                    <ArrowRightIcon className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                  <span className="ml-auto text-xs font-semibold text-violet-600 group-hover:underline">
+                    Đọc bài viết →
                   </span>
                 </div>
               </div>
             </Link>
 
-            {/* Category filter */}
-            <div className="rounded-2xl border border-violet-200 bg-white p-3 shadow-md shadow-violet-200/25">
-              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            <div className="rounded-xl border border-gray-200 bg-white p-2.5 shadow-sm">
+              <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
                 {newsCategories.map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setActiveCategory(cat)}
-                    className={`shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition-all duration-200 ${
+                    className={`shrink-0 rounded-md px-3.5 py-1.5 text-xs font-medium transition-colors ${
                       activeCategory === cat
-                        ? "bg-violet-800 text-white shadow-sm"
-                        : "bg-white text-gray-700 border border-violet-200 hover:border-violet-400 hover:text-violet-900"
+                        ? "bg-violet-600 text-white"
+                        : "bg-white text-gray-500 border border-gray-200 hover:text-violet-600"
                     }`}
                   >
                     {cat}
@@ -147,7 +163,6 @@ export default function News() {
               </div>
             </div>
 
-            {/* Article grid */}
             {filteredArticles.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {filteredArticles.map((article) => (
@@ -155,9 +170,9 @@ export default function News() {
                 ))}
               </div>
             ) : (
-              <div className="rounded-2xl border border-violet-200 bg-white py-16 text-center shadow-md shadow-violet-200/25">
-                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-200 text-violet-700">
-                  <MagnifyingGlassIcon className="h-6 w-6" />
+              <div className="rounded-xl border border-gray-200 bg-white py-14 text-center shadow-sm">
+                <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-gray-105 text-gray-400">
+                  <MagnifyingGlassIcon className="h-5 w-5" />
                 </div>
                 <p className="text-sm font-semibold text-gray-700">Không tìm thấy bài viết phù hợp</p>
                 <p className="mt-1 text-xs text-gray-400">Thử đổi từ khóa hoặc chọn danh mục khác</p>
@@ -166,7 +181,7 @@ export default function News() {
                     setKeyword("");
                     setActiveCategory(allCategory);
                   }}
-                  className="mt-4 text-xs font-semibold text-violet-800 hover:text-violet-950 transition-colors"
+                  className="mt-3 text-xs font-medium text-violet-600 hover:underline"
                 >
                   Xóa bộ lọc
                 </button>
@@ -174,11 +189,10 @@ export default function News() {
             )}
           </div>
 
-          {/* Sidebar */}
           <aside className="lg:sticky lg:top-6 lg:self-start space-y-4">
-            <div className="rounded-2xl border border-violet-200 bg-white p-5 shadow-md shadow-violet-200/25">
-              <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-500 mb-4">
-                <span className="h-4 w-1 rounded-full bg-violet-700" />
+            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+              <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                <span className="h-3 w-1 rounded-sm bg-violet-600" />
                 Bài viết phổ biến
               </h3>
               <div className="space-y-1">
@@ -186,22 +200,22 @@ export default function News() {
                   <Link
                     key={article.slug}
                     to={`/News/${article.slug}`}
-                    className="group flex gap-3 items-start rounded-xl p-2.5 -mx-1 transition-colors hover:bg-violet-100"
+                    className="group flex gap-3 items-start rounded-lg p-2 -mx-1 hover:bg-gray-50"
                   >
                     <span
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold tabular-nums ${
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${
                         i === 0
-                          ? "bg-violet-800 text-white"
-                          : "bg-violet-200 text-violet-800"
+                          ? "bg-violet-600 text-white"
+                          : "bg-gray-100 text-gray-500"
                       }`}
                     >
                       {i + 1}
                     </span>
-                    <div className="min-w-0 pt-0.5">
-                      <p className="text-[10px] font-medium text-violet-700 mb-0.5 truncate">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-medium text-violet-600 mb-0.5">
                         {article.category}
                       </p>
-                      <p className="text-xs font-medium leading-5 text-gray-800 group-hover:text-violet-900 transition-colors line-clamp-2">
+                      <p className="text-xs font-medium leading-relaxed text-gray-800 group-hover:text-violet-600 line-clamp-2">
                         {article.title}
                       </p>
                     </div>
@@ -210,15 +224,15 @@ export default function News() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-violet-200 bg-violet-100 p-5 shadow-md shadow-violet-200/25">
-              <p className="text-xs font-semibold text-violet-900 mb-1">Mẹo nhỏ</p>
-              <p className="text-xs leading-5 text-gray-500">
+            <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-5 shadow-sm">
+              <p className="text-xs font-semibold text-slate-800 mb-1">Mẹo nhỏ</p>
+              <p className="text-xs leading-relaxed text-gray-500">
                 Đọc tin tức thường xuyên giúp bạn nắm bắt xu hướng tuyển dụng và chuẩn bị CV
                 phù hợp hơn.
               </p>
               <Link
                 to="/ResumeSelection"
-                className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-violet-800 hover:gap-1.5 transition-all"
+                className="mt-3.5 inline-flex items-center gap-1 text-xs font-medium text-violet-600 hover:underline"
               >
                 Tạo CV ngay
                 <ArrowRightIcon className="h-3 w-3" />

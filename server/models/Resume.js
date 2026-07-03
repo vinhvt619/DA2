@@ -13,6 +13,9 @@ const HobbySchema = new mongoose.Schema({ title: String });
 const ResumeSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   title: { type: String, default: "CV Mới Của Tôi" },
+  pdfData: { type: String, default: "" },
+  fileName: { type: String, default: "" },
+  isVirtual: { type: Boolean, default: false },
   image: { type: String, default: "" },
   personalInfo: {
     fullName: { type: String, default: "" },

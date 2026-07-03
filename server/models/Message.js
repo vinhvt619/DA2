@@ -12,7 +12,11 @@ const MessageSchema = new mongoose.Schema(
     },
     content: {
       type: String,
-      required: true,
+      default: "",
+    },
+    image: {
+      type: String,
+      default: null,
     },
     room: {
       type: String,

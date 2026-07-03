@@ -2,6 +2,9 @@ import "../App.css";
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ToastProvider } from "../Components/Toast";
+import { SavedJobsProvider } from "../context/SavedJobsContext";
+import { AuthProvider } from "../context/AuthContext.jsx";
+import ScrollToTop from "../Components/ScrollToTop.jsx";
 import Login from "./Login.jsx";
 import WelcomePage from "./Welcome_Page.jsx";
 import Register from "./Register.jsx";
@@ -18,42 +21,52 @@ import UserDashboard from "./UserDashboard.jsx";
 import AdminDashboard from "./AdminDashboard.jsx";
 import CompanyDashboard from "./CompanyDashboard.jsx";
 import ViewResume from "./ViewResume.jsx";
+import UserProfile from "./UserProfile.jsx";
 import News from "./News.jsx";
 import NewsDetail from "./NewsDetail.jsx";
 import JobDetail from "./JobDetail.jsx";
 import AllJobs from "./AllJobs.jsx";
+import SavedJobs from "./SavedJobs.jsx";
+
 
 function App() {
   return (
-    <ToastProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<WelcomePage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/MainMenu" element={<MainMenu />} />
-          <Route path="/TopPage" element={<TopPage />} />
-          <Route
-            path="/WelcomePageCustomer"
-            element={<WelcomePageCustomer />}
-          />
-          <Route path="/Profile" element={<Profile />} />
-          <Route path="/Message" element={<Messenger />} />
-          <Route path="/Accessibility" element={<Accessibility />} />
-          <Route path="/SettingAndPrivate" element={<SettingAndPrivate />} />
-          <Route path="/resume" element={<CreateResume />} />
-          <Route path="/ResumeSelection" element={<ResumeSelection />} />
-          <Route path="/UserDashboard" element={<UserDashboard />} />
-          <Route path="/AdminDashboard" element={<AdminDashboard />} />
-          <Route path="/CompanyDashboard" element={<CompanyDashboard />} />
-          <Route path="/resume/view/:resumeId" element={<ViewResume />} />
-          <Route path="/News" element={<News />} />
-          <Route path="/News/:slug" element={<NewsDetail />} />
-          <Route path="/jobs/:jobId" element={<JobDetail />} />
-          <Route path="/AllJobs" element={<AllJobs />} />
-        </Routes>
-      </BrowserRouter>
-    </ToastProvider>
+    <AuthProvider>
+      <ToastProvider>
+        <SavedJobsProvider>
+          <BrowserRouter>
+            <ScrollToTop />
+            <Routes>
+              <Route path="/" element={<WelcomePage />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/MainMenu" element={<MainMenu />} />
+              <Route path="/TopPage" element={<TopPage />} />
+              <Route
+                path="/WelcomePageCustomer"
+                element={<WelcomePageCustomer />}
+              />
+              <Route path="/Profile" element={<Profile />} />
+              <Route path="/Message" element={<Messenger />} />
+              <Route path="/Accessibility" element={<Accessibility />} />
+              <Route path="/SettingAndPrivate" element={<SettingAndPrivate />} />
+              <Route path="/resume" element={<CreateResume />} />
+              <Route path="/ResumeSelection" element={<ResumeSelection />} />
+              <Route path="/UserDashboard" element={<UserDashboard />} />
+              <Route path="/AdminDashboard" element={<AdminDashboard />} />
+              <Route path="/CompanyDashboard" element={<CompanyDashboard />} />
+              <Route path="/resume/view/:resumeId" element={<ViewResume />} />
+              <Route path="/user-profile/:userId" element={<UserProfile />} />
+              <Route path="/News" element={<News />} />
+              <Route path="/News/:slug" element={<NewsDetail />} />
+              <Route path="/jobs/:jobId" element={<JobDetail />} />
+              <Route path="/AllJobs" element={<AllJobs />} />
+              <Route path="/saved-jobs" element={<SavedJobs />} />
+            </Routes>
+          </BrowserRouter>
+        </SavedJobsProvider>
+      </ToastProvider>
+    </AuthProvider>
   );
 }
 export default App;

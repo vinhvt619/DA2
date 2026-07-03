@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 import Header from "../Components/Header.jsx";
 import { useToastContext } from "../Components/Toast.jsx";
 import {
@@ -78,17 +79,17 @@ function LoadingSkeleton() {
       {[1, 2, 3].map((i) => (
         <div
           key={i}
-          className="rounded-2xl border border-violet-200 bg-white p-5 animate-pulse shadow-sm"
+          className="rounded-xl border border-gray-200 bg-white p-5 animate-pulse shadow-sm"
         >
           <div className="flex justify-between mb-4">
-            <div className="w-10 h-10 rounded-xl bg-violet-100" />
-            <div className="w-16 h-5 rounded-md bg-gray-100" />
+            <div className="w-9 h-9 rounded-lg bg-gray-100" />
+            <div className="w-16 h-5 rounded bg-gray-100" />
           </div>
           <div className="h-5 w-3/4 rounded bg-gray-100 mb-2" />
           <div className="h-4 w-1/2 rounded bg-gray-50" />
           <div className="mt-6 flex gap-2">
-            <div className="flex-1 h-9 rounded-xl bg-gray-100" />
-            <div className="w-10 h-9 rounded-xl bg-gray-50" />
+            <div className="flex-1 h-9 rounded-lg bg-gray-100" />
+            <div className="w-9 h-9 rounded-lg bg-gray-50" />
           </div>
         </div>
       ))}
@@ -104,7 +105,15 @@ export default function ResumeSelection() {
   const [editingId, setEditingId] = useState(null);
   const [tempTitle, setTempTitle] = useState("");
 
+  const { currentUser, isAuthChecked } = useAuth();
+
   useEffect(() => {
+    if (!isAuthChecked) return;
+    if (!currentUser) {
+      navigate("/login");
+      return;
+    }
+
     const fetchResumes = async () => {
       try {
         const response = await fetch("/api/resumes", { credentials: "include" });
@@ -119,7 +128,7 @@ export default function ResumeSelection() {
       }
     };
     fetchResumes();
-  }, []);
+  }, [currentUser, isAuthChecked, navigate]);
 
   const handleSelectTemplate = (template) => {
     navigate("/resume", { state: { template } });
@@ -184,46 +193,53 @@ export default function ResumeSelection() {
     document.getElementById("templates-section")?.scrollIntoView({ behavior: "smooth" });
   };
 
+  if (!isAuthChecked) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#F8F4FC] to-[#EDE5F7] flex flex-col items-center justify-center font-sans">
+        <div className="animate-spin rounded-full h-8 w-8 border-4 border-[#9346F5] border-t-transparent mb-4"></div>
+        <p className="text-xs text-slate-500 font-medium">Đang xác thực thông tin...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] flex flex-col font-sans antialiased">
+    <div className="min-h-screen bg-gradient-to-br from-[#F8F4FC] to-[#EDE5F7] flex flex-col font-sans antialiased text-slate-900 text-sm page-transition">
       <Header />
 
       <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 pb-16">
-        {/* Hero */}
-        <div className="flex flex-col items-center text-center py-6 sm:py-8 mb-8">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-violet-200 border border-violet-300 text-violet-900 px-3 py-1 text-xs font-semibold mb-4">
+        <div className="flex flex-col items-center text-center py-6 sm:py-8 mb-6">
+          <div className="inline-flex items-center gap-1.5 rounded-md bg-white border border-gray-200 text-slate-600 px-3 py-1 text-[11px] font-semibold mb-4">
             <DocumentTextIcon className="h-3.5 w-3.5" />
             RabbitCV · Tạo CV
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-3 max-w-2xl">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3 max-w-2xl">
             Thư viện CV của bạn
           </h1>
-          <p className="text-gray-500 text-sm sm:text-base max-w-xl leading-relaxed">
+          <p className="text-gray-500 text-sm max-w-xl leading-relaxed">
             Quản lý các phiên bản hồ sơ, chỉnh sửa nhanh và tạo CV mới với mẫu chuyên nghiệp
             để ứng tuyển hiệu quả hơn.
           </p>
         </div>
 
-        {/* Saved CVs */}
-        <section className="rounded-3xl border border-violet-200 bg-white p-6 lg:p-8 shadow-md shadow-violet-200/30 mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <section className="rounded-xl border border-gray-200 bg-white p-6 lg:p-7 shadow-sm mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
             <div>
-              <h2 className="text-lg font-extrabold text-gray-900">
+              <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
                 CV đã lưu
                 {!loading && savedResumes.length > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center rounded-full bg-violet-200 text-violet-900 text-xs font-semibold px-2 py-0.5">
+                  <span className="inline-flex items-center justify-center rounded-md bg-gray-100 text-gray-600 text-xs font-semibold px-2 py-0.5">
                     {savedResumes.length}
                   </span>
                 )}
               </h2>
-              <p className="text-sm text-gray-500 mt-0.5">
-                Click vào tên CV để đổi tên nhanh
+              <p className="text-xs text-gray-400 mt-0.5">
+                Nhấn vào tên CV để đổi tên nhanh
               </p>
             </div>
             <button
               type="button"
               onClick={() => navigate("/resume", { state: { template: "modern" } })}
-              className="shrink-0 px-4 py-2.5 bg-violet-800 text-white hover:bg-violet-900 rounded-xl cursor-pointer font-semibold flex items-center justify-center gap-2 shadow-md transition-all text-sm"
+              className="shrink-0 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold flex items-center justify-center gap-1.5 text-xs transition-colors"
             >
               <PlusIcon className="w-4 h-4" />
               Tạo CV mới
@@ -233,21 +249,21 @@ export default function ResumeSelection() {
           {loading ? (
             <LoadingSkeleton />
           ) : savedResumes.length === 0 ? (
-            <div className="text-center border border-dashed border-violet-300 rounded-2xl py-12 px-6 bg-violet-100">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-200 text-violet-800">
-                <DocumentTextIcon className="h-7 w-7" />
+            <div className="text-center border border-dashed border-gray-200 rounded-xl py-12 px-6 bg-gray-50/50">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100 text-gray-400">
+                <DocumentTextIcon className="h-6 w-6" />
               </div>
-              <p className="text-gray-600 font-semibold mb-1">Bạn chưa có bản CV nào</p>
-              <p className="text-sm text-gray-400 mb-5">
+              <p className="text-gray-700 font-semibold mb-1">Bạn chưa có bản CV nào</p>
+              <p className="text-xs text-gray-400 mb-4">
                 Chọn mẫu bên dưới hoặc tạo CV mới để bắt đầu
               </p>
               <button
                 type="button"
                 onClick={scrollToTemplates}
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-violet-800 hover:gap-2 transition-all"
+                className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 hover:underline"
               >
                 Xem mẫu CV
-                <ArrowRightIcon className="w-4 h-4" />
+                <ArrowRightIcon className="w-3.5 h-3.5" />
               </button>
             </div>
           ) : (
@@ -255,26 +271,26 @@ export default function ResumeSelection() {
               {savedResumes.map((cv) => (
                 <div
                   key={cv._id}
-                  className="rounded-2xl border border-violet-200 bg-white p-5 flex flex-col group hover:border-violet-300 hover:shadow-lg hover:shadow-violet-200/35 transition-all duration-200 shadow-sm"
+                  className="rounded-xl border border-gray-200 bg-white p-5 flex flex-col group hover:shadow-md hover:-translate-y-0.5 transition-all"
                 >
                   <div className="flex-1">
                     <div className="flex justify-between items-start mb-3">
-                      <div className="w-10 h-10 rounded-xl bg-violet-200 text-violet-800 flex items-center justify-center border border-violet-300 group-hover:border-violet-400 transition-colors">
-                        <DocumentTextIcon className="w-5 h-5" />
+                      <div className="w-9 h-9 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center border border-violet-100">
+                        <DocumentTextIcon className="w-4.5 h-4.5" />
                       </div>
                       <div className="flex flex-col items-end gap-1">
-                        <span className="text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
+                        <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
                           {new Date(cv.updatedAt || cv.createdAt).toLocaleDateString("vi-VN")}
                         </span>
                         {cv.selectedTemplate && (
-                          <span className="text-[10px] font-semibold text-violet-800 bg-violet-200 px-2 py-0.5 rounded-md border border-violet-300">
+                          <span className="text-[10px] font-semibold text-violet-755 bg-violet-50 px-2 py-0.5 rounded border border-violet-100">
                             {TEMPLATE_LABELS[cv.selectedTemplate] || cv.selectedTemplate}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="h-10 flex items-center mb-1">
+                    <div className="h-9 flex items-center mb-1">
                       {editingId === cv._id ? (
                         <input
                           autoFocus
@@ -283,7 +299,7 @@ export default function ResumeSelection() {
                           onChange={(e) => setTempTitle(e.target.value)}
                           onBlur={() => handleRename(cv)}
                           onKeyDown={(e) => e.key === "Enter" && handleRename(cv)}
-                          className="w-full text-sm font-bold text-gray-800 border-b-2 border-violet-700 focus:outline-none bg-violet-100 px-2 py-1 h-full rounded-t-lg"
+                          className="w-full text-sm font-bold text-gray-800 border-b border-violet-500 focus:outline-none bg-gray-50 px-2 py-1 h-full rounded"
                         />
                       ) : (
                         <h3
@@ -292,7 +308,7 @@ export default function ResumeSelection() {
                             setEditingId(cv._id);
                             setTempTitle(cv.title);
                           }}
-                          className="text-sm font-bold text-gray-800 line-clamp-1 cursor-text hover:bg-violet-100 px-2 py-1 w-full border-b-2 border-transparent rounded-t-lg transition-colors"
+                          className="text-sm font-bold text-gray-850 line-clamp-1 cursor-text hover:bg-gray-50 px-2 py-1 w-full rounded transition-colors"
                           title="Click để đổi tên"
                         >
                           {cv.title || "CV Mới Của Tôi"}
@@ -305,11 +321,11 @@ export default function ResumeSelection() {
                     </p>
                   </div>
 
-                  <div className="mt-5 flex gap-2">
+                  <div className="mt-4 pt-3 border-t border-gray-50 flex gap-2">
                     <button
                       type="button"
                       onClick={() => handleEditResume(cv)}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-violet-100 text-violet-900 font-semibold py-2 rounded-xl hover:bg-violet-800 hover:text-white text-xs border border-violet-300 hover:border-violet-800 transition-all"
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-violet-50 text-violet-700 font-semibold py-2 rounded-lg hover:bg-violet-600 hover:text-white text-xs border border-violet-100 hover:border-violet-600 transition-colors"
                     >
                       <PencilSquareIcon className="w-4 h-4" />
                       Sửa CV
@@ -317,7 +333,7 @@ export default function ResumeSelection() {
                     <button
                       type="button"
                       onClick={() => handleDeleteResume(cv._id)}
-                      className="w-10 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-gray-100 hover:border-red-100 transition-all"
+                      className="w-9 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg border border-gray-150 hover:border-red-100 transition-colors"
                       aria-label="Xóa CV"
                     >
                       <TrashIcon className="w-4 h-4" />
@@ -329,50 +345,48 @@ export default function ResumeSelection() {
           )}
         </section>
 
-        {/* Templates */}
         <section
           id="templates-section"
-          className="rounded-3xl border border-violet-200 bg-white p-6 lg:p-8 shadow-md shadow-violet-200/30"
+          className="rounded-xl border border-gray-200 bg-white p-6 lg:p-7 shadow-sm"
         >
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-violet-200 border border-violet-300 text-violet-900 px-3 py-1 text-xs font-semibold mb-3">
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center gap-1.5 rounded-md bg-white border border-gray-200 text-slate-600 px-3 py-1 text-[11px] font-semibold mb-3">
               <SparklesIcon className="h-3.5 w-3.5" />
               Mẫu CV chuyên nghiệp
             </div>
-            <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 mb-2">
+            <h2 className="text-lg font-bold text-gray-900 mb-1.5">
               Tạo phiên bản CV mới
             </h2>
-            <p className="text-sm text-gray-500 max-w-lg mx-auto leading-relaxed">
+            <p className="text-xs text-gray-500 max-w-sm mx-auto leading-relaxed">
               Bạn có thể tạo nhiều phiên bản CV khác nhau để ứng tuyển cho từng vị trí và công ty.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto">
             {TEMPLATES.map((tpl) => (
               <button
                 key={tpl.id}
                 type="button"
                 onClick={() => handleSelectTemplate(tpl.id)}
-                className="group text-left rounded-2xl border border-violet-200 bg-white p-5 shadow-sm hover:border-violet-300 hover:shadow-lg hover:shadow-violet-200/35 hover:-translate-y-0.5 transition-all duration-200"
+                className="group text-left rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
               >
-                <div className="h-44 w-full rounded-xl mb-4 overflow-hidden border border-violet-200 bg-violet-100 p-3 group-hover:border-violet-300 transition-colors">
+                <div className="h-40 w-full rounded-lg mb-3 overflow-hidden border border-gray-100 bg-gray-50 p-3">
                   {tpl.preview}
                 </div>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="text-base font-extrabold text-gray-900 group-hover:text-violet-800 transition-colors">
+                    <h3 className="text-sm font-semibold text-gray-900 group-hover:text-violet-600">
                       {tpl.name}
                     </h3>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-450">
                       {tpl.tag}
                     </span>
                   </div>
-                  <span className="shrink-0 flex items-center gap-1 text-xs font-semibold text-violet-800 opacity-0 group-hover:opacity-100 transition-opacity">
-                    Dùng mẫu
-                    <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  <span className="text-xs font-semibold text-violet-600 group-hover:underline">
+                    Dùng mẫu →
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 font-medium leading-relaxed mt-2">
+                <p className="text-xs text-gray-400 mt-1.5 leading-relaxed">
                   {tpl.desc}
                 </p>
               </button>

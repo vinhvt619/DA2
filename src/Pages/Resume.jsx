@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 import Header from "../Components/Header";
 import ResumeForm from "../Components/ResumeForm";
 import ResumePreview from "../Components/ResumePreview";
 import ResumeTemplate from "../Components/ResumeTemplate";
 import Toast from "../Components/Toast";
+import useCvZoom from "../hooks/useCvZoom";
+import { SAMPLE_CVS } from "../data/sampleCV";
 import {
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
@@ -16,6 +19,7 @@ import {
 export default function CreateResume() {
   const location = useLocation();
   const navigate = useNavigate();
+  useCvZoom();
   const [showForm, setShowForm] = useState(true);
   const [showTemplates, setShowTemplates] = useState(true);
   const [_id, setId] = useState(location.state?.cvId || null);
@@ -52,7 +56,35 @@ export default function CreateResume() {
   const [award, setAward] = useState([]);
   const [hobby, setHobby] = useState([]);
 
+  const handleFillSample = () => {
+    // Lấy random 1 CV từ danh sách mẫu
+    const randomIndex = Math.floor(Math.random() * SAMPLE_CVS.length);
+    const randomCV = SAMPLE_CVS[randomIndex];
+
+    setTitle(randomCV.title);
+    setPersonalInfo(randomCV.personalInfo);
+    setBio(randomCV.bio);
+    setProfile(randomCV.profile);
+    setExperience(randomCV.experience);
+    setEducation(randomCV.education);
+    setSkill(randomCV.skill);
+    setLanguage(randomCV.language);
+    setCertificate(randomCV.certificate);
+    setProject(randomCV.project);
+    setAward(randomCV.award);
+    setHobby(randomCV.hobby);
+    showToast(`Đã điền ${randomCV.title}!`, "success");
+  };
+
+  const { currentUser, isAuthChecked } = useAuth();
+
   useEffect(() => {
+    if (!isAuthChecked) return;
+    if (!currentUser) {
+      navigate("/login");
+      return;
+    }
+
     const fetchResumeData = async () => {
       if (!_id) return;
       try {
@@ -85,7 +117,7 @@ export default function CreateResume() {
       }
     };
     fetchResumeData();
-  }, [_id]);
+  }, [_id, currentUser, isAuthChecked, navigate]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -123,7 +155,7 @@ export default function CreateResume() {
         const errorData = await response.json();
         showToast(errorData.message || "Lỗi khi lưu CV.", "error");
       }
-    } catch (error) {
+    } catch {
       showToast("Không thể kết nối đến server!", "error");
     } finally {
       setIsSaving(false);
@@ -137,8 +169,17 @@ export default function CreateResume() {
       })
     : null;
 
+  if (!isAuthChecked) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center font-sans">
+        <div className="animate-spin rounded-full h-8 w-8 border-4 border-[#9346F5] border-t-transparent mb-4"></div>
+        <p className="text-xs text-slate-500 font-medium">Đang xác thực thông tin...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-gray-50 h-screen flex flex-col overflow-hidden">
+    <div className="bg-gray-50 h-screen flex flex-col overflow-hidden page-transition">
       {/* Top Toolbar */}
       <div className="shrink-0 bg-white border-b border-gray-200 px-4 py-2.5 flex items-center gap-3 z-30">
         <button
@@ -194,6 +235,13 @@ export default function CreateResume() {
           >
             <EyeIcon className="w-3.5 h-3.5" />
             <span className="hidden sm:block">Mẫu CV</span>
+          </button>
+
+          <button
+            onClick={handleFillSample}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 transition-all ml-2"
+          >
+            Điền CV Mẫu
           </button>
 
           <div className="w-px h-5 bg-gray-200" />
@@ -263,7 +311,7 @@ export default function CreateResume() {
           </div>
 
           {/* A4 Shadow wrapper */}
-          <div className="w-[794px] max-w-full shrink-0 shadow-2xl shadow-black/20 rounded-sm overflow-hidden">
+          <div className="cv-wrapper bg-white shadow-lg print:shadow-none print:w-full rounded-sm overflow-hidden mb-10">
             <ResumePreview
               selectedTemplate={selectedTemplate}
               image={image}

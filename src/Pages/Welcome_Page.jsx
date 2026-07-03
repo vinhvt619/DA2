@@ -3,6 +3,7 @@ import React, { useEffect } from "react";
 import { ArrowRightIcon, BriefcaseIcon } from "@heroicons/react/24/outline";
 import HeaderNoUser from "../Components/HeaderNoUser";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const highlights = [
   { value: "05", label: "mẫu CV nổi bật" },
@@ -12,32 +13,22 @@ const highlights = [
 
 function WelcomePage() {
   const navigate = useNavigate();
+  const { currentUser, isAuthChecked } = useAuth();
 
   useEffect(() => {
-    const checkLogin = async () => {
-      try {
-        const res = await fetch("/api/me", {
-          credentials: "include",
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.user?.role === "admin") {
-            navigate("/AdminDashboard");
-          } else if (data.user?.role === "company") {
-            navigate("/CompanyDashboard");
-          } else {
-            navigate("/WelcomePageCustomer");
-          }
-        }
-      } catch (err) {
-        console.log("Check login err", err);
+    if (isAuthChecked && currentUser) {
+      if (currentUser.role === "admin") {
+        navigate("/AdminDashboard");
+      } else if (currentUser.role === "company") {
+        navigate("/CompanyDashboard");
+      } else {
+        navigate("/WelcomePageCustomer");
       }
-    };
-    checkLogin();
-  }, [navigate]);
+    }
+  }, [currentUser, isAuthChecked, navigate]);
 
   return (
-    <div className="w-full min-h-screen bg-[#F8F4FC] text-slate-950">
+    <div className="w-full min-h-screen bg-[#F8F4FC] text-slate-950 page-transition">
       <HeaderNoUser />
 
       <main className="relative overflow-hidden">

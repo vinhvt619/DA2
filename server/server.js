@@ -10,6 +10,8 @@ import User from "./models/User.js";
 import Message from "./models/Message.js";
 import Job from "./models/Job.js";
 import Application from "./models/Application.js";
+import Notification from "./models/Notification.js";
+import { createNotification } from "./utils/notificationService.js";
 
 dotenv.config();
 mongoose.set("bufferCommands", false);
@@ -27,7 +29,9 @@ const allowedOrigins = [
   "https://rabbitcv.vercel.app",
   process.env.CLIENT_URL,
   process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
-  process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : undefined,
+  process.env.VERCEL_BRANCH_URL
+    ? `https://${process.env.VERCEL_BRANCH_URL}`
+    : undefined,
   process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
     : undefined,
@@ -38,10 +42,14 @@ if (!mongoUri) {
   missingEnv.push("MONGODB_URI");
 }
 if (usingDefaultJwtSecret) {
-  console.warn("JWT_SECRET is not configured. Using the built-in fallback secret.");
+  console.warn(
+    "JWT_SECRET is not configured. Using the built-in fallback secret.",
+  );
 }
 if (missingEnv.length) {
-  console.error(`Missing required environment variables: ${missingEnv.join(", ")}`);
+  console.error(
+    `Missing required environment variables: ${missingEnv.join(", ")}`,
+  );
 }
 
 const corsOptions = {
@@ -101,7 +109,9 @@ const seedAdmin = async () => {
         fullName: "System Administrator",
       });
       await adminUser.save();
-      console.log("Seeded admin account with username 'admin' and password '1111'");
+      console.log(
+        "Seeded admin account with username 'admin' and password '1111'",
+      );
     }
   } catch (err) {
     console.error("Loi seed admin:", err.message);
@@ -224,7 +234,12 @@ const authMiddleware = (req, res, next) => {
 
 app.get("/api/resumes", authMiddleware, async (req, res) => {
   try {
-    const resumes = await Resume.find({ userId: req.user.id }).sort({
+    const resumes = await Resume.find({ 
+      userId: req.user.id,
+      isVirtual: { $ne: true }
+    })
+    .select("-pdfData")
+    .sort({
       updatedAt: -1,
     });
     res.status(200).json(resumes);
@@ -325,9 +340,15 @@ app.post("/api/register", async (req, res) => {
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-    
-    const userRole = (role === 'company' || role === 'employee') ? role : 'employee';
-    const newUser = new User({ username, email, password: hashedPassword, role: userRole });
+
+    const userRole =
+      role === "company" || role === "employee" ? role : "employee";
+    const newUser = new User({
+      username,
+      email,
+      password: hashedPassword,
+      role: userRole,
+    });
 
     await newUser.save();
     res.status(201).json({ message: "Dang ky thanh cong" });
@@ -363,7 +384,7 @@ app.post("/api/login", async (req, res) => {
       id: user._id,
       username: user.username,
       email: user.email,
-      role: user.role || 'employee',
+      role: user.role || "employee",
     };
 
     const token = jwt.sign(payload, jwtSecret, {
@@ -392,6 +413,26 @@ app.get("/api/me", authMiddleware, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+app.get("/api/user/profile/:userId", authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select("-password").lean();
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+    
+    const latestResume = await Resume.findOne({ userId: user._id })
+      .sort({ updatedAt: -1 })
+      .select("_id");
+      
+    user.latestResumeId = latestResume ? latestResume._id : null;
+    
+    res.status(200).json({ user });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 app.put("/api/user/profile", authMiddleware, async (req, res) => {
   try {
@@ -527,15 +568,115 @@ app.get("/api/messages", async (req, res) => {
 
 app.post("/api/messages", async (req, res) => {
   try {
-    const { senderId, senderName, content, room = "general" } = req.body;
+    let { senderId, senderName, content, room = "general", image } = req.body;
 
-    if (!senderId || !senderName || !content) {
+    const token = req.cookies.token;
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, jwtSecret);
+        const user = await User.findById(decoded.id);
+        if (user) {
+          senderId = user._id.toString();
+          senderName = user.fullName || user.username;
+        }
+      } catch {
+        // Keep requested values on error
+      }
+    }
+
+    if (!senderId || !senderName || (!content && !image)) {
       return res.status(400).json({ message: "Thieu thong tin tin nhan" });
     }
 
-    const newMessage = new Message({ senderId, senderName, content, room });
+    const newMessage = new Message({ senderId, senderName, content, room, image });
     await newMessage.save();
     res.status(201).json(newMessage);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get list of all registered users (excluding current user) to start chat
+app.get("/api/chat/users", authMiddleware, async (req, res) => {
+  try {
+    const users = await User.find({ _id: { $ne: req.user.id } }).select(
+      "fullName username role",
+    );
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get active chat threads for the current user
+app.get("/api/chat/threads", authMiddleware, async (req, res) => {
+  try {
+    const currentUserId = req.user.id;
+
+    const messages = await Message.find({
+      $or: [
+        { room: "general" },
+        { room: { $regex: `^private_.*${currentUserId}` } },
+      ],
+    }).sort({ createdAt: -1 });
+
+    const threadsMap = new Map();
+
+    for (const msg of messages) {
+      const room = msg.room;
+      if (threadsMap.has(room)) continue;
+
+      let partner = null;
+      if (room.startsWith("private_")) {
+        const parts = room.replace("private_", "").split("_");
+        const partnerId = parts.find((id) => id !== currentUserId);
+        if (partnerId) {
+          try {
+            partner = await User.findById(partnerId).select(
+              "fullName username role",
+            );
+          } catch {
+            // User might have been deleted or invalid ID
+          }
+        }
+      }
+
+      threadsMap.set(room, {
+        room,
+        lastMessage: msg.content,
+        lastMessageAt: msg.createdAt,
+        senderName: msg.senderName,
+        senderId: msg.senderId,
+        partner: partner
+          ? {
+              id: partner._id,
+              name: partner.fullName || partner.username,
+              role: partner.role,
+            }
+          : null,
+      });
+    }
+
+    if (!threadsMap.has("general")) {
+      const lastGeneralMsg = await Message.findOne({ room: "general" }).sort({
+        createdAt: -1,
+      });
+      threadsMap.set("general", {
+        room: "general",
+        lastMessage: lastGeneralMsg
+          ? lastGeneralMsg.content
+          : "Chưa có tin nhắn",
+        lastMessageAt: lastGeneralMsg ? lastGeneralMsg.createdAt : new Date(),
+        senderName: lastGeneralMsg ? lastGeneralMsg.senderName : "",
+        senderId: lastGeneralMsg ? lastGeneralMsg.senderId : "",
+        partner: null,
+      });
+    }
+
+    const threads = Array.from(threadsMap.values()).sort(
+      (a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt),
+    );
+    res.status(200).json(threads);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -545,24 +686,19 @@ app.post("/api/messages", async (req, res) => {
 // JOB & APPLICATION ENDPOINTS
 // ==========================================
 
-// Get all jobs
+// Get all jobs (only return Active and not expired)
 app.get("/api/jobs", async (req, res) => {
   try {
-    const jobs = await Job.find({}).sort({ createdAt: -1 });
+    const currentDate = new Date();
+    const jobs = await Job.find({
+      status: { $nin: ["Draft", "Expired"] },
+      $or: [
+        { expiryDate: { $exists: false } },
+        { expiryDate: null },
+        { expiryDate: { $gte: currentDate } }
+      ]
+    }).sort({ createdAt: -1 });
     res.status(200).json(jobs);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get job by ID
-app.get("/api/jobs/:id", async (req, res) => {
-  try {
-    const job = await Job.findById(req.params.id);
-    if (!job) {
-      return res.status(404).json({ message: "Khong tim thay tin tuyen dung" });
-    }
-    res.status(200).json(job);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -571,8 +707,26 @@ app.get("/api/jobs/:id", async (req, res) => {
 // Get jobs posted by the currently logged-in company
 app.get("/api/jobs/my", authMiddleware, async (req, res) => {
   try {
-    const jobs = await Job.find({ companyId: req.user.id }).sort({ createdAt: -1 });
+    const jobs = await Job.find({ companyId: req.user.id }).sort({
+      createdAt: -1,
+    });
     res.status(200).json(jobs);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get applications received by the logged-in company
+app.get("/api/jobs/applications", authMiddleware, async (req, res) => {
+  try {
+    const jobs = await Job.find({ companyId: req.user.id });
+    const jobIds = jobs.map((j) => j._id);
+
+    const applications = await Application.find({ jobId: { $in: jobIds } })
+      .populate("jobId", "title")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(applications);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -581,11 +735,25 @@ app.get("/api/jobs/my", authMiddleware, async (req, res) => {
 // Post a new job
 app.post("/api/jobs", authMiddleware, async (req, res) => {
   try {
-    const { title, company, location, type, salary, description, requirements, benefits, tags } = req.body;
-    
+    const {
+      title,
+      company,
+      location,
+      type,
+      salary,
+      description,
+      requirements,
+      benefits,
+      tags,
+      status,
+      expiryDate,
+    } = req.body;
+
     const user = await User.findById(req.user.id);
-    if (!user || user.role !== 'company') {
-      return res.status(403).json({ message: "Chi doanh nghiep moi duoc dang tuyen dung" });
+    if (!user || user.role !== "company") {
+      return res
+        .status(403)
+        .json({ message: "Chi doanh nghiep moi duoc dang tuyen dung" });
     }
 
     const newJob = new Job({
@@ -596,35 +764,32 @@ app.post("/api/jobs", authMiddleware, async (req, res) => {
       type,
       salary,
       description,
-      requirements: Array.isArray(requirements) ? requirements : (requirements ? requirements.split('\n').filter(Boolean) : []),
-      benefits: Array.isArray(benefits) ? benefits : (benefits ? benefits.split('\n').filter(Boolean) : []),
-      tags: Array.isArray(tags) ? tags : (tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : []),
+      requirements: Array.isArray(requirements)
+        ? requirements
+        : requirements
+          ? requirements.split("\n").filter(Boolean)
+          : [],
+      benefits: Array.isArray(benefits)
+        ? benefits
+        : benefits
+          ? benefits.split("\n").filter(Boolean)
+          : [],
+      tags: Array.isArray(tags)
+        ? tags
+        : tags
+          ? tags
+              .split(",")
+              .map((t) => t.trim())
+              .filter(Boolean)
+          : [],
+      status: status || "Active",
+      expiryDate: expiryDate || null,
     });
 
     await newJob.save();
-    res.status(201).json({ message: "Dang tuyen dung thanh cong", job: newJob });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Delete a job
-app.delete("/api/jobs/:id", authMiddleware, async (req, res) => {
-  try {
-    const job = await Job.findById(req.params.id);
-    if (!job) {
-      return res.status(404).json({ message: "Khong tim thay tin tuyen dung" });
-    }
-
-    const requester = await User.findById(req.user.id);
-    if (job.companyId.toString() !== req.user.id && (!requester || requester.role !== 'admin')) {
-      return res.status(403).json({ message: "Ban khong co quyen xoa tin nay" });
-    }
-
-    await Job.findByIdAndDelete(req.params.id);
-    await Application.deleteMany({ jobId: req.params.id });
-
-    res.status(200).json({ message: "Xoa tin tuyen dung thanh cong" });
+    res
+      .status(201)
+      .json({ message: "Dang tuyen dung thanh cong", job: newJob });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -653,9 +818,14 @@ app.post("/api/jobs/apply", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "Nguoi dung khong ton tai" });
     }
 
-    const alreadyApplied = await Application.findOne({ jobId, candidateId: req.user.id });
+    const alreadyApplied = await Application.findOne({
+      jobId,
+      candidateId: req.user.id,
+    });
     if (alreadyApplied) {
-      return res.status(400).json({ message: "Ban da nop CV cho cong viec nay roi" });
+      return res
+        .status(400)
+        .json({ message: "Ban da nop CV cho cong viec nay roi" });
     }
 
     const newApp = new Application({
@@ -665,27 +835,216 @@ app.post("/api/jobs/apply", authMiddleware, async (req, res) => {
       fullName: resume.personalInfo?.fullName || user.fullName || user.username,
       email: resume.personalInfo?.email || user.email,
       phone: resume.personalInfo?.phone || user.phoneNumber || "",
-      status: 'Pending',
+      status: "Pending",
     });
 
     await newApp.save();
+
+    if (job) {
+      await createNotification({
+        recipient: job.companyId,
+        recipientRole: 'company',
+        type: 'NEW_APPLICATION',
+        title: 'Có ứng viên mới ứng tuyển',
+        message: `${newApp.fullName} vừa ứng tuyển vào vị trí của bạn`,
+        link: '/CompanyDashboard'
+      });
+    }
+
+    res
+      .status(201)
+      .json({ message: "Nop ho so ung tuyen thanh cong", application: newApp });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+
+});
+
+// Submit application with local file upload (PDF, DOC, DOCX)
+app.post("/api/jobs/apply-file", authMiddleware, async (req, res) => {
+  try {
+    const { jobId, fileData, fileName } = req.body;
+    if (!jobId || !fileData || !fileName) {
+      return res.status(400).json({ message: "Thieu thong tin ung tuyen" });
+    }
+
+    const job = await Job.findById(jobId);
+    if (!job) {
+      return res.status(404).json({ message: "Khong tim thay cong viec" });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "Nguoi dung khong ton tai" });
+    }
+
+    // Kiem tra xem da ung tuyen chua
+    const alreadyApplied = await Application.findOne({
+      jobId,
+      candidateId: req.user.id,
+    });
+    if (alreadyApplied) {
+      return res.status(400).json({ message: "Ban da nop CV cho cong viec nay roi" });
+    }
+
+    // Tao Resume ao tu file
+    const virtualResume = new Resume({
+      userId: req.user.id,
+      title: `File CV - ${fileName}`,
+      pdfData: fileData,
+      fileName: fileName,
+      isVirtual: true,
+      personalInfo: {
+        fullName: user.fullName || user.username,
+        email: user.email,
+        phone: user.phoneNumber || "",
+      }
+    });
+    await virtualResume.save();
+
+    // Tao Application
+    const newApp = new Application({
+      jobId,
+      candidateId: req.user.id,
+      resumeId: virtualResume._id,
+      fullName: user.fullName || user.username,
+      email: user.email,
+      phone: user.phoneNumber || "",
+      status: "Pending",
+    });
+    await newApp.save();
+
+    if (job) {
+      await createNotification({
+        recipient: job.companyId,
+        recipientRole: 'company',
+        type: 'NEW_APPLICATION',
+        title: 'Có ứng viên mới ứng tuyển',
+        message: `${newApp.fullName} vừa ứng tuyển vào vị trí của bạn`,
+        link: '/CompanyDashboard'
+      });
+    }
+
     res.status(201).json({ message: "Nop ho so ung tuyen thanh cong", application: newApp });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Get applications received by the logged-in company
-app.get("/api/jobs/applications", authMiddleware, async (req, res) => {
+
+
+// Get job by ID
+app.get("/api/jobs/:id", async (req, res) => {
   try {
-    const jobs = await Job.find({ companyId: req.user.id });
-    const jobIds = jobs.map(j => j._id);
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ message: "Khong tim thay tin tuyen dung" });
+    }
+    res.status(200).json(job);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
-    const applications = await Application.find({ jobId: { $in: jobIds } })
-      .populate('jobId', 'title')
-      .sort({ createdAt: -1 });
+// Update a job
+app.put("/api/jobs/:id", authMiddleware, async (req, res) => {
+  try {
+    const {
+      title,
+      company,
+      location,
+      type,
+      salary,
+      description,
+      requirements,
+      benefits,
+      tags,
+      status,
+      expiryDate,
+    } = req.body;
 
-    res.status(200).json(applications);
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ message: "Khong tim thay tin tuyen dung" });
+    }
+
+    const requester = await User.findById(req.user.id);
+    if (
+      job.companyId.toString() !== req.user.id &&
+      (!requester || requester.role !== "admin")
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Ban khong co quyen chinh sua tin nay" });
+    }
+
+    job.title = title || job.title;
+    job.company = company || job.company;
+    job.location = location || job.location;
+    job.type = type || job.type;
+    job.salary = salary || job.salary;
+    job.description = description || job.description;
+
+    if (requirements !== undefined) {
+      job.requirements = Array.isArray(requirements)
+        ? requirements
+        : requirements
+          ? requirements.split("\n").filter(Boolean)
+          : [];
+    }
+    if (benefits !== undefined) {
+      job.benefits = Array.isArray(benefits)
+        ? benefits
+        : benefits
+          ? benefits.split("\n").filter(Boolean)
+          : [];
+    }
+    if (tags !== undefined) {
+      job.tags = Array.isArray(tags)
+        ? tags
+        : tags
+          ? tags
+              .split(",")
+              .map((t) => t.trim())
+              .filter(Boolean)
+          : [];
+    }
+    if (status !== undefined) {
+      job.status = status;
+    }
+    if (expiryDate !== undefined) {
+      job.expiryDate = expiryDate || null;
+    }
+
+    await job.save();
+    res.status(200).json({ message: "Cap nhat tin tuyen dung thanh cong", job });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a job
+app.delete("/api/jobs/:id", authMiddleware, async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ message: "Khong tim thay tin tuyen dung" });
+    }
+
+    const requester = await User.findById(req.user.id);
+    if (
+      job.companyId.toString() !== req.user.id &&
+      (!requester || requester.role !== "admin")
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Ban khong co quyen xoa tin nay" });
+    }
+
+    await Job.findByIdAndDelete(req.params.id);
+    await Application.deleteMany({ jobId: req.params.id });
+
+    res.status(200).json({ message: "Xoa tin tuyen dung thanh cong" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -695,63 +1054,190 @@ app.get("/api/jobs/applications", authMiddleware, async (req, res) => {
 app.put("/api/jobs/applications/:id", authMiddleware, async (req, res) => {
   try {
     const { status } = req.body;
-    if (!['Pending', 'Interview', 'Rejected', 'Accepted'].includes(status)) {
+    if (!["Pending", "Reviewing", "Interview", "Offered", "Rejected", "Accepted"].includes(status)) {
       return res.status(400).json({ message: "Trang thai khong hop le" });
     }
 
     const application = await Application.findById(req.params.id);
     if (!application) {
-      return res.status(404).json({ message: "Khong tim thay ho so ung tuyen" });
+      return res
+        .status(404)
+        .json({ message: "Khong tim thay ho so ung tuyen" });
     }
 
     const job = await Job.findById(application.jobId);
     if (!job || job.companyId.toString() !== req.user.id) {
       const requester = await User.findById(req.user.id);
-      if (!requester || requester.role !== 'admin') {
-        return res.status(403).json({ message: "Ban khong co quyen thay doi trang thai ho so nay" });
+      if (!requester || requester.role !== "admin") {
+        return res
+          .status(403)
+          .json({
+            message: "Ban khong co quyen thay doi trang thai ho so nay",
+          });
       }
     }
 
     application.status = status;
     await application.save();
 
-    res.status(200).json({ message: "Cap nhat trang thai ho so thanh cong", application });
+    const jobTitleMsg = job ? job.title : "một công việc";
+    await createNotification({
+      recipient: application.candidateId,
+      recipientRole: 'employee',
+      type: 'APPLICATION_STATUS_CHANGED',
+      title: 'Trạng thái hồ sơ đã thay đổi',
+      message: `Hồ sơ ứng tuyển vị trí ${jobTitleMsg} của bạn đã chuyển sang trạng thái: ${status}`,
+      link: '/UserDashboard'
+    });
+
+    res
+      .status(200)
+      .json({ message: "Cap nhat trang thai ho so thanh cong", application });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// NOTIFICATION ENDPOINTS
+// ==========================================
+
+// Get unread count
+app.get("/api/notifications/unread-count", authMiddleware, async (req, res) => {
+  try {
+    const count = await Notification.countDocuments({
+      recipient: req.user.id,
+      isRead: false,
+    });
+    res.status(200).json({ count });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get notifications
+app.get("/api/notifications", authMiddleware, async (req, res) => {
+  try {
+    const notifications = await Notification.find({ recipient: req.user.id })
+      .sort({ createdAt: -1 })
+      .limit(30);
+    res.status(200).json(notifications);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Mark single notification as read
+app.put("/api/notifications/:id/read", authMiddleware, async (req, res) => {
+  try {
+    const notification = await Notification.findOneAndUpdate(
+      { _id: req.params.id, recipient: req.user.id },
+      { isRead: true },
+      { new: true }
+    );
+    if (!notification) {
+      return res.status(404).json({ message: "Khong tim thay thong bao" });
+    }
+    res.status(200).json(notification);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Mark all as read
+app.put("/api/notifications/mark-all-read", authMiddleware, async (req, res) => {
+  try {
+    const result = await Notification.updateMany(
+      { recipient: req.user.id, isRead: false },
+      { isRead: true }
+    );
+    res.status(200).json({ modifiedCount: result.modifiedCount });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a notification
+app.delete("/api/notifications/:id", authMiddleware, async (req, res) => {
+  try {
+    const notification = await Notification.findOneAndDelete({
+      _id: req.params.id,
+      recipient: req.user.id,
+    });
+    if (!notification) {
+      return res.status(404).json({ message: "Khong tim thay thong bao" });
+    }
+    res.status(200).json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// SAVED JOBS ENDPOINTS
+// ==========================================
+
+// Get user's saved jobs
+app.get("/api/saved-jobs", authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "Nguoi dung khong ton tai" });
+    }
+    // Sort savedJobs by savedAt descending (newest first)
+    const sortedSavedJobs = (user.savedJobs || []).sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+    res.status(200).json(sortedSavedJobs);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Save a job
+app.post("/api/saved-jobs/:jobId", authMiddleware, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    if (!jobId) {
+      return res.status(400).json({ message: "Thieu thong tin jobId" });
+    }
+
+    await User.findOneAndUpdate(
+      { _id: req.user.id, 'savedJobs.jobId': { $ne: jobId } },
+      { $push: { savedJobs: { jobId: jobId, savedAt: new Date() } } }
+    );
+    
+    res.status(200).json({ message: "Da luu cong viec" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Unsave a job
+app.delete("/api/saved-jobs/:jobId", authMiddleware, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    if (!jobId) {
+      return res.status(400).json({ message: "Thieu thong tin jobId" });
+    }
+
+    await User.findByIdAndUpdate(
+      req.user.id,
+      { $pull: { savedJobs: { jobId: jobId } } }
+    );
+
+    res.status(200).json({ message: "Da bo luu cong viec" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // Get CV details (authorized viewing)
-app.get("/api/resumes/view/:id", authMiddleware, async (req, res) => {
+app.get("/api/resumes/view/:id", async (req, res) => {
   try {
     const resume = await Resume.findById(req.params.id);
     if (!resume) {
       return res.status(404).json({ message: "Khong tim thay CV" });
     }
-
-    if (resume.userId.toString() === req.user.id) {
-      return res.status(200).json(resume);
-    }
-
-    const requester = await User.findById(req.user.id);
-    if (!requester) {
-      return res.status(403).json({ message: "Quyen truy cap bi tu choi" });
-    }
-
-    if (requester.role === 'admin') {
-      return res.status(200).json(resume);
-    }
-
-    if (requester.role === 'company') {
-      const jobs = await Job.find({ companyId: req.user.id });
-      const jobIds = jobs.map(j => j._id);
-      const appExists = await Application.findOne({ jobId: { $in: jobIds }, resumeId: req.params.id });
-      if (appExists) {
-        return res.status(200).json(resume);
-      }
-    }
-
-    return res.status(403).json({ message: "Ban khong co quyen xem CV nay" });
+    return res.status(200).json(resume);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -761,17 +1247,21 @@ app.get("/api/resumes/view/:id", authMiddleware, async (req, res) => {
 app.get("/api/admin/stats", authMiddleware, async (req, res) => {
   try {
     const requester = await User.findById(req.user.id);
-    if (!requester || requester.role !== 'admin') {
-      return res.status(403).json({ message: "Quyen truy cap chi danh cho Admin" });
+    if (!requester || requester.role !== "admin") {
+      return res
+        .status(403)
+        .json({ message: "Quyen truy cap chi danh cho Admin" });
     }
 
     const totalUsers = await User.countDocuments({});
-    const totalCompanies = await User.countDocuments({ role: 'company' });
-    const totalEmployees = await User.countDocuments({ role: 'employee' });
+    const totalCompanies = await User.countDocuments({ role: "company" });
+    const totalEmployees = await User.countDocuments({ role: "employee" });
     const totalJobs = await Job.countDocuments({});
     const totalApplications = await Application.countDocuments({});
 
-    const allUsers = await User.find({}).select("-password").sort({ createdAt: -1 });
+    const allUsers = await User.find({})
+      .select("-password")
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       stats: {

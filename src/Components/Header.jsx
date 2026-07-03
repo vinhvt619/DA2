@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useToastContext } from "./Toast";
+import HeaderNoUser from "./HeaderNoUser.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 import {
   Bars3Icon,
   BellIcon,
@@ -9,16 +11,9 @@ import {
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
 
-const navLinks = [
-  { to: "/WelcomePageCustomer", label: "Trang chủ" },
-  { to: "/MainMenu", label: "Tìm việc làm" },
-  { to: "/ResumeSelection", label: "Tạo CV" },
-  { to: "/TopPage", label: "Bảng xếp hạng" },
-  { to: "/News", label: "Tin tức" },
-];
 
 export default function Header() {
-  const [currentUser, setCurrentUser] = useState(null);
+  const { currentUser, isAuthChecked, logout } = useAuth();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState("");
@@ -36,35 +31,44 @@ export default function Header() {
   };
 
   useEffect(() => {
+    if (!isAuthChecked) return;
+
     const path = location.pathname.toLowerCase();
     const isAuthPage = path.includes("/login") || path.includes("/register");
     if (isAuthPage) return;
 
-    const checkAuth = async () => {
-      try {
-        const res = await fetch("/api/me", { credentials: "include" });
-        if (!res.ok) {
-          navigate("/login");
-        } else {
-          const data = await res.json();
-          setCurrentUser(data.user);
-        }
-      } catch (err) {
-        console.log("Not logged in or error:", err);
+    if (!currentUser) {
+      const protectedPaths = [
+        "/resume",
+        "/resumeselection",
+        "/profile",
+        "/message",
+        "/accessibility",
+        "/settingandprivate",
+        "/userdashboard",
+        "/admindashboard",
+        "/companydashboard",
+        "/saved-jobs",
+      ];
+      if (protectedPaths.some((p) => path.includes(p))) {
         navigate("/login");
       }
-    };
-
-    checkAuth();
-  }, [location.pathname, navigate]);
+    } else {
+      if (path.includes("/companydashboard") && currentUser.role !== "company") {
+        navigate("/MainMenu");
+      } else if (path.includes("/admindashboard") && currentUser.role !== "admin") {
+        navigate("/MainMenu");
+      }
+    }
+  }, [isAuthChecked, currentUser, location.pathname, navigate]);
 
   const getNavLinks = () => {
-    if (currentUser?.role === 'admin') {
+    if (currentUser?.role === "admin") {
       return [
         { to: "/AdminDashboard", label: "Quản lý Admin" },
         { to: "/News", label: "Tin tức" },
       ];
-    } else if (currentUser?.role === 'company') {
+    } else if (currentUser?.role === "company") {
       return [
         { to: "/CompanyDashboard", label: "Kênh tuyển dụng" },
         { to: "/MainMenu", label: "Tìm việc làm" },
@@ -88,9 +92,11 @@ export default function Header() {
         method: "POST",
         credentials: "include",
       });
+      logout();
       showToast("Đã đăng xuất khỏi thiết bị.", "info");
       setTimeout(() => navigate("/login"), 800);
     } catch {
+      logout();
       navigate("/login");
     }
   };
@@ -98,6 +104,14 @@ export default function Header() {
   const toggleMenu = (name) => {
     setOpenMenu((current) => (current === name ? "" : name));
   };
+
+  if (!isAuthChecked) {
+    return <header className="h-16 bg-white shadow-sm" />; // Placeholder while checking
+  }
+
+  if (!currentUser) {
+    return <HeaderNoUser />;
+  }
 
   return (
     <header className="relative z-50 bg-linear-to-r from-white via-[#D9C9EE] to-[#9246f570]">
@@ -175,9 +189,7 @@ export default function Header() {
                 <p className="mb-1 text-sm font-semibold text-gray-900">
                   Thông báo
                 </p>
-                <p className="text-sm text-gray-500">
-                  Không có thông báo mới.
-                </p>
+                <p className="text-sm text-gray-500">Không có thông báo mới.</p>
               </div>
             )}
           </div>
@@ -204,12 +216,14 @@ export default function Header() {
                     }}
                   >
                     <div className="flex justify-between items-center mb-0.5">
-                      <p className="font-medium text-gray-800">Phòng nhóm chung</p>
-                      <span className="text-[10px] text-gray-400">Vừa xong</span>
+                      <p className="font-medium text-gray-800">
+                        Phòng nhóm chung
+                      </p>
+                      <span className="text-[10px] text-gray-400">
+                        Vừa xong
+                      </span>
                     </div>
-                    <p className="truncate text-xs">
-                      Xin chào cả nhóm!
-                    </p>
+                    <p className="truncate text-xs">Xin chào cả nhóm!</p>
                   </div>
                   <div
                     className="rounded-lg p-2 hover:bg-gray-50 cursor-pointer"
@@ -219,12 +233,14 @@ export default function Header() {
                     }}
                   >
                     <div className="flex justify-between items-center mb-0.5">
-                      <p className="font-medium text-gray-800">Nguyễn Văn Toàn</p>
-                      <span className="text-[10px] text-gray-400">12 giờ trước</span>
+                      <p className="font-medium text-gray-800">
+                        Nguyễn Văn Toàn
+                      </p>
+                      <span className="text-[10px] text-gray-400">
+                        12 giờ trước
+                      </span>
                     </div>
-                    <p className="truncate text-xs">
-                      Dạ vâng ạ
-                    </p>
+                    <p className="truncate text-xs">Dạ vâng ạ</p>
                   </div>
                 </div>
                 <button

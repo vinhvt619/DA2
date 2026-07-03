@@ -12,6 +12,7 @@ import {
 import React, { useEffect } from "react";
 import Header from "../Components/Header";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const highlights = [
   { value: "05", label: "mẫu CV nổi bật" },
@@ -21,28 +22,20 @@ const highlights = [
 
 function WelcomePage() {
   const navigate = useNavigate();
+  const { currentUser, isAuthChecked } = useAuth();
 
   useEffect(() => {
-    const checkRole = async () => {
-      try {
-        const res = await fetch("/api/me", { credentials: "include" });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.user?.role === "admin") {
-            navigate("/AdminDashboard");
-          } else if (data.user?.role === "company") {
-            navigate("/CompanyDashboard");
-          }
-        }
-      } catch (err) {
-        console.error(err);
+    if (isAuthChecked && currentUser) {
+      if (currentUser.role === "admin") {
+        navigate("/AdminDashboard");
+      } else if (currentUser.role === "company") {
+        navigate("/CompanyDashboard");
       }
-    };
-    checkRole();
-  }, [navigate]);
+    }
+  }, [currentUser, isAuthChecked, navigate]);
 
   return (
-    <div className="w-full min-h-screen bg-[#F8F4FC] text-slate-950">
+    <div className="w-full min-h-screen bg-[#F8F4FC] text-slate-950 page-transition">
       <Header />
 
       <main className="relative overflow-hidden">

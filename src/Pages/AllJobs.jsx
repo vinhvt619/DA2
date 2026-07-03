@@ -1,15 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import "../App.css";
 import Jobs from "../Components/ListJob.jsx";
 import Header from "../Components/Header.jsx";
+import FilterDropdown from "../Components/FilterDropdown.jsx";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   AdjustmentsHorizontalIcon,
   ArrowLeftIcon,
+  MagnifyingGlassIcon,
 } from "@heroicons/react/24/outline";
 import { jobsData } from "../data/jobsData";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const filterOptions = [
   { value: "", label: "Tất cả tiêu chí" },
@@ -22,10 +24,15 @@ const filterOptions = [
 const JOBS_PER_PAGE = 8;
 
 function AllJobs() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [selectedFilter, setSelectedFilter] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState(
+    location.state?.searchKeyword || ""
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const [dbJobs, setDbJobs] = useState([]);
-  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -43,105 +50,160 @@ function AllJobs() {
         }
       } catch (err) {
         console.error("Lỗi khi tải danh sách công việc từ DB:", err);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchJobs();
   }, []);
 
-  const allJobs = dbJobs.concat(jobsData);
-  const totalPages = Math.ceil(allJobs.length / JOBS_PER_PAGE);
-  const paginatedJobs = allJobs.slice(
-    (currentPage - 1) * JOBS_PER_PAGE,
-    currentPage * JOBS_PER_PAGE
-  );
+  const allJobs = useMemo(() => {
+    const seen = new Set();
+    return [...dbJobs, ...jobsData].filter((job) => {
+      if (seen.has(job.id)) return false;
+      seen.add(job.id);
+      return true;
+    });
+  }, [dbJobs]);
+
+  const filteredJobs = useMemo(() => {
+    return allJobs.filter((job) => {
+      const matchesFilter = !selectedFilter ||
+        job.tags?.some((t) => t.toLowerCase().includes(selectedFilter.toLowerCase())) ||
+        job.title.toLowerCase().includes(selectedFilter.toLowerCase()) ||
+        job.company.toLowerCase().includes(selectedFilter.toLowerCase());
+
+      const matchesKeyword = !searchKeyword ||
+        job.title.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+        job.company.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+        job.location?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+        job.tags?.some((t) => t.toLowerCase().includes(searchKeyword.toLowerCase()));
+
+      return matchesFilter && matchesKeyword;
+    });
+  }, [allJobs, selectedFilter, searchKeyword]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredJobs.length / JOBS_PER_PAGE));
+  const paginatedJobs = useMemo(() => {
+    return filteredJobs.slice(
+      (currentPage - 1) * JOBS_PER_PAGE,
+      currentPage * JOBS_PER_PAGE
+    );
+  }, [filteredJobs, currentPage]);
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#F8F4FC] via-[#F2EFFF] to-[#EDE4FA] flex flex-col font-sans antialiased text-slate-900">
+    <div className="min-h-screen bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] flex flex-col font-sans antialiased text-gray-900 text-sm">
       <Header />
 
-      <div className="flex-1 max-w-5xl mx-auto w-full px-4 lg:px-8 py-8 lg:py-10">
-        <button
-          onClick={() => navigate("/MainMenu")}
-          className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-[#9346F5] transition-colors mb-6"
-        >
-          <ArrowLeftIcon className="w-4 h-4" />
-          Quay lại trang chủ
-        </button>
+      <div className="flex-1 max-w-5xl mx-auto w-full px-4 py-5 lg:px-6 lg:py-6">
+        <div className="flex-1 min-w-0 space-y-3">
+            <button
+              onClick={() => navigate("/MainMenu")}
+              className="flex items-center gap-2 text-sm font-medium text-violet-600 hover:text-violet-800 transition-colors mb-2 w-fit"
+            >
+              <ArrowLeftIcon className="w-4 h-4" />
+              Quay lại trang chủ
+            </button>
 
-        <div
-          className="bg-white/70 rounded-2xl border border-white/80 shadow-sm p-5 sm:p-8"
-          style={{ backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">Tất cả việc làm</h1>
-              <p className="text-sm text-gray-500">Khám phá hàng ngàn cơ hội việc làm mới nhất.</p>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <AdjustmentsHorizontalIcon className="w-5 h-5 text-gray-400" />
-              <select
-                value={selectedFilter}
-                onChange={(e) => { setSelectedFilter(e.target.value); setCurrentPage(1); }}
-                className="text-sm font-medium h-10 border border-slate-200 rounded-xl bg-slate-50 px-3 outline-none text-slate-700 focus:ring-2 focus:ring-[#9346F5]/20 focus:border-[#9346F5] transition-all"
-              >
-                {filterOptions.map((item) => (
-                  <option key={item.value} value={item.value}>{item.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+            <div className="bg-white border border-violet-200 rounded-lg shadow-md shadow-violet-200/30 p-4 sm:p-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                <div>
+                  <h1 className="text-xl font-semibold text-gray-900 mb-0.5">Tất cả việc làm</h1>
+                  <p className="text-xs text-gray-500">Khám phá hàng ngàn cơ hội việc làm mới nhất.</p>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <div className="relative">
+                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={searchKeyword}
+                      onChange={(e) => {
+                        setSearchKeyword(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      placeholder="Tìm vị trí, công ty, ngành..."
+                      className="w-full sm:w-60 pl-9 pr-3 py-1.5 border border-violet-200 rounded-lg text-xs text-gray-800 placeholder:text-gray-400 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-100 bg-white"
+                    />
+                  </div>
+                  
+                  <FilterDropdown 
+                    options={filterOptions}
+                    value={selectedFilter}
+                    onChange={(val) => {
+                      setSelectedFilter(val);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-            {paginatedJobs.map((job, index) => (
-              <Jobs key={`page-${currentPage}-${job.id}-${index}`} job={job} />
-            ))}
-          </div>
+              <hr className="border-t border-violet-100 mb-4" />
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between border-t border-slate-100 pt-6 mt-4">
-            <span className="text-sm text-slate-500">
-              Trang <span className="font-bold text-slate-700">{currentPage}</span> / {totalPages}
-              &nbsp;·&nbsp;
-              <span className="font-bold text-slate-700">{allJobs.length}</span> tin tuyển dụng
-            </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                {isLoading ? (
+                  <div className="col-span-full py-8 text-center text-sm font-medium text-gray-500">
+                    Đang tải danh sách công việc...
+                  </div>
+                ) : filteredJobs.length === 0 ? (
+                  <div className="col-span-full py-8 text-center text-sm font-medium text-gray-500">
+                    Không tìm thấy công việc phù hợp.
+                  </div>
+                ) : (
+                  paginatedJobs.map((job, index) => (
+                    <Jobs key={`page-${currentPage}-${job.id}-${index}`} job={job} />
+                  ))
+                )}
+              </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeftIcon className="w-5 h-5" />
-              </button>
+              {/* Pagination */}
+              {!isLoading && filteredJobs.length > 0 && (
+                <div className="flex items-center justify-between border-t border-violet-100 pt-4 mt-2">
+                  <span className="text-xs text-gray-500">
+                    Trang <span className="font-semibold text-gray-700">{currentPage}</span> / {totalPages}
+                    &nbsp;·&nbsp;
+                    <span className="font-semibold text-gray-700">{filteredJobs.length}</span> công việc
+                  </span>
 
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${
-                    currentPage === page
-                      ? "bg-[#9346F5] text-white shadow-md shadow-[#9346F5]/25"
-                      : "border border-slate-200 text-slate-600 hover:border-[#9346F5]/40 hover:text-[#9346F5]"
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="w-8 h-8 rounded-full border border-violet-200 bg-white flex items-center justify-center hover:bg-violet-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeftIcon className="w-4 h-4 text-violet-600" />
+                    </button>
 
-              <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronRightIcon className="w-5 h-5" />
-              </button>
+                    <div className="hidden sm:flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`w-8 h-8 rounded-full text-xs font-semibold transition-all ${
+                            currentPage === page
+                              ? "bg-violet-600 text-white shadow-md shadow-violet-200"
+                              : "border border-violet-200 text-violet-700 hover:bg-violet-100 bg-white"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="w-8 h-8 rounded-full border border-violet-200 bg-white flex items-center justify-center hover:bg-violet-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRightIcon className="w-4 h-4 text-violet-600" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
-
       </div>
-    </div>
   );
 }
 

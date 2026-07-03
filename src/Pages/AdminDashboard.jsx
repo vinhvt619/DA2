@@ -189,7 +189,7 @@ export default function AdminDashboard() {
               <div className="p-12 text-center text-gray-500 font-medium">Chưa có người dùng nào</div>
             ) : (
               <div className="divide-y divide-gray-50/80">
-                {users.map((u, i) => (
+                {users.map((u) => (
                   <div
                     key={u._id}
                     className="px-10 py-6 flex items-center justify-between hover:bg-gray-50/50 cursor-pointer group"

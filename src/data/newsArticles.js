@@ -350,6 +350,186 @@ export const newsArticles = [
       },
     ],
   },
+  {
+    slug: "kinh-nghiem-phong-van-truc-tuyen",
+    title: "Kinh nghiệm phỏng vấn trực tuyến (Online) ghi điểm tuyệt đối",
+    summary:
+      "Phỏng vấn online đòi hỏi sự chuẩn bị khắt khe về công nghệ, không gian và ngôn ngữ cơ thể trước camera.",
+    category: "Phỏng vấn",
+    date: "05/05/2026",
+    intro:
+      "Phần lớn doanh nghiệp hiện nay sử dụng phỏng vấn trực tuyến (Zoom, Google Meet, Teams) cho các vòng đầu tiên. Sự tiện lợi đi kèm với những thách thức riêng biệt mà ứng viên cần lưu ý.",
+    sections: [
+      {
+        heading: "Chuẩn bị thiết bị và đường truyền mạng ổn định",
+        paragraphs: [
+          "Hãy chắc chắn rằng máy tính, webcam và tai nghe của bạn hoạt động hoàn hảo trước giờ hẹn 15-30 phút. Kiểm tra tốc độ mạng và chuẩn bị sẵn phương án dự phòng (như kết nối 4G/5G từ điện thoại). Cập nhật phiên bản mới nhất của ứng dụng phỏng vấn để tránh các sự cố gián đoạn kỹ thuật bất ngờ.",
+        ],
+      },
+      {
+        heading: "Setup không gian làm việc chuyên nghiệp",
+        paragraphs: [
+          "Tìm một góc phòng yên tĩnh, đủ ánh sáng (ưu tiên ánh sáng tự nhiên hoặc đèn chiếu thẳng vào mặt thay vì ngược sáng). Dọn dẹp sạch sẽ hậu cảnh phía sau hoặc sử dụng tính năng làm mờ nền (blur background) chuyên nghiệp. Đảm bảo không bị làm phiền bởi tiếng ồn của người thân, thú cưng hay tiếng đường phố.",
+        ],
+      },
+      {
+        heading: "Kỹ năng tương tác qua ống kính camera",
+        paragraphs: [
+          "Khi trả lời phỏng vấn, hãy nhìn thẳng vào webcam thay vì nhìn vào khuôn mặt của người phỏng vấn trên màn hình. Điều này tạo cảm giác bạn đang giao tiếp bằng mắt (eye contact) trực tiếp với họ. Giữ tư thế lưng thẳng, cử chỉ tay tự nhiên và biểu cảm khuôn mặt thân thiện trong suốt buổi phỏng vấn.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "viet-cv-cho-sinh-vien-chua-co-kinh-nghiem",
+    title: "Cách viết CV ấn tượng dành riêng cho sinh viên chưa có kinh nghiệm",
+    summary:
+      "Dành cho các bạn sinh viên mới ra trường hoặc đang tìm kiếm cơ hội thực tập đầu tiên để thu hút nhà tuyển dụng.",
+    category: "Hướng dẫn CV",
+    date: "04/05/2026",
+    intro:
+      "Nhiều bạn sinh viên cảm thấy lo lắng khi viết CV vì không biết điền gì vào mục kinh nghiệm. Tuy nhiên, nhà tuyển dụng tìm kiếm sự nhiệt huyết, kỹ năng mềm và tiềm năng phát triển ở ứng viên trẻ hơn là kinh nghiệm dày dặn.",
+    sections: [
+      {
+        heading: "Nhấn mạnh vào hoạt động ngoại khóa và dự án trường học",
+        paragraphs: [
+          "Các hoạt động trong Câu lạc bộ, chiến dịch tình nguyện, dự án nhóm học tập chính là minh chứng rõ ràng cho kỹ năng làm việc nhóm, tổ chức và giải quyết vấn đề của bạn. Đừng chỉ ghi tên hoạt động, hãy ghi rõ vai trò của bạn và kết quả cụ thể mà tập thể đạt được.",
+        ],
+      },
+      {
+        heading: "Làm nổi bật các kỹ năng mềm và kỹ năng tự học",
+        paragraphs: [
+          "Ở độ tuổi sinh viên, thái độ quan trọng hơn trình độ. Hãy thể hiện rõ khả năng tự học bằng cách liệt kê các khóa học trực tuyến (Coursera, Udemy, LinkedIn Learning), các chứng chỉ ngoại ngữ hay tin học văn phòng mà bạn đã tự lực đạt được.",
+        ],
+      },
+      {
+        heading: "Trình bày CV sạch đẹp, khoa học",
+        paragraphs: [
+          "Chọn một template đơn giản nhưng chuyên nghiệp. Tránh các họa tiết màu mè gây mất tập trung. Sử dụng font chữ dễ đọc (như Arial, Inter, Roboto), căn lề thẳng hàng và kiểm tra thật kỹ lỗi chính tả. Định dạng CV dưới dạng PDF trước khi gửi đi.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "ky-nang-quan-ly-thoi-gian-lam-viec-hieu-qua",
+    title: "Nghệ thuật quản lý thời gian giúp tăng gấp đôi hiệu suất làm việc",
+    summary:
+      "Áp dụng các phương pháp khoa học để loại bỏ xao nhãng và hoàn thành công việc đúng tiến độ.",
+    category: "Kỹ năng nghề nghiệp",
+    date: "03/05/2026",
+    intro:
+      "Trong môi trường công sở bận rộn, khả năng quản lý thời gian quyết định sự thành bại của mỗi cá nhân. Biết cách sắp xếp thứ tự ưu tiên giúp bạn tránh khỏi trạng thái kiệt sức (burnout) và duy trì sự cân bằng cuộc sống.",
+    sections: [
+      {
+        heading: "Phương pháp Eisenhower: Phân loại công việc khoa học",
+        paragraphs: [
+          "Hãy chia danh sách việc cần làm của bạn thành 4 nhóm: (1) Khẩn cấp và Quan trọng, (2) Quan trọng nhưng không khẩn cấp, (3) Khẩn cấp nhưng không quan trọng, (4) Không khẩn cấp cũng không quan trọng. Tập trung 80% năng lượng của bạn vào nhóm thứ hai để tạo ra giá trị bền vững lâu dài.",
+        ],
+      },
+      {
+        heading: "Kỹ thuật Pomodoro: Làm việc tập trung cao độ",
+        paragraphs: [
+          "Chia thời gian làm việc thành các chu kỳ nhỏ: 25 phút làm việc hoàn toàn tập trung, sau đó là 5 phút nghỉ ngơi ngắn. Sau 4 chu kỳ như vậy, hãy nghỉ dài hơn từ 15-30 phút. Phương pháp này giúp não bộ duy trì sự tập trung tối đa và giảm thiểu mệt mỏi.",
+        ],
+      },
+      {
+        heading: "Loại bỏ xao nhãng từ các thiết bị công nghệ",
+        paragraphs: [
+          "Tắt thông báo từ các ứng dụng mạng xã hội, email cá nhân trong giờ làm việc tập trung. Sử dụng các công cụ chặn trang web gây xao nhãng nếu cần. Tạo ra một không gian làm việc sạch sẽ, gọn gàng để giữ tinh thần luôn thoải mái.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "vi-tri-hot-trong-ky-nguyen-ai",
+    title: "Những vị trí công việc hứa hẹn bùng nổ trong kỷ nguyên AI",
+    summary:
+      "Trí tuệ nhân tạo đang định hình lại thị trường tuyển dụng với nhiều vị trí mới mẻ và cơ hội thu nhập hấp dẫn.",
+    category: "Thị trường việc làm",
+    date: "02/05/2026",
+    intro:
+      "Sự phát triển của AI không chỉ thay thế một số công việc thủ công mà còn tạo ra hàng loạt ngành nghề mới đòi hỏi sự kết hợp giữa tư duy công nghệ và kỹ năng con người.",
+    sections: [
+      {
+        heading: "Kỹ sư kỹ nghệ gợi ý (Prompt Engineer)",
+        paragraphs: [
+          "Đây là một trong những vị trí mới nhất xuất hiện nhờ AI tạo sinh. Nhiệm vụ của họ là thiết kế, tối ưu hóa các câu lệnh (prompt) để hướng dẫn các mô hình ngôn ngữ lớn (LLM) như GPT, Claude, Gemini tạo ra kết quả chính xác, hiệu quả nhất cho doanh nghiệp.",
+        ],
+      },
+      {
+        heading: "Chuyên viên phân tích dữ liệu và AI (AI Data Analyst)",
+        paragraphs: [
+          "Dữ liệu là nguồn sống của AI. Các nhà phân tích dữ liệu AI giúp doanh nghiệp thu thập, xử lý và diễn giải các tập dữ liệu khổng lồ để huấn luyện mô hình, đồng thời đưa ra các dự báo kinh doanh chiến lược dựa trên kết quả phân tích.",
+        ],
+      },
+      {
+        heading: "Chuyên gia đạo đức AI (AI Ethicist)",
+        paragraphs: [
+          "Khi AI tham gia sâu hơn vào đời sống, các vấn đề về bảo mật thông tin, bản quyền và tính công bằng trở nên quan trọng. Chuyên gia đạo đức AI đảm bảo rằng các hệ thống trí tuệ nhân tạo được phát triển và vận hành một cách minh bạch, an sau và tuân thủ pháp luật.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "dam-phan-luong-khi-nhan-offer",
+    title: "Nghệ thuật đàm phán lương khéo léo khi nhận lời mời nhận việc",
+    summary:
+      "Làm thế nào để đề xuất mức thu nhập mong muốn mà không gây mất thiện cảm với nhà tuyển dụng?",
+    category: "Phỏng vấn",
+    date: "01/05/2026",
+    intro:
+      "Đàm phán lương luôn là phần nhạy cảm nhất trong quy trình tuyển dụng. Nhiều ứng viên chấp nhận mức lương thấp hơn năng lực chỉ vì ngại thảo luận hoặc thiếu kỹ năng đàm phán.",
+    sections: [
+      {
+        heading: "Nghiên cứu thị trường và xác định khoảng lương mong muốn",
+        paragraphs: [
+          "Trước khi bước vào đàm phán, hãy tìm hiểu mức lương trung bình của vị trí đó trên thị trường thông qua các báo cáo tuyển dụng hoặc các trang web uy tín. Xác định một khoảng lương (range) thay vì một con số cố định, với cận dưới là mức tối thiểu bạn có thể chấp nhận.",
+        ],
+      },
+      {
+        heading: "Nhấn mạnh giá trị bạn mang lại cho doanh nghiệp",
+        paragraphs: [
+          "Khi đưa ra đề xuất lương, hãy giải thích rõ tại sao bạn xứng đáng với con số đó bằng cách liên kết với kinh nghiệm, kỹ năng đặc biệt và những thành tích thực tế bạn đã đạt được ở công ty cũ. Đừng đàm phán dựa trên nhu cầu chi tiêu cá nhân.",
+        ],
+      },
+      {
+        heading: "Xem xét tổng gói phúc lợi thay vì chỉ nhìn vào lương cứng",
+        paragraphs: [
+          "Nếu doanh nghiệp không thể đáp ứng mức lương cứng bạn mong muốn do giới hạn ngân sách, hãy thảo luận về các phúc lợi khác như: thưởng hiệu suất (bonus), phụ cấp đi lại/ăn uống, số ngày phép năm, chương trình bảo hiểm sức khỏe cao cấp, hoặc cơ hội đào tạo và thăng tiến.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "ky-nang-giao-tiep-va-giai-quyet-xung-dot-cong-so",
+    title: "Chìa khóa giải quyết xung đột hiệu quả trong môi trường công sở",
+    summary:
+      "Xây dựng mối quan hệ đồng nghiệp lành mạnh thông qua giao tiếp khéo léo và giải quyết bất đồng mang tính xây dựng.",
+    category: "Kỹ năng nghề nghiệp",
+    date: "30/04/2026",
+    intro:
+      "Môi trường làm việc tập thể không thể tránh khỏi những lúc bất đồng quan điểm. Cách bạn đối mặt và xử lý xung đột sẽ thể hiện năng lực lãnh đạo và sự trưởng thành trong sự nghiệp của bạn.",
+    sections: [
+      {
+        heading: "Lắng nghe chủ động và đặt mình vào vị trí đối phương",
+        paragraphs: [
+          "Khi xảy ra tranh cãi, phản xạ tự nhiên của chúng ta thường là tự vệ và tìm lý lẽ phản bác. Thay vào đó, hãy hít thở sâu, bình tĩnh lắng nghe hết quan điểm của đồng nghiệp mà không ngắt lời. Cố gắng hiểu động cơ đằng sau ý kiến của họ trước khi đưa ra phản hồi.",
+        ],
+      },
+      {
+        heading: "Tập trung vào vấn đề cần giải quyết, không công kích cá nhân",
+        paragraphs: [
+          "Hãy luôn giữ thái độ tôn trọng và hướng tới mục tiêu chung của công việc. Sử dụng ngôn từ khách quan, tránh đổ lỗi hoặc phán xét tính cách của đồng nghiệp. Thay vì nói 'Anh luôn làm việc thiếu cẩn thận', hãy nói 'Tôi thấy báo cáo này đang bị thiếu một số số liệu quan trọng'.",
+        ],
+      },
+      {
+        heading: "Tìm kiếm giải pháp hai bên cùng có lợi (Win-Win)",
+        paragraphs: [
+          "Mục đích của việc giải quyết xung đột không phải là phân định ai thắng ai thua, mà là tìm ra phương án tối ưu nhất cho công việc chung. Hãy cùng nhau ngồi lại thảo luận, sẵn sàng thỏa hiệp ở những điểm không quá then chốt để đạt được sự đồng thuận lâu dài.",
+        ],
+      },
+    ],
+  },
 ];
 
 export const newsCategories = [
@@ -362,3 +542,52 @@ export const featuredArticle = newsArticles[0];
 export function getArticleBySlug(slug) {
   return newsArticles.find((article) => article.slug === slug);
 }
+
+// Helper to load high quality, professional Unsplash photos based on category/slug
+export const getCategoryImg = (slug, category) => {
+  if (slug === "xu-huong-tuyen-dung-2026") {
+    return "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80"; // Office skyscraper
+  }
+  if (slug === "5-loi-cv-thuong-gap") {
+    return "https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=800&q=80"; // CV resume desk
+  }
+  if (slug === "tra-loi-diem-manh-diem-yeu-khi-phong-van") {
+    return "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=800&q=80"; // Interview
+  }
+  if (slug === "hang-nghin-co-hoi-viec-lam-va-thuc-tap-linh-vuc-cong-nghe-thong-tin") {
+    return "https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&w=800&q=80"; // IT seminar/team
+  }
+  if (slug === "nhung-buoc-chuan-bi-truoc-ngay-phong-van") {
+    return "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80"; // Interview preparation desk
+  }
+  if (slug === "cach-viet-kinh-nghiem-lam-viec-trong-cv") {
+    return "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800&q=80"; // Writing resume
+  }
+  if (slug === "kinh-nghiem-phong-van-truc-tuyen") {
+    return "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80"; // Online zoom interview
+  }
+  if (slug === "viet-cv-cho-sinh-vien-chua-co-kinh-nghiem") {
+    return "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80"; // Student study/group
+  }
+  if (slug === "ky-nang-quan-ly-thoi-gian-lam-viec-hieu-qua") {
+    return "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=800&q=80"; // Calendar desk planner
+  }
+  if (slug === "vi-tri-hot-trong-ky-nguyen-ai") {
+    return "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80"; // Microchip board (highly reliable AI image)
+  }
+  if (slug === "dam-phan-luong-khi-nhan-offer") {
+    return "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80"; // Salary negotiation agreement
+  }
+  if (slug === "ky-nang-giao-tiep-va-giai-quyet-xung-dot-cong-so") {
+    return "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=800&q=80"; // Workplace discussion/conflict resolution
+  }
+
+  const c = category?.toLowerCase() || "";
+  if (c.includes("thị trường"))
+    return "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80"; // Team brainstorming
+  if (c.includes("hướng dẫn") || c.includes("cv"))
+    return "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800&q=80"; // Handshake/professional
+  if (c.includes("phỏng vấn"))
+    return "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=800&q=80"; // Professional interview
+  return "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=800&q=80"; // Work desk laptop
+};

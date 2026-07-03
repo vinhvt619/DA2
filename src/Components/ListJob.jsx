@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   MapPinIcon,
   HeartIcon,
@@ -7,6 +7,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolid } from "@heroicons/react/24/solid";
 import { useNavigate } from "react-router-dom";
+import { useSavedJobs } from "../context/SavedJobsContext";
 
 const tagColors = [
   "bg-violet-100 text-violet-700 border border-violet-200",
@@ -17,7 +18,7 @@ const tagColors = [
   "bg-indigo-100 text-indigo-700 border border-indigo-200",
 ];
 
-const typeColor = (type) => {
+const getTypeBg = (type) => {
   if (!type) return "bg-slate-100 text-slate-600 border border-slate-200";
   const t = type.toLowerCase();
   if (t.includes("intern"))
@@ -41,38 +42,40 @@ const defaultJob = {
 };
 
 export default function Jobs({ job = defaultJob }) {
-  const [showDetail, setShowDetail] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [tooltipPos, setTooltipPos] = useState("bottom");
-  const cardRef = React.useRef(null);
+  const [hovered, setHovered] = useState(false);
+  const { isSaved, toggleSave, pendingIds } = useSavedJobs();
+  const [pos, setPos] = useState("bottom");
+  const cardRef = useRef(null);
   const navigate = useNavigate();
 
-  const handleMouseEnter = () => {
+  const saved = isSaved(job.id);
+  const isPending = pendingIds.has(job.id);
+
+  const onEnter = () => {
     if (cardRef.current) {
       const rect = cardRef.current.getBoundingClientRect();
-      if (window.innerHeight - rect.bottom < 280) {
-        setTooltipPos("top");
-      } else {
-        setTooltipPos("bottom");
-      }
+      setPos(window.innerHeight - rect.bottom < 280 ? "top" : "bottom");
     }
-    setShowDetail(true);
+    setHovered(true);
   };
 
   return (
-    <div className={`relative ${showDetail ? "z-50" : "z-0"}`} ref={cardRef}>
+    <div
+      className={`relative h-full ${hovered ? "z-50" : "z-0"}`}
+      ref={cardRef}
+    >
       <div
         onClick={() => navigate(`/jobs/${job.id}`)}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={() => setShowDetail(false)}
-        className={`group relative w-full cursor-pointer rounded-lg border text-left transition-all hover:border-[#9346F5]/40 hover:shadow-sm ${
-          showDetail
+        onMouseEnter={onEnter}
+        onMouseLeave={() => setHovered(false)}
+        className={`group relative w-full h-full flex flex-col cursor-pointer rounded-lg border text-left transition-all hover:border-[#9346F5]/40 hover:shadow-sm ${
+          hovered
             ? "border-[#9346F5]/40 shadow-sm bg-slate-50/50"
             : "border-slate-200 bg-white"
         }`}
         style={{ padding: "12px 14px" }}
       >
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-3 flex-1">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-sm font-bold text-slate-500 transition-colors group-hover:border-[#9346F5]/30 group-hover:bg-[#9346F5]/5">
             C
           </div>
@@ -85,12 +88,14 @@ export default function Jobs({ job = defaultJob }) {
               {job.company}
             </div>
             <div className="mt-2.5 flex flex-wrap gap-1.5 items-center">
-              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-600 max-w-full">
                 <MapPinIcon className="h-3 w-3 shrink-0" />
-                {job.location}
+                <span className="truncate max-w-[120px] sm:max-w-[150px]">
+                  {job.location}
+                </span>
               </span>
               <span
-                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${typeColor(job.type)}`}
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${getTypeBg(job.type)}`}
               >
                 {job.type}
               </span>
@@ -116,11 +121,14 @@ export default function Jobs({ job = defaultJob }) {
 
         <button
           type="button"
+          disabled={isPending}
           onClick={(e) => {
             e.stopPropagation();
-            setSaved(!saved);
+            toggleSave(job.id);
           }}
-          className="absolute right-3 top-3 p-1 rounded hover:bg-gray-100 transition-colors"
+          className={`absolute right-3 top-3 p-1 rounded transition-colors ${
+            isPending ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-100 cursor-pointer"
+          }`}
         >
           {saved ? (
             <HeartSolid className="h-4 w-4 text-[#9346F5]" />
@@ -135,10 +143,10 @@ export default function Jobs({ job = defaultJob }) {
         </div>
       </div>
 
-      {showDetail && (
+      {hovered && (
         <div
-          className={`pointer-events-none absolute w-full rounded-lg border border-gray-200 bg-white p-4 text-sm shadow-xl shadow-slate-200/50 ${
-            tooltipPos === "top" ? "bottom-full mb-2" : "top-full mt-2"
+          className={`pointer-events-none absolute w-full rounded-lg border border-gray-200 bg-white p-4 text-sm shadow-xl shadow-slate-200/50 z-[100] ${
+            pos === "top" ? "bottom-full mb-2" : "top-full mt-2"
           }`}
         >
           <div className="flex items-center gap-2.5 mb-3">

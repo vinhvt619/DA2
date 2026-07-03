@@ -42,6 +42,14 @@ const JobSchema = new mongoose.Schema({
     type: [String],
     default: [],
   },
+  status: {
+    type: String,
+    enum: ['Draft', 'Active', 'Expired'],
+    default: 'Active',
+  },
+  expiryDate: {
+    type: Date,
+  },
 }, { timestamps: true });
 
 export default mongoose.model('Job', JobSchema);

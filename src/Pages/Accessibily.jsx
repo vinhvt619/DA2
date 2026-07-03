@@ -44,16 +44,16 @@ export default function Accessibility() {
           description="Đơn giản hóa trải nghiệm và tùy chỉnh giao diện ứng dụng theo cách của bạn."
         />
 
-        <div className="space-y-10">
+        <div className="space-y-8">
           <section>
             <SettingsSectionTitle>Hiển thị</SettingsSectionTitle>
-            <div className="border-t border-violet-100">
-              <div className="py-4 flex justify-between items-center border-b border-violet-50">
+            <div className="border-t border-gray-150">
+              <div className="py-3.5 flex justify-between items-center border-b border-gray-100">
                 <div>
-                  <span className="text-sm font-semibold text-gray-900 block">
+                  <span className="text-xs font-semibold text-gray-800 block">
                     Chế độ tối (Dark Mode)
                   </span>
-                  <span className="text-xs text-gray-500 mt-0.5">
+                  <span className="text-[11px] text-gray-400 mt-0.5 block">
                     Giảm ánh sáng màn hình, dễ nhìn hơn ban đêm
                   </span>
                 </div>
@@ -62,13 +62,13 @@ export default function Accessibility() {
                   role="switch"
                   aria-checked={darkMode}
                   onClick={() => setDarkMode(!darkMode)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-                    darkMode ? "bg-violet-800" : "bg-violet-200"
+                  className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                    darkMode ? "bg-violet-600" : "bg-gray-200"
                   }`}
                 >
                   <span
-                    className={`size-4 rounded-full bg-white shadow-sm transition-transform ${
-                      darkMode ? "translate-x-6" : "translate-x-1"
+                    className={`size-3.5 rounded-full bg-white shadow-xs transition-transform ${
+                      darkMode ? "translate-x-4.5" : "translate-x-0.5"
                     }`}
                   />
                 </button>
@@ -78,7 +78,7 @@ export default function Accessibility() {
 
           <section>
             <SettingsSectionTitle>Thông báo</SettingsSectionTitle>
-            <div className="border-t border-violet-100 divide-y divide-violet-50">
+            <div className="border-t border-gray-150 divide-y divide-gray-100">
               {notificationSettingLists.map((item) => (
                 <NotificationItem
                   key={item.key}

@@ -3,10 +3,12 @@ import HeaderNoUser from "../Components/HeaderNoUser";
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useToastContext } from "../Components/Toast";
+import { useAuth } from "../context/AuthContext.jsx";
 
 function Register() {
   const navigate = useNavigate();
   const showToast = useToastContext();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -98,6 +100,7 @@ function Register() {
           "Đăng ký thành công! Chào mừng bạn đến với RabbitCV 🎉",
           "success",
         );
+        if (loginData.user) login(loginData.user);
         
         if (loginData.user?.role === "company") {
           setTimeout(() => navigate("/CompanyDashboard"), 1000);
@@ -117,7 +120,7 @@ function Register() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] flex flex-col">
+    <div className="w-full min-h-screen bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] flex flex-col page-transition">
       <HeaderNoUser />
 
       <div className="flex-1 flex flex-col items-center justify-center p-4">

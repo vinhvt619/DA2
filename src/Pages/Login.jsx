@@ -2,12 +2,14 @@ import "../App.css";
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import HeaderNoUser from "../Components/HeaderNoUser";
+import { useAuth } from "../context/AuthContext.jsx";
 import { useToastContext } from "../Components/Toast";
 import { EyeSlashIcon } from "@heroicons/react/24/outline";
 
 function Login() {
   const navigate = useNavigate();
   const showToast = useToastContext();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     username: "",
     password: "",
@@ -60,6 +62,7 @@ function Login() {
 
       if (res.ok) {
         showToast("Đăng nhập thành công!", "success");
+        if (data.user) login(data.user);
         if (data.user?.role === "admin") {
           setTimeout(() => navigate("/AdminDashboard"), 800);
         } else if (data.user?.role === "company") {
@@ -83,7 +86,7 @@ function Login() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] flex flex-col">
+    <div className="w-full min-h-screen bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] flex flex-col page-transition">
       <HeaderNoUser />
 
       <div className="flex-1 flex flex-col items-center justify-center">
