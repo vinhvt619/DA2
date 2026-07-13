@@ -5,7 +5,7 @@ const NotificationSchema = new mongoose.Schema({
   recipientRole: { type: String, enum: ['employee', 'company'], required: true },
   type: { 
     type: String, 
-    enum: ['NEW_APPLICATION', 'APPLICATION_STATUS_CHANGED', 'INTERVIEW_INVITE', 'JOB_EXPIRING_SOON', 'JOB_EXPIRED', 'SYSTEM'], 
+    enum: ['NEW_APPLICATION', 'APPLICATION_STATUS_CHANGED', 'INTERVIEW_INVITE', 'JOB_EXPIRING_SOON', 'JOB_EXPIRED', 'SYSTEM', 'APPLICATION_SUBMITTED'], 
     required: true 
   },
   title: { type: String, required: true },

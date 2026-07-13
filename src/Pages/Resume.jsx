@@ -171,7 +171,7 @@ export default function CreateResume() {
 
   if (!isAuthChecked) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center font-sans">
+      <div className="min-h-screen bg-gradient-to-br from-[#F8F4FC] to-[#EDE5F7] flex flex-col items-center justify-center font-sans">
         <div className="animate-spin rounded-full h-8 w-8 border-4 border-[#9346F5] border-t-transparent mb-4"></div>
         <p className="text-xs text-slate-500 font-medium">Đang xác thực thông tin...</p>
       </div>
@@ -179,7 +179,7 @@ export default function CreateResume() {
   }
 
   return (
-    <div className="bg-gray-50 h-screen flex flex-col overflow-hidden page-transition">
+    <div className="bg-gradient-to-br from-[#F8F4FC] to-[#EDE5F7] h-screen flex flex-col overflow-hidden page-transition">
       {/* Top Toolbar */}
       <div className="shrink-0 bg-white border-b border-gray-200 px-4 py-2.5 flex items-center gap-3 z-30">
         <button

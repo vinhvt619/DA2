@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useToastContext } from "./Toast";
 import HeaderNoUser from "./HeaderNoUser.jsx";
+import NotificationBell from "./NotificationBell.jsx";
+import MessageDropdown from "./MessageDropdown.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useSocket } from "../context/SocketContext.jsx";
 import {
   Bars3Icon,
   BellIcon,
@@ -11,9 +14,9 @@ import {
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
 
-
 export default function Header() {
   const { currentUser, isAuthChecked, logout } = useAuth();
+  const { socket, hasNewMessage, setHasNewMessage } = useSocket();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState("");
@@ -21,6 +24,17 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const showToast = useToastContext();
+  const headerRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (headerRef.current && !headerRef.current.contains(event.target)) {
+        setOpenMenu("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleSearch = (e) => {
     if (e.key === "Enter" && searchQuery.trim()) {
@@ -46,7 +60,7 @@ export default function Header() {
         "/accessibility",
         "/settingandprivate",
         "/userdashboard",
-        "/admindashboard",
+        "/admin",
         "/companydashboard",
         "/saved-jobs",
       ];
@@ -54,9 +68,12 @@ export default function Header() {
         navigate("/login");
       }
     } else {
-      if (path.includes("/companydashboard") && currentUser.role !== "company") {
+      if (
+        path.includes("/companydashboard") &&
+        currentUser.role !== "company"
+      ) {
         navigate("/MainMenu");
-      } else if (path.includes("/admindashboard") && currentUser.role !== "admin") {
+      } else if (path.includes("/admin") && currentUser.role !== "admin") {
         navigate("/MainMenu");
       }
     }
@@ -102,6 +119,9 @@ export default function Header() {
   };
 
   const toggleMenu = (name) => {
+    if (name === "message" && hasNewMessage) {
+      setHasNewMessage(false);
+    }
     setOpenMenu((current) => (current === name ? "" : name));
   };
 
@@ -114,7 +134,10 @@ export default function Header() {
   }
 
   return (
-    <header className="relative z-50 bg-linear-to-r from-white via-[#D9C9EE] to-[#9246f570]">
+    <header
+      ref={headerRef}
+      className="relative z-50 bg-linear-to-r from-white via-[#D9C9EE] to-[#9246f570]"
+    >
       <nav className="mx-auto flex items-center bg-transparent px-4 sm:px-6 lg:px-8">
         <div className="flex shrink-0">
           <Link to="/WelcomePageCustomer" className="-m-1.5 p-1.5">
@@ -176,84 +199,23 @@ export default function Header() {
             </button>
           </div>
 
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => toggleMenu("notification")}
-              className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-white"
-            >
-              <BellIcon className="h-5 w-5 text-gray-700" />
-            </button>
-            {openMenu === "notification" && (
-              <div className="absolute right-0 mt-2 w-80 rounded-lg bg-white p-4 shadow-2xl ring-1 ring-black/5">
-                <p className="mb-1 text-sm font-semibold text-gray-900">
-                  Thông báo
-                </p>
-                <p className="text-sm text-gray-500">Không có thông báo mới.</p>
-              </div>
-            )}
+          <div onClick={() => setOpenMenu("")}>
+            <NotificationBell />
           </div>
 
           <div className="relative">
             <button
               type="button"
               onClick={() => toggleMenu("message")}
-              className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-white"
+              className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-white relative"
             >
               <ChatBubbleOvalLeftIcon className="h-5 w-5 text-gray-700" />
+              {hasNewMessage && (
+                <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-red-500 border border-white" />
+              )}
             </button>
             {openMenu === "message" && (
-              <div className="absolute right-0 mt-2 w-80 rounded-lg bg-white p-4 shadow-2xl ring-1 ring-black/5">
-                <p className="mb-2 font-semibold text-gray-900">
-                  Tin nhắn gần nhất
-                </p>
-                <div className="mb-3 space-y-2 text-sm text-gray-500">
-                  <div
-                    className="rounded-lg p-2 hover:bg-gray-50 cursor-pointer"
-                    onClick={() => {
-                      toggleMenu("");
-                      navigate("/Message");
-                    }}
-                  >
-                    <div className="flex justify-between items-center mb-0.5">
-                      <p className="font-medium text-gray-800">
-                        Phòng nhóm chung
-                      </p>
-                      <span className="text-[10px] text-gray-400">
-                        Vừa xong
-                      </span>
-                    </div>
-                    <p className="truncate text-xs">Xin chào cả nhóm!</p>
-                  </div>
-                  <div
-                    className="rounded-lg p-2 hover:bg-gray-50 cursor-pointer"
-                    onClick={() => {
-                      toggleMenu("");
-                      navigate("/Message");
-                    }}
-                  >
-                    <div className="flex justify-between items-center mb-0.5">
-                      <p className="font-medium text-gray-800">
-                        Nguyễn Văn Toàn
-                      </p>
-                      <span className="text-[10px] text-gray-400">
-                        12 giờ trước
-                      </span>
-                    </div>
-                    <p className="truncate text-xs">Dạ vâng ạ</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    toggleMenu("");
-                    navigate("/Message");
-                  }}
-                  className="w-full rounded-lg bg-[#f7f1ff] py-2 text-sm font-semibold text-[#9346F5] hover:text-[#7c38c9]"
-                >
-                  Xem tất cả
-                </button>
-              </div>
+              <MessageDropdown toggleMenu={toggleMenu} />
             )}
           </div>
 

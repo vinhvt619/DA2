@@ -249,21 +249,20 @@ export default function ResumeSelection() {
           {loading ? (
             <LoadingSkeleton />
           ) : savedResumes.length === 0 ? (
-            <div className="text-center border border-dashed border-gray-200 rounded-xl py-12 px-6 bg-gray-50/50">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100 text-gray-400">
-                <DocumentTextIcon className="h-6 w-6" />
+            <div className="text-center py-16 px-6">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-violet-50 text-violet-600 border border-violet-100/50 shadow-xs">
+                <DocumentTextIcon className="h-7 w-7" />
               </div>
-              <p className="text-gray-700 font-semibold mb-1">Bạn chưa có bản CV nào</p>
-              <p className="text-xs text-gray-400 mb-4">
-                Chọn mẫu bên dưới hoặc tạo CV mới để bắt đầu
+              <h3 className="text-base font-extrabold text-slate-800">Bạn chưa tạo bản CV nào</h3>
+              <p className="text-xs text-gray-400 mt-1.5 max-w-sm mx-auto">
+                Hãy thiết lập bản hồ sơ đầu tiên của bạn để ứng tuyển ngay vào những vị trí mơ ước.
               </p>
               <button
                 type="button"
-                onClick={scrollToTemplates}
-                className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 hover:underline"
+                onClick={() => navigate("/resume")}
+                className="mt-5 px-5 py-2.5 bg-violet-600 hover:bg-violet-750 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-xs hover:shadow-md cursor-pointer"
               >
-                Xem mẫu CV
-                <ArrowRightIcon className="w-3.5 h-3.5" />
+                Tạo CV ngay
               </button>
             </div>
           ) : (

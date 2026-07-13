@@ -64,7 +64,7 @@ function Login() {
         showToast("Đăng nhập thành công!", "success");
         if (data.user) login(data.user);
         if (data.user?.role === "admin") {
-          setTimeout(() => navigate("/AdminDashboard"), 800);
+          setTimeout(() => navigate("/admin"), 800);
         } else if (data.user?.role === "company") {
           setTimeout(() => navigate("/CompanyDashboard"), 800);
         } else {

@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+:root {
+  --sidebar-width: 220px;
+  --radius-card: 10px;
+  --border-width-fine: 0.5px;
+  --text-size-body: 13px;
+  --surface-1: #ffffff;
+  --surface-2: #f4f0fa;
+  --surface-3: #f1f5f9;
+  --border-color: rgba(196, 180, 240, 0.4);
+}
+
 html,
 body,
 #root {
@@ -7,12 +18,8 @@ body,
 }
 
 body {
-  background: linear-gradient(to bottom right, #F8F4FC, #E8DCFA);
+  background: linear-gradient(to bottom right, #f8f4fc, #e8dcfa);
 }
-
-/* @tailwind base;
-@tailwind components;
-@tailwind utilities; */
 
 .custom-scrollbar::-webkit-scrollbar {
   width: 5px;
@@ -24,12 +31,12 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #E5E7EB;
+  background-color: #e5e7eb;
   border-radius: 10px;
 }
 
 .custom-scrollbar:hover::-webkit-scrollbar-thumb {
-  background-color: #D1D5DB;
+  background-color: #d1d5db;
 }
 
 /* Hide scrollbar completely */
@@ -55,4 +62,3 @@ body {
 .page-transition {
   animation: pageFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-

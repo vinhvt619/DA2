@@ -7,6 +7,7 @@ import {
 import React, { useState } from "react";
 import Editor from "./RichText/Editor";
 import Toast, { useToast } from "./Toast";
+import ConfirmPopUp from "./ConfirmPopUp";
 
 export default function ResumeForm({
   image,
@@ -35,6 +36,11 @@ export default function ResumeForm({
   setHobby,
 }) {
   const { toast, showToast } = useToast();
+  const [confirmState, setConfirmState] = useState({
+    isOpen: false,
+    message: "",
+    onConfirm: null,
+  });
   const [isModalProfileOpen, setIsModalProfileOpen] = useState(false);
   const [isModalExperienceOpen, setIsModalExperienceOpen] = useState(false);
   const [isModalEducationOpen, setIsModalEducationOpen] = useState(false);
@@ -130,9 +136,14 @@ export default function ResumeForm({
   };
   const handleDeleteEducation = (e, id) => {
     e.stopPropagation();
-    if (confirm("Bạn có chắc chắn muốn xóa giáo dục này không?")) {
-      setEducation(education.filter((item) => item.id !== id));
-    }
+    setConfirmState({
+      isOpen: true,
+      message: "Bạn có chắc chắn muốn xóa mục học vấn này không?",
+      onConfirm: () => {
+        setEducation(education.filter((item) => item.id !== id));
+        setConfirmState({ isOpen: false, message: "", onConfirm: null });
+      },
+    });
   };
   const handleEditSkill = (item) => {
     setEditingId(item.id);
@@ -145,9 +156,14 @@ export default function ResumeForm({
   };
   const handleDeleteSkill = (e, id) => {
     e.stopPropagation();
-    if (confirm("Bạn có chắc chắn muốn xóa kỹ năng này không?")) {
-      setSkill(skill.filter((item) => item.id !== id));
-    }
+    setConfirmState({
+      isOpen: true,
+      message: "Bạn có chắc chắn muốn xóa kỹ năng này không?",
+      onConfirm: () => {
+        setSkill(skill.filter((item) => item.id !== id));
+        setConfirmState({ isOpen: false, message: "", onConfirm: null });
+      },
+    });
   };
   const handleEditLanguage = (item) => {
     setEditingId(item.id);
@@ -159,9 +175,14 @@ export default function ResumeForm({
   };
   const handleDeleteLanguage = (e, id) => {
     e.stopPropagation();
-    if (confirm("Bạn có chắc chắn muốn xóa ngoại ngữ này không?")) {
-      setLanguage(language.filter((item) => item.id !== id));
-    }
+    setConfirmState({
+      isOpen: true,
+      message: "Bạn có chắc chắn muốn xóa ngoại ngữ này không?",
+      onConfirm: () => {
+        setLanguage(language.filter((item) => item.id !== id));
+        setConfirmState({ isOpen: false, message: "", onConfirm: null });
+      },
+    });
   };
   const handleEditCertificate = (item) => {
     setEditingId(item.id);
@@ -175,9 +196,14 @@ export default function ResumeForm({
   };
   const handleDeleteCertificate = (e, id) => {
     e.stopPropagation();
-    if (confirm("Bạn có chắc chắn muốn xóa chứng chỉ này không?")) {
-      setCertificate(certificate.filter((item) => item.id !== id));
-    }
+    setConfirmState({
+      isOpen: true,
+      message: "Bạn có chắc chắn muốn xóa chứng chỉ này không?",
+      onConfirm: () => {
+        setCertificate(certificate.filter((item) => item.id !== id));
+        setConfirmState({ isOpen: false, message: "", onConfirm: null });
+      },
+    });
   };
   const handleEditProject = (item) => {
     setEditingId(item.id);
@@ -195,9 +221,14 @@ export default function ResumeForm({
   };
   const handleDeleteProject = (e, id) => {
     e.stopPropagation();
-    if (confirm("Bạn có chắc chắn muốn xóa dự án này không?")) {
-      setProject(project.filter((item) => item.id !== id));
-    }
+    setConfirmState({
+      isOpen: true,
+      message: "Bạn có chắc chắn muốn xóa dự án này không?",
+      onConfirm: () => {
+        setProject(project.filter((item) => item.id !== id));
+        setConfirmState({ isOpen: false, message: "", onConfirm: null });
+      },
+    });
   };
   const handleEditAward = (item) => {
     setEditingId(item.id);
@@ -211,9 +242,14 @@ export default function ResumeForm({
   };
   const handleDeleteAward = (e, id) => {
     e.stopPropagation();
-    if (confirm("Bạn có chắc chắn muốn xóa giải thưởng này không?")) {
-      setAward(award.filter((item) => item.id !== id));
-    }
+    setConfirmState({
+      isOpen: true,
+      message: "Bạn có chắc chắn muốn xóa giải thưởng này không?",
+      onConfirm: () => {
+        setAward(award.filter((item) => item.id !== id));
+        setConfirmState({ isOpen: false, message: "", onConfirm: null });
+      },
+    });
   };
 
   const handleEditHobby = (item) => {
@@ -225,16 +261,26 @@ export default function ResumeForm({
   };
   const handleDeleteHobby = (e, id) => {
     e.stopPropagation();
-    if (confirm("Bạn có chắc chắn muốn xóa sở thích này không?")) {
-      setHobby(hobby.filter((item) => item.id !== id));
-    }
+    setConfirmState({
+      isOpen: true,
+      message: "Bạn có chắc chắn muốn xóa sở thích này không?",
+      onConfirm: () => {
+        setHobby(hobby.filter((item) => item.id !== id));
+        setConfirmState({ isOpen: false, message: "", onConfirm: null });
+      },
+    });
   };
 
   const handleDeleteExperience = (e, id) => {
     e.stopPropagation();
-    if (confirm("Bạn có chắc chắn muốn xóa kinh nghiệm này không?")) {
-      setExperience(experience.filter((item) => item.id !== id));
-    }
+    setConfirmState({
+      isOpen: true,
+      message: "Bạn có chắc chắn muốn xóa kinh nghiệm làm việc này không?",
+      onConfirm: () => {
+        setExperience(experience.filter((item) => item.id !== id));
+        setConfirmState({ isOpen: false, message: "", onConfirm: null });
+      },
+    });
   };
   const handleEditProfile = (item) => {
     setEditingId(item.id);
@@ -260,9 +306,14 @@ export default function ResumeForm({
 
   const handleDeleteProfile = (e, id) => {
     e.stopPropagation();
-    if (confirm("Bạn có chắc chắn muốn xóa profile này không?")) {
-      setProfile(profile.filter((item) => item.id !== id));
-    }
+    setConfirmState({
+      isOpen: true,
+      message: "Bạn có chắc chắn muốn xóa tài khoản mạng xã hội này không?",
+      onConfirm: () => {
+        setProfile(profile.filter((item) => item.id !== id));
+        setConfirmState({ isOpen: false, message: "", onConfirm: null });
+      },
+    });
   };
 
   return (
@@ -1958,6 +2009,13 @@ export default function ResumeForm({
         </div>
         </div>
         </div>
+        {confirmState.isOpen && (
+        <ConfirmPopUp
+          message={confirmState.message}
+          confirm={confirmState.onConfirm}
+          cancel={() => setConfirmState({ isOpen: false, message: "", onConfirm: null })}
+        />
+      )}
     </div>
   );
 }

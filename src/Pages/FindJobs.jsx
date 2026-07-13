@@ -56,7 +56,10 @@ function FindJobs() {
             {/* Search Box */}
             <div
               className="relative bg-white/70 rounded-2xl border border-white/80 shadow-sm p-5 transition-all duration-300 hover:shadow-md"
-              style={{ backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}
+              style={{
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+              }}
             >
               <div className="mb-4">
                 <div className="inline-flex items-center gap-1 rounded-full bg-violet-100/80 border border-violet-200/50 text-[#9346F5] px-2.5 py-0.5 text-[11px] font-bold">
@@ -67,7 +70,8 @@ function FindJobs() {
                   Tìm kiếm công việc mơ ước
                 </h1>
                 <p className="text-xs text-gray-500">
-                  Khám phá hàng ngàn cơ hội việc làm hấp dẫn và phù hợp với hồ sơ của bạn.
+                  Khám phá hàng ngàn cơ hội việc làm hấp dẫn và phù hợp với hồ
+                  sơ của bạn.
                 </p>
               </div>
 
@@ -86,7 +90,10 @@ function FindJobs() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
-                    onClick={() => { setSelectedFilter(""); setSearchKeyword(""); }}
+                    onClick={() => {
+                      setSelectedFilter("");
+                      setSearchKeyword("");
+                    }}
                     className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-gray-600 bg-white/80 hover:bg-violet-50/50 border border-slate-200 rounded-xl text-xs font-semibold transition-all hover:text-[#9346F5]"
                   >
                     <AdjustmentsHorizontalIcon className="w-3.5 h-3.5" />
@@ -99,7 +106,9 @@ function FindJobs() {
               </div>
 
               <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] text-gray-400 font-medium mr-1">Tìm kiếm phổ biến:</span>
+                <span className="text-[11px] text-gray-400 font-medium mr-1">
+                  Tìm kiếm phổ biến:
+                </span>
                 {filters.slice(1).map((opt) => (
                   <button
                     key={opt.value}
@@ -115,7 +124,10 @@ function FindJobs() {
             {/* Gợi ý cho bạn */}
             <div
               className="bg-white/70 rounded-2xl border border-white/80 shadow-sm p-5 transition-all duration-300 hover:shadow-md"
-              style={{ backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}
+              style={{
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+              }}
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -123,8 +135,12 @@ function FindJobs() {
                     <SparklesIcon className="w-4 h-4" />
                   </span>
                   <div>
-                    <h2 className="text-sm font-bold text-gray-900">Gợi ý cho bạn</h2>
-                    <p className="text-[11px] text-gray-500">Phù hợp nhất với kỹ năng của bạn</p>
+                    <h2 className="text-sm font-bold text-gray-900">
+                      Gợi ý cho bạn
+                    </h2>
+                    <p className="text-[11px] text-gray-500">
+                      Phù hợp nhất với kỹ năng của bạn
+                    </p>
                   </div>
                 </div>
                 <button className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-[#9346F5] font-semibold bg-white/60 hover:bg-white px-2.5 py-1 rounded-lg border border-slate-200/50">
@@ -142,7 +158,10 @@ function FindJobs() {
             {/* Tin mới nhất */}
             <div
               className="bg-white/70 rounded-2xl border border-white/80 shadow-sm p-5 transition-all duration-300 hover:shadow-md"
-              style={{ backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}
+              style={{
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+              }}
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -150,8 +169,12 @@ function FindJobs() {
                     <FireIcon className="w-4 h-4" />
                   </span>
                   <div>
-                    <h2 className="text-sm font-bold text-gray-900">Tin tuyển dụng mới nhất</h2>
-                    <p className="text-[11px] text-gray-500">Cập nhật liên tục mỗi giờ</p>
+                    <h2 className="text-sm font-bold text-gray-900">
+                      Tin tuyển dụng mới nhất
+                    </h2>
+                    <p className="text-[11px] text-gray-500">
+                      Cập nhật liên tục mỗi giờ
+                    </p>
                   </div>
                 </div>
                 <button
@@ -172,7 +195,10 @@ function FindJobs() {
             {/* Lọc theo ngành */}
             <div
               className="bg-white/70 rounded-2xl border border-white/80 shadow-sm p-5 transition-all duration-300 hover:shadow-md"
-              style={{ backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}
+              style={{
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+              }}
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-2">
@@ -180,8 +206,12 @@ function FindJobs() {
                     <BriefcaseIcon className="w-4 h-4" />
                   </span>
                   <div>
-                    <h2 className="text-sm font-bold text-gray-900">Danh sách việc làm</h2>
-                    <p className="text-[11px] text-gray-500">Lọc theo ngành nghề bạn mong muốn</p>
+                    <h2 className="text-sm font-bold text-gray-900">
+                      Danh sách việc làm
+                    </h2>
+                    <p className="text-[11px] text-gray-500">
+                      Lọc theo ngành nghề bạn mong muốn
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 bg-white/95 px-2.5 py-1 rounded-lg border border-slate-200/80">
@@ -192,7 +222,9 @@ function FindJobs() {
                     className="text-[11px] font-semibold h-7 border-0 bg-transparent outline-none text-slate-700 pr-5 cursor-pointer"
                   >
                     {filters.map((item) => (
-                      <option key={item.value} value={item.value}>{item.label}</option>
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -200,13 +232,23 @@ function FindJobs() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
                 {filteredJobs.length > 0 ? (
-                  filteredJobs.slice(0, 4).map((job, index) => (
-                    <Jobs key={`filter-${job.id}-${index}`} job={job} />
-                  ))
+                  filteredJobs
+                    .slice(0, 4)
+                    .map((job, index) => (
+                      <Jobs key={`filter-${job.id}-${index}`} job={job} />
+                    ))
                 ) : (
-                  <div className="col-span-full rounded-xl border border-dashed border-violet-200 bg-violet-50/10 p-8 text-center">
-                    <p className="font-semibold text-gray-800 text-xs">Không tìm thấy công việc phù hợp</p>
-                    <p className="text-[10px] text-gray-400 mt-0.5">Vui lòng thay đổi tiêu chí lọc</p>
+                  <div className="col-span-full py-12 flex flex-col items-center justify-center text-center">
+                    <div className="w-12 h-12 text-[#9346F5] bg-violet-50 p-2.5 rounded-full mb-3 flex items-center justify-center border border-violet-100/50">
+                      <BriefcaseIcon className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-sm font-bold text-gray-800">
+                      Không tìm thấy tin tuyển dụng
+                    </h3>
+                    <p className="text-xs text-gray-400 mt-1 max-w-xs">
+                      Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc để khám phá các
+                      cơ hội khác.
+                    </p>
                   </div>
                 )}
               </div>

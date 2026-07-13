@@ -1,4 +1,7 @@
 import express from "express";
+import http from "http";
+import { Server } from "socket.io";
+import { parseCookie } from "cookie";
 import mongoose from "mongoose";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -11,7 +14,9 @@ import Message from "./models/Message.js";
 import Job from "./models/Job.js";
 import Application from "./models/Application.js";
 import Notification from "./models/Notification.js";
-import { createNotification } from "./utils/notificationService.js";
+import HiddenChat from "./models/HiddenChat.js";
+import { createNotification, createNotificationsBulk } from "./utils/notificationService.js";
+import "./cron/jobExpiryCron.js";
 
 dotenv.config();
 mongoose.set("bufferCommands", false);
@@ -25,6 +30,8 @@ const usingDefaultJwtSecret = !process.env.JWT_SECRET;
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:4000",
+  "http://127.0.0.1:4000",
+  "http://[::1]:4000",
   "http://localhost:3000",
   "https://rabbitcv.vercel.app",
   process.env.CLIENT_URL,
@@ -511,9 +518,20 @@ app.put("/api/user/security", authMiddleware, async (req, res) => {
       }
     }
 
+    const updateData = { email, phoneNumber };
+    
+    if (pin !== undefined) {
+      if (!pin || pin.trim() === "") {
+        updateData.pin = null; // Xóa PIN → lưu null
+      } else {
+        const salt = await bcrypt.genSalt(10);
+        updateData.pin = await bcrypt.hash(pin, salt);
+      }
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       req.user.id,
-      { email, phoneNumber, pin },
+      updateData,
       { new: true, runValidators: true },
     ).select("-password");
 
@@ -554,42 +572,68 @@ app.post("/api/logout", (req, res) => {
   res.status(200).json({ message: "Da dang xuat" });
 });
 
-app.get("/api/messages", async (req, res) => {
+app.get("/api/messages", authMiddleware, async (req, res) => {
   try {
     const room = req.query.room || "general";
-    const messages = await Message.find({ room })
-      .sort({ createdAt: 1 })
+    const userId = req.user.id;
+
+    if (room !== "general") {
+      if (room.startsWith("private_")) {
+        const parts = room.substring("private_".length).split("_");
+        if (parts.length !== 2 || !parts.includes(userId)) {
+          return res.status(403).json({ message: "Ban khong co quyen truy cap phong nay" });
+        }
+      } else {
+        return res.status(403).json({ message: "Loai phong khong hop le" });
+      }
+    }
+
+    let query = { room };
+    
+    if (room !== "general") {
+      const hiddenRecord = await HiddenChat.findOne({ userId, room });
+      if (hiddenRecord) {
+        query.createdAt = { $gt: hiddenRecord.hiddenAt };
+      }
+    }
+
+    const messages = await Message.find(query)
+      .sort({ createdAt: -1 })
       .limit(100);
+    messages.reverse();
     res.status(200).json(messages);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post("/api/messages", async (req, res) => {
+app.post("/api/messages", authMiddleware, async (req, res) => {
   try {
-    let { senderId, senderName, content, room = "general", image } = req.body;
+    let { content, room = "general", image } = req.body;
 
-    const token = req.cookies.token;
-    if (token) {
-      try {
-        const decoded = jwt.verify(token, jwtSecret);
-        const user = await User.findById(decoded.id);
-        if (user) {
-          senderId = user._id.toString();
-          senderName = user.fullName || user.username;
-        }
-      } catch {
-        // Keep requested values on error
-      }
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "Khong tim thay nguoi dung" });
     }
+    
+    const senderId = user._id.toString();
+    const senderName = user.fullName || user.username;
 
-    if (!senderId || !senderName || (!content && !image)) {
+    if (!content && !image) {
       return res.status(400).json({ message: "Thieu thong tin tin nhan" });
     }
 
     const newMessage = new Message({ senderId, senderName, content, room, image });
     await newMessage.save();
+
+    if (room.startsWith("private_")) {
+      const ids = room.replace("private_", "").split("_");
+      const receiverId = ids.find((id) => id !== senderId);
+      if (receiverId) {
+        io.to(`user_${receiverId}`).emit("newMessage", newMessage);
+      }
+    }
+
     res.status(201).json(newMessage);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -613,47 +657,74 @@ app.get("/api/chat/threads", authMiddleware, async (req, res) => {
   try {
     const currentUserId = req.user.id;
 
-    const messages = await Message.find({
-      $or: [
-        { room: "general" },
-        { room: { $regex: `^private_.*${currentUserId}` } },
-      ],
-    }).sort({ createdAt: -1 });
+    // 1. Dung Aggregation lay tin nhan cuoi moi phong
+    const aggregatedMessages = await Message.aggregate([
+      {
+        $match: {
+          $or: [
+            { room: "general" },
+            { room: { $regex: `^private_.*${currentUserId}` } },
+          ],
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: "$room",
+          lastMessage: { $first: "$content" },
+          lastMessageAt: { $first: "$createdAt" },
+          senderName: { $first: "$senderName" },
+          senderId: { $first: "$senderId" },
+        },
+      },
+      { $sort: { lastMessageAt: -1 } },
+    ]);
 
+    // 2. Gom danh sach partnerId
+    const partnerIds = [];
+    for (const msg of aggregatedMessages) {
+      if (msg._id.startsWith("private_")) {
+        const parts = msg._id.replace("private_", "").split("_");
+        const partnerId = parts.find((id) => id !== currentUserId);
+        if (partnerId) partnerIds.push(partnerId);
+      }
+    }
+
+    // 3. Query 1 lan lay tat ca Partner info (dung $in)
+    let partnersMap = {};
+    if (partnerIds.length > 0) {
+      const partners = await User.find({ _id: { $in: partnerIds } }).select("fullName username role");
+      partners.forEach(p => {
+        partnersMap[p._id.toString()] = p;
+      });
+    }
+
+    // 4. Map du lieu thanh mang threads cuoi cung
     const threadsMap = new Map();
+    for (const msg of aggregatedMessages) {
+      const room = msg._id;
+      let partnerInfo = null;
 
-    for (const msg of messages) {
-      const room = msg.room;
-      if (threadsMap.has(room)) continue;
-
-      let partner = null;
       if (room.startsWith("private_")) {
         const parts = room.replace("private_", "").split("_");
         const partnerId = parts.find((id) => id !== currentUserId);
-        if (partnerId) {
-          try {
-            partner = await User.findById(partnerId).select(
-              "fullName username role",
-            );
-          } catch {
-            // User might have been deleted or invalid ID
-          }
+        if (partnerId && partnersMap[partnerId]) {
+          const p = partnersMap[partnerId];
+          partnerInfo = {
+            id: p._id,
+            name: p.fullName || p.username,
+            role: p.role,
+          };
         }
       }
 
       threadsMap.set(room, {
         room,
-        lastMessage: msg.content,
-        lastMessageAt: msg.createdAt,
+        lastMessage: msg.lastMessage,
+        lastMessageAt: msg.lastMessageAt,
         senderName: msg.senderName,
         senderId: msg.senderId,
-        partner: partner
-          ? {
-              id: partner._id,
-              name: partner.fullName || partner.username,
-              role: partner.role,
-            }
-          : null,
+        partner: partnerInfo,
       });
     }
 
@@ -676,7 +747,44 @@ app.get("/api/chat/threads", authMiddleware, async (req, res) => {
     const threads = Array.from(threadsMap.values()).sort(
       (a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt),
     );
-    res.status(200).json(threads);
+
+    // Lọc bỏ những phòng bị ẩn và chưa có tin nhắn mới
+    const hiddenRecords = await HiddenChat.find({ userId: currentUserId });
+    const hiddenMap = {};
+    hiddenRecords.forEach(h => hiddenMap[h.room] = new Date(h.hiddenAt));
+
+    const visibleThreads = threads.filter(t => {
+      // General room cannot be hidden
+      if (t.room === "general") return true;
+      if (!hiddenMap[t.room]) return true; // Chưa bị ẩn
+      
+      const lastMsgTime = new Date(t.lastMessageAt);
+      const hiddenTime = hiddenMap[t.room];
+      
+      // Nếu có tin nhắn mới sau thời điểm ẩn, thì hiện lại
+      return lastMsgTime > hiddenTime;
+    });
+
+    res.status(200).json(visibleThreads);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Hide a chat room
+app.patch("/api/chat/threads/:room/hide", authMiddleware, async (req, res) => {
+  try {
+    const { room } = req.params;
+    if (room === "general") {
+      return res.status(400).json({ message: "Không thể ẩn nhóm chung" });
+    }
+    
+    await HiddenChat.findOneAndUpdate(
+      { userId: req.user.id, room },
+      { hiddenAt: new Date() },
+      { upsert: true, new: true }
+    );
+    res.status(200).json({ message: "Đã ẩn đoạn chat" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -732,6 +840,19 @@ app.get("/api/jobs/applications", authMiddleware, async (req, res) => {
   }
 });
 
+// Get applications for the logged-in candidate
+app.get("/api/jobs/applications/mine", authMiddleware, async (req, res) => {
+  try {
+    const applications = await Application.find({ candidateId: req.user.id })
+      .populate("jobId", "title company")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(applications);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Post a new job
 app.post("/api/jobs", authMiddleware, async (req, res) => {
   try {
@@ -754,6 +875,17 @@ app.post("/api/jobs", authMiddleware, async (req, res) => {
       return res
         .status(403)
         .json({ message: "Chi doanh nghiep moi duoc dang tuyen dung" });
+    }
+
+    if (expiryDate) {
+      const now = new Date();
+      const maxDate = new Date();
+      maxDate.setFullYear(now.getFullYear() + 2);
+      
+      const d = new Date(expiryDate);
+      if (isNaN(d) || d > maxDate || d < new Date(new Date().setHours(0,0,0,0))) {
+        return res.status(400).json({ message: "Ngày hết hạn không hợp lệ (tối thiểu là hôm nay và tối đa 2 năm kể từ hôm nay)." });
+      }
     }
 
     const newJob = new Job({
@@ -841,14 +973,24 @@ app.post("/api/jobs/apply", authMiddleware, async (req, res) => {
     await newApp.save();
 
     if (job) {
-      await createNotification({
-        recipient: job.companyId,
-        recipientRole: 'company',
-        type: 'NEW_APPLICATION',
-        title: 'Có ứng viên mới ứng tuyển',
-        message: `${newApp.fullName} vừa ứng tuyển vào vị trí của bạn`,
-        link: '/CompanyDashboard'
-      });
+      await createNotificationsBulk([
+        {
+          recipient: job.companyId,
+          recipientRole: 'company',
+          type: 'NEW_APPLICATION',
+          title: 'Có ứng viên mới ứng tuyển',
+          message: `${newApp.fullName} vừa ứng tuyển vào vị trí của bạn`,
+          link: '/CompanyDashboard'
+        },
+        {
+          recipient: req.user.id,
+          recipientRole: 'employee',
+          type: 'APPLICATION_SUBMITTED',
+          title: 'Nộp hồ sơ thành công',
+          message: `Bạn đã ứng tuyển thành công vào vị trí ${job.title}`,
+          link: '/UserDashboard'
+        }
+      ]);
     }
 
     res
@@ -915,14 +1057,24 @@ app.post("/api/jobs/apply-file", authMiddleware, async (req, res) => {
     await newApp.save();
 
     if (job) {
-      await createNotification({
-        recipient: job.companyId,
-        recipientRole: 'company',
-        type: 'NEW_APPLICATION',
-        title: 'Có ứng viên mới ứng tuyển',
-        message: `${newApp.fullName} vừa ứng tuyển vào vị trí của bạn`,
-        link: '/CompanyDashboard'
-      });
+      await createNotificationsBulk([
+        {
+          recipient: job.companyId,
+          recipientRole: 'company',
+          type: 'NEW_APPLICATION',
+          title: 'Có ứng viên mới ứng tuyển',
+          message: `${newApp.fullName} vừa ứng tuyển vào vị trí của bạn`,
+          link: '/CompanyDashboard'
+        },
+        {
+          recipient: req.user.id,
+          recipientRole: 'employee',
+          type: 'APPLICATION_SUBMITTED',
+          title: 'Nộp hồ sơ thành công',
+          message: `Bạn đã ứng tuyển thành công vào vị trí ${job.title}`,
+          link: '/UserDashboard'
+        }
+      ]);
     }
 
     res.status(201).json({ message: "Nop ho so ung tuyen thanh cong", application: newApp });
@@ -1012,7 +1164,30 @@ app.put("/api/jobs/:id", authMiddleware, async (req, res) => {
     if (status !== undefined) {
       job.status = status;
     }
+    
+    if (expiryDate) {
+      const now = new Date();
+      const maxDate = new Date();
+      maxDate.setFullYear(now.getFullYear() + 2);
+      
+      const d = new Date(expiryDate);
+      if (isNaN(d) || d > maxDate) {
+        return res.status(400).json({ message: "Ngày hết hạn không hợp lệ (tối đa 2 năm kể từ hôm nay)." });
+      }
+    }
+
     if (expiryDate !== undefined) {
+      const newExpiry = expiryDate ? new Date(expiryDate).getTime() : null;
+      const oldExpiry = job.expiryDate ? new Date(job.expiryDate).getTime() : null;
+      const isDateChanged = newExpiry !== oldExpiry;
+      
+      if (isDateChanged) {
+        job.expiryNotifiedAt = null;
+        job.expiredNotifiedAt = null;
+        if (job.status === 'Expired') {
+           job.status = 'Active';
+        }
+      }
       job.expiryDate = expiryDate || null;
     }
 
@@ -1118,10 +1293,19 @@ app.get("/api/notifications/unread-count", authMiddleware, async (req, res) => {
 // Get notifications
 app.get("/api/notifications", authMiddleware, async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
     const notifications = await Notification.find({ recipient: req.user.id })
       .sort({ createdAt: -1 })
-      .limit(30);
-    res.status(200).json(notifications);
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Notification.countDocuments({ recipient: req.user.id });
+    const totalPages = Math.ceil(total / limit);
+
+    res.json({ notifications, totalPages, currentPage: page });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1231,11 +1415,18 @@ app.delete("/api/saved-jobs/:jobId", authMiddleware, async (req, res) => {
 });
 
 // Get CV details (authorized viewing)
-app.get("/api/resumes/view/:id", async (req, res) => {
+app.get("/api/resumes/view/:id", authMiddleware, async (req, res) => {
   try {
     const resume = await Resume.findById(req.params.id);
     if (!resume) {
       return res.status(404).json({ message: "Khong tim thay CV" });
+    }
+    const isOwner = resume.userId.toString() === req.user.id.toString();
+    const isAdmin = req.user.role === "admin";
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ 
+        message: "Bạn không có quyền xem CV này" 
+      });
     }
     return res.status(200).json(resume);
   } catch (error) {
@@ -1278,10 +1469,45 @@ app.get("/api/admin/stats", authMiddleware, async (req, res) => {
   }
 });
 
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: corsOptions
+});
+
+io.use((socket, next) => {
+  try {
+    const cookies = parseCookie(socket.handshake.headers.cookie || "");
+    const token = cookies.token;
+    
+    if (!token) {
+      return next(new Error("Authentication error: No token provided"));
+    }
+    
+    const decoded = jwt.verify(token, jwtSecret);
+    socket.user = decoded;
+    next();
+  } catch (error) {
+    next(new Error("Authentication error: Invalid token"));
+  }
+});
+
+io.on("connection", (socket) => {
+  const userId = socket.user.id;
+  console.log(`[Socket] User connected: ${userId} (Socket ID: ${socket.id})`);
+  
+  socket.join(`user_${userId}`);
+  
+  socket.on("disconnect", () => {
+    console.log(`[Socket] User disconnected: ${userId} (Socket ID: ${socket.id})`);
+  });
+});
+
 if (process.env.NODE_ENV !== "production") {
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`Server dang chay tai http://localhost:${PORT}`);
   });
 }
 
+export { io };
 export default app;

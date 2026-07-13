@@ -4,7 +4,7 @@ import Header from "../Components/Header";
 import ResumePreview from "../Components/ResumePreview";
 import useCvZoom from "../hooks/useCvZoom";
 import { SAMPLE_CVS } from "../data/sampleCV";
-import { ArrowLeftIcon, PrinterIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, PrinterIcon, ChatBubbleLeftEllipsisIcon } from "@heroicons/react/24/outline";
 
 export default function ViewResume() {
   const { resumeId } = useParams();
@@ -102,6 +102,7 @@ export default function ViewResume() {
           </button>
 
           {resumeData?.pdfData ? (
+            <div className="flex items-center gap-3">
             <button
               onClick={handleDownloadFile}
               className="flex items-center gap-2 bg-[#9346F5] hover:bg-[#7e39d1] text-white px-5 py-2.5 rounded-xl shadow-md shadow-[#9346F5]/20 text-sm font-bold transition-all cursor-pointer animate-fade-in"
@@ -111,13 +112,28 @@ export default function ViewResume() {
               </svg>
               Tải CV về máy
             </button>
+            <button
+              onClick={() => navigate(`/Message?partnerId=${resumeData.userId}`)}
+              className="flex items-center gap-2 bg-white text-[#9346F5] border border-[#9346F5] hover:bg-violet-50 px-5 py-2.5 rounded-xl shadow-md text-sm font-bold transition-all cursor-pointer animate-fade-in"
+            >
+              <ChatBubbleLeftEllipsisIcon className="w-4 h-4" /> Nhắn tin cho ứng viên
+            </button>
+            </div>
           ) : (
+            <div className="flex items-center gap-3">
             <button
               onClick={handlePrint}
               className="flex items-center gap-2 bg-[#9346F5] hover:bg-[#7e39d1] text-white px-5 py-2.5 rounded-xl shadow-md shadow-[#9346F5]/20 text-sm font-bold transition-all cursor-pointer"
             >
               <PrinterIcon className="w-4 h-4" /> In / Tải PDF
             </button>
+            <button
+              onClick={() => navigate(`/Message?partnerId=${resumeData.userId}`)}
+              className="flex items-center gap-2 bg-white text-[#9346F5] border border-[#9346F5] hover:bg-violet-50 px-5 py-2.5 rounded-xl shadow-md text-sm font-bold transition-all cursor-pointer animate-fade-in"
+            >
+              <ChatBubbleLeftEllipsisIcon className="w-4 h-4" /> Nhắn tin cho ứng viên
+            </button>
+            </div>
           )}
         </div>
 

@@ -10,6 +10,7 @@ import {
   VideoCameraIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import { useSocket } from "../context/SocketContext.jsx";
 
 const emojis = [
   "😂", "❤️", "👍", "😍", "😊", "😭", 
@@ -110,6 +111,8 @@ function Reply({ msg, onImageClick }) {
 export default function ChatBox({ activeRoom = "general", currentUser, partner, onMessageSent, onToggleMenu }) {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
+  const [sendError, setSendError] = useState("");
+  const { socket } = useSocket();
   
   // Image attachments states
   const [selectedImage, setSelectedImage] = useState(null);
@@ -135,9 +138,21 @@ export default function ChatBox({ activeRoom = "general", currentUser, partner, 
 
   useEffect(() => {
     loadMessages();
-    const interval = setInterval(loadMessages, 3000);
-    return () => clearInterval(interval);
   }, [loadMessages]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleNewMessage = (msg) => {
+      if (msg.room === activeRoom) {
+        setMessages((prev) => {
+          if (prev.some((m) => m._id === msg._id)) return prev;
+          return [...prev, msg];
+        });
+      }
+    };
+    socket.on("newMessage", handleNewMessage);
+    return () => socket.off("newMessage", handleNewMessage);
+  }, [socket, activeRoom]);
 
   useEffect(() => {
     endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -207,9 +222,14 @@ export default function ChatBox({ activeRoom = "general", currentUser, partner, 
         setSelectedImage(null);
         setImagePreviewUrl(null);
         if (onMessageSent) onMessageSent();
+      } else {
+        setSendError("Gửi tin nhắn thất bại, vui lòng thử lại.");
+        setTimeout(() => setSendError(""), 3000);
       }
     } catch (err) {
       console.error("Không gửi được tin nhắn:", err);
+      setSendError("Lỗi kết nối, vui lòng thử lại.");
+      setTimeout(() => setSendError(""), 3000);
     }
   };
 
@@ -335,6 +355,11 @@ export default function ChatBox({ activeRoom = "general", currentUser, partner, 
 
       {/* Message Input Bottom Bar */}
       <div className="p-3 bg-white border-t border-gray-150 flex items-center gap-2 relative">
+        {sendError && (
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg shadow-sm text-[11px] font-semibold animate-fade-in z-50 whitespace-nowrap">
+            {sendError}
+          </div>
+        )}
         <div className="flex items-center gap-0.5 text-gray-400 shrink-0">
           <button type="button" className="hover:bg-gray-50 p-1.5 rounded-md">
             <MicrophoneIcon className="size-4.5" />

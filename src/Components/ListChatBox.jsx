@@ -1,7 +1,7 @@
-import React from "react";
-import { EllipsisHorizontalIcon } from "@heroicons/react/24/outline";
+import React, { useState, useRef, useEffect } from "react";
+import { EllipsisHorizontalIcon, TrashIcon } from "@heroicons/react/24/outline";
 
-export default function ListChatBox({ name, chat, hour, choose }) {
+export default function ListChatBox({ room, name, chat, hour, choose, onHideChat }) {
   const initials = name
     ? name
         .split(" ")
@@ -10,6 +10,22 @@ export default function ListChatBox({ name, chat, hour, choose }) {
         .substring(0, 2)
         .toUpperCase()
     : "U";
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
+    }
+    if (showMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showMenu]);
 
   return (
     <div
@@ -58,12 +74,42 @@ export default function ListChatBox({ name, chat, hour, choose }) {
         </div>
       </div>
 
-      <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 pl-1.5 bg-inherit">
-        <button
-          className={`flex items-center justify-center p-1 rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 cursor-pointer`}
-        >
-          <EllipsisHorizontalIcon className="size-3.5 stroke-[2px]" />
-        </button>
+      <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 pl-1.5 bg-inherit flex items-center gap-1" ref={menuRef}>
+        <div className="relative">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenu(!showMenu);
+            }}
+            className={`flex items-center justify-center p-1 rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 cursor-pointer`}
+          >
+            <EllipsisHorizontalIcon className="size-3.5 stroke-[2px]" />
+          </button>
+
+          {showMenu && (
+            <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-md py-1 z-50">
+              {room !== "general" && onHideChat ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMenu(false);
+                    if (window.confirm("Bạn có chắc chắn muốn ẩn/xóa đoạn chat này khỏi danh sách?")) {
+                      onHideChat(room);
+                    }
+                  }}
+                  className="w-full px-3 py-2 text-left text-xs text-red-600 hover:bg-red-50 font-semibold flex items-center gap-2"
+                >
+                  <TrashIcon className="size-3.5 stroke-[2px]" />
+                  Xóa đoạn chat
+                </button>
+              ) : (
+                <div className="px-3 py-2 text-xs text-gray-400 font-medium text-center">
+                  Không có tuỳ chọn
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

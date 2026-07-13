@@ -10,15 +10,18 @@ import {
 import ListChatBox from "../Components/ListChatBox.jsx";
 import ChatBox from "../Components/ChatBox.jsx";
 import ProfileChatBox from "../Components/ProfileChatBox.jsx";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useSocket } from "../context/SocketContext.jsx";
 
 function Messenger() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { openMenu, toggleMenu } = ShowMenuChatHook(true);
   const [openSettingChat, setOpenSettingChat] = useState(false);
   
   const { currentUser, isAuthChecked } = useAuth();
+  const { socket } = useSocket();
   const [threads, setThreads] = useState([]);
   const [activeRoom, setActiveRoom] = useState("general");
   const [allUsers, setAllUsers] = useState([]);
@@ -30,7 +33,13 @@ function Messenger() {
       const res = await fetch("/api/chat/threads", { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
-        setThreads(data);
+        setThreads((prevThreads) => {
+          const realRooms = new Set(data.map(t => t.room));
+          const virtualThreads = prevThreads.filter(
+            t => t.lastMessage === "Bắt đầu cuộc trò chuyện mới..." && !realRooms.has(t.room)
+          );
+          return [...virtualThreads, ...data];
+        });
       }
     } catch (err) {
       console.error("Lỗi tải cuộc trò chuyện:", err);
@@ -59,7 +68,16 @@ function Messenger() {
     fetchUsers();
   }, [currentUser, isAuthChecked, fetchThreads, fetchUsers, navigate]);
 
-  const handleStartPrivateChat = (partner) => {
+  useEffect(() => {
+    if (!socket) return;
+    const handleNewMessage = () => {
+      fetchThreads();
+    };
+    socket.on("newMessage", handleNewMessage);
+    return () => socket.off("newMessage", handleNewMessage);
+  }, [socket, fetchThreads]);
+
+  const handleStartPrivateChat = useCallback((partner) => {
     if (!currentUser) return;
     const room = [currentUser._id, partner._id].sort().join("_");
     const privateRoomId = `private_${room}`;
@@ -67,24 +85,50 @@ function Messenger() {
     setSearchKeyword("");
     
     // Add temporary thread if not exists so it shows up selected immediately
-    if (!threads.some((t) => t.room === privateRoomId)) {
-      setThreads((prev) => [
-        {
-          room: privateRoomId,
-          lastMessage: "Bắt đầu cuộc trò chuyện mới...",
-          lastMessageAt: new Date(),
-          senderName: "",
-          senderId: "",
-          partner: {
-            id: partner._id,
-            name: partner.fullName || partner.username,
-            role: partner.role,
+    setThreads((prev) => {
+      if (!prev.some((t) => t.room === privateRoomId)) {
+        return [
+          {
+            room: privateRoomId,
+            lastMessage: "Bắt đầu cuộc trò chuyện mới...",
+            lastMessageAt: new Date(),
+            senderName: "",
+            senderId: "",
+            partner: {
+              id: partner._id,
+              name: partner.fullName || partner.username,
+              role: partner.role,
+            },
           },
-        },
-        ...prev,
-      ]);
+          ...prev,
+        ];
+      }
+      return prev;
+    });
+  }, [currentUser]);
+
+  // Handle partnerId from URL query param to auto-start chat
+  useEffect(() => {
+    const partnerId = searchParams.get("partnerId");
+    if (!partnerId || !currentUser || allUsers.length === 0) return;
+    
+    const partner = allUsers.find(u => u._id === partnerId);
+    if (partner) {
+      handleStartPrivateChat(partner);
+      setSearchParams({}); // Clean up URL
+    } else {
+      // Fallback: If not in allUsers, fetch profile directly
+      fetch(`/api/user/profile/${partnerId}`, { credentials: "include" })
+        .then(res => res.json())
+        .then(data => {
+          if (data && data._id) {
+            handleStartPrivateChat(data);
+            setSearchParams({});
+          }
+        })
+        .catch(err => console.error("Lỗi lấy thông tin partner từ URL:", err));
     }
-  };
+  }, [searchParams, allUsers, currentUser, handleStartPrivateChat, setSearchParams]);
 
   const filteredSearchResults = searchKeyword.trim()
     ? allUsers.filter((user) => {
@@ -110,6 +154,27 @@ function Messenger() {
       </div>
     );
   }
+
+  const handleHideChat = async (roomToHide) => {
+    if (roomToHide === "general") return; // Lớp bảo vệ ở frontend
+    
+    // Optimistic update: xoá khỏi danh sách ngay lập tức
+    setThreads(prev => prev.filter(t => t.room !== roomToHide));
+    
+    // Nếu đang mở phòng đó, chuyển về general hoặc rỗng
+    if (activeRoom === roomToHide) {
+      setActiveRoom("general");
+    }
+    
+    try {
+      await fetch(`/api/chat/threads/${roomToHide}/hide`, {
+        method: "PATCH",
+        credentials: "include"
+      });
+    } catch (err) {
+      console.error("Lỗi xóa đoạn chat:", err);
+    }
+  };
 
   return (
     <div className="bg-gradient-to-br from-[#F8F4FC] to-[#EDE5F7] h-screen flex flex-col font-sans overflow-hidden text-slate-900 text-sm page-transition">
@@ -222,10 +287,12 @@ function Messenger() {
                     return (
                       <div key={thread.room} onClick={() => setActiveRoom(thread.room)}>
                         <ListChatBox
+                          room={thread.room}
                           name={displayName}
                           chat={thread.lastMessage}
                           hour={relativeTime}
                           choose={activeRoom === thread.room}
+                          onHideChat={handleHideChat}
                         />
                       </div>
                     );
@@ -253,10 +320,7 @@ function Messenger() {
         >
           {openMenu && (
             <div className="min-w-[300px] h-full overflow-y-auto no-scrollbar">
-              <ProfileChatBox
-                activeRoom={activeRoom}
-                partner={activeThread?.partner}
-              />
+              <ProfileChatBox activeRoom={activeRoom} partner={activeThread?.partner} onHideChat={() => handleHideChat(activeRoom)} />
             </div>
           )}
         </div>

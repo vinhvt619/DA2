@@ -717,6 +717,8 @@ export default function CompanyDashboard() {
                           name="expiryDate"
                           value={formData.expiryDate}
                           onChange={handleInputChange}
+                          min={new Date().toISOString().split('T')[0]}
+                          max={new Date(new Date().setFullYear(new Date().getFullYear() + 2)).toISOString().split('T')[0]}
                           className="w-full border border-slate-200 focus:border-[#9346F5] focus:ring-1 focus:ring-[#9346F5] px-4 py-2.5 rounded-xl outline-hidden text-sm cursor-pointer"
                         />
                       </div>

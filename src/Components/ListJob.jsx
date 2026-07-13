@@ -127,7 +127,9 @@ export default function Jobs({ job = defaultJob }) {
             toggleSave(job.id);
           }}
           className={`absolute right-3 top-3 p-1 rounded transition-colors ${
-            isPending ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-100 cursor-pointer"
+            isPending
+              ? "opacity-50 cursor-not-allowed"
+              : "hover:bg-gray-100 cursor-pointer"
           }`}
         >
           {saved ? (

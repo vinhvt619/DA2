@@ -9,11 +9,12 @@ import {
   PhotoIcon,
   ShieldCheckIcon,
   UserCircleIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export default function ProfileChatBox({ activeRoom = "general", partner }) {
+export default function ProfileChatBox({ activeRoom = "general", partner, onHideChat }) {
   const navigate = useNavigate();
   const [showChatInfo, setShowChatInfo] = useState(false);
   const [showFile, setShowFile] = useState(false);
@@ -156,6 +157,21 @@ export default function ProfileChatBox({ activeRoom = "general", partner }) {
                   </span>
                 </div>
               </div>
+              {!isGeneral && onHideChat && (
+                <div 
+                  className="p-2.5 px-3 bg-red-50/30 hover:bg-red-100/50 cursor-pointer flex items-center gap-2 border-t border-gray-100 transition-colors"
+                  onClick={() => {
+                    if (window.confirm("Bạn có chắc chắn muốn xóa/ẩn đoạn chat này không?")) {
+                      onHideChat();
+                    }
+                  }}
+                >
+                  <TrashIcon className="size-4 text-red-500" />
+                  <span className="text-xs text-red-600 font-medium">
+                    Xóa đoạn chat
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>

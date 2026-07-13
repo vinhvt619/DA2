@@ -151,6 +151,7 @@ function Register() {
                   name="username"
                   value={formData.username}
                   onChange={handleChange}
+                  autoComplete="off"
                   className="w-full border-2 border-gray-300 px-4 py-2 rounded-xl focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/20"
                   placeholder="Nhập tên đăng nhập"
                 />
@@ -165,6 +166,7 @@ function Register() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
+                  autoComplete="off"
                   className="w-full border-2 border-gray-300 px-4 py-2 rounded-xl focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/20"
                   placeholder="example@mail.com"
                 />
@@ -179,6 +181,7 @@ function Register() {
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
+                  autoComplete="new-password"
                   className="w-full border-2 border-gray-300 px-4 py-2 rounded-xl focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/20"
                   placeholder="Nhập mật khẩu"
                 />
@@ -193,6 +196,7 @@ function Register() {
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
+                  autoComplete="new-password"
                   className="w-full border-2 border-gray-300 px-4 py-2 rounded-xl focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/20"
                   placeholder="Nhập lại mật khẩu"
                 />

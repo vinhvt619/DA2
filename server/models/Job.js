@@ -13,6 +13,7 @@ const JobSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
+    index: true,
   },
   location: {
     type: String,
@@ -50,6 +51,8 @@ const JobSchema = new mongoose.Schema({
   expiryDate: {
     type: Date,
   },
+  expiryNotifiedAt: { type: Date, default: null },
+  expiredNotifiedAt: { type: Date, default: null },
 }, { timestamps: true });
 
 export default mongoose.model('Job', JobSchema);

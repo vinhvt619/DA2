@@ -26,16 +26,39 @@ const cvTemplates = [
   { rank: 10, name: "Tài chính & Kế toán", uses: 620, views: 4600 },
 ];
 
+const getCvTag = (name) => {
+  const n = name.toLowerCase();
+  if (
+    n.includes("thanh lịch") ||
+    n.includes("sáng tạo") ||
+    n.includes("gradient") ||
+    n.includes("hiện đại") ||
+    n.includes("thiết kế")
+  ) {
+    return { label: "Modern", bg: "bg-violet-50", text: "text-violet-600" };
+  }
+  if (
+    n.includes("tối giản") ||
+    n.includes("đơn giản") ||
+    n.includes("cổ điển")
+  ) {
+    return { label: "Classic", bg: "bg-slate-100", text: "text-slate-600" };
+  }
+  return { label: "Professional", bg: "bg-blue-50", text: "text-blue-600" };
+};
+
 function CVRow({ cv }) {
   const navigate = useNavigate();
+  const tag = getCvTag(cv.name);
 
-  const rankStyle = cv.rank <= 3
-    ? cv.rank === 1
-      ? "bg-amber-500 text-white"
+  const rankStyle =
+    cv.rank === 1
+      ? "bg-amber-100 text-amber-700"
       : cv.rank === 2
-        ? "bg-slate-400 text-white"
-        : "bg-amber-700 text-white"
-    : "text-slate-400 bg-slate-50 border border-slate-100";
+      ? "bg-slate-100 text-slate-600"
+      : cv.rank === 3
+      ? "bg-orange-100 text-orange-700"
+      : "bg-gray-100 text-gray-500";
 
   return (
     <div
@@ -43,7 +66,7 @@ function CVRow({ cv }) {
       className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 -mx-2 px-2 rounded-lg cursor-pointer group"
     >
       <div className="w-6 shrink-0 flex justify-center">
-        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${rankStyle}`}>
+        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${rankStyle}`}>
           {cv.rank}
         </span>
       </div>
@@ -53,10 +76,13 @@ function CVRow({ cv }) {
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-semibold text-slate-800 truncate group-hover:text-violet-600">
-          {cv.name}
+        <div className="text-sm font-semibold text-slate-800 truncate group-hover:text-violet-600 flex items-center gap-2">
+          <span>{cv.name}</span>
+          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${tag.bg} ${tag.text}`}>
+            {tag.label}
+          </span>
         </div>
-        <div className="text-[11px] text-slate-400">
+        <div className="text-[11px] text-gray-400">
           Đã dùng: {cv.uses.toLocaleString()} lượt · Lượt xem: {(cv.views / 1000).toFixed(1)}k
         </div>
       </div>
@@ -77,45 +103,36 @@ export default function TopCVList({ isSingleColumn = false }) {
 
   return (
     <div className="w-full">
-      <div className="px-4 pt-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <DocumentTextIcon className="w-4 h-4 text-violet-500 shrink-0" />
-          <h2 className="text-sm font-semibold text-gray-900">
-            Mẫu CV được yêu thích
-          </h2>
+      <div className="px-4 pt-4 pb-3 flex items-center justify-between">
+        <div className="flex gap-1 p-1 bg-slate-100 rounded-xl shrink-0">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActive(tab.key)}
+              className={
+                active === tab.key
+                  ? "rounded-lg px-3 py-1.5 text-[11px] font-semibold bg-white text-slate-800 shadow-sm transition-all duration-150 cursor-pointer"
+                  : "rounded-lg px-3 py-1.5 text-[11px] font-medium text-slate-500 hover:text-slate-700 transition-colors duration-150 cursor-pointer"
+              }
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="flex gap-1">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActive(tab.key)}
-                className={`rounded-md px-2.5 py-1 text-[10px] font-medium transition-colors ${
-                  active === tab.key
-                    ? "bg-violet-600 text-white"
-                    : "text-gray-500 hover:bg-gray-50 border border-gray-200"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={() => navigate("/ResumeSelection")}
-            className="inline-flex items-center gap-1 text-xs text-gray-500 font-medium hover:text-violet-600 ml-1"
-          >
-            Xem tất cả
-            <ArrowRightIcon className="w-3 h-3" />
-          </button>
-        </div>
+        <button
+          onClick={() => navigate("/ResumeSelection")}
+          className="inline-flex items-center gap-1 text-xs text-gray-500 font-medium hover:text-violet-600 ml-1 cursor-pointer"
+        >
+          Xem tất cả
+          <ArrowRightIcon className="w-3 h-3" />
+        </button>
       </div>
 
       <div className="border-t border-gray-50" />
 
-      <div className="px-4 py-2">
+      <div className="px-4 pb-4">
         {isSingleColumn ? (
           <div>
             {cvTemplates.map((cv) => (

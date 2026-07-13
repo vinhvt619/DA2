@@ -18,7 +18,7 @@ function WelcomePage() {
   useEffect(() => {
     if (isAuthChecked && currentUser) {
       if (currentUser.role === "admin") {
-        navigate("/AdminDashboard");
+        navigate("/admin");
       } else if (currentUser.role === "company") {
         navigate("/CompanyDashboard");
       } else {
