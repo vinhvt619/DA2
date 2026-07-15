@@ -61,6 +61,7 @@ function App() {
               <Route path="/Accessibility" element={<Accessibility />} />
               <Route path="/SettingAndPrivate" element={<SettingAndPrivate />} />
               <Route path="/resume" element={<CreateResume />} />
+              <Route path="/resume/:resumeId" element={<CreateResume />} />
               <Route path="/ResumeSelection" element={<ResumeSelection />} />
               <Route path="/UserDashboard" element={<UserDashboard />} />
               <Route element={<AdminLayout />}>

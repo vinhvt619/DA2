@@ -1,22 +1,40 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+const A4_WIDTH_IN_PIXELS = 794;
+const MAX_ZOOM = 0.9;
+const MIN_ZOOM = 0.35;
+const CANVAS_GUTTER = 32;
 
 export default function useCvZoom() {
+  const [container, setContainer] = useState(null);
+  const containerRef = useCallback((node) => setContainer(node), []);
+
   useEffect(() => {
-    const handleResize = () => {
-      const width = window.innerWidth;
-      if (width < 794) {
-        const zoomVal = (width - 32) / 794;
-        document.documentElement.style.setProperty("--cv-zoom", zoomVal.toString());
-      } else {
-        document.documentElement.style.setProperty("--cv-zoom", "0.9");
-      }
+    const updateZoom = () => {
+      const containerWidth = container?.clientWidth || window.innerWidth;
+      const availableWidth = Math.max(0, containerWidth - CANVAS_GUTTER);
+      const zoom = Math.min(
+        MAX_ZOOM,
+        Math.max(MIN_ZOOM, availableWidth / A4_WIDTH_IN_PIXELS),
+      );
+
+      document.documentElement.style.setProperty("--cv-zoom", String(zoom));
     };
 
-    window.addEventListener("resize", handleResize);
-    handleResize(); // Initialize immediately
+    const observer =
+      container && typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(updateZoom)
+        : null;
+
+    if (observer) observer.observe(container);
+    window.addEventListener("resize", updateZoom);
+    updateZoom();
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      observer?.disconnect();
+      window.removeEventListener("resize", updateZoom);
     };
-  }, []);
+  }, [container]);
+
+  return containerRef;
 }

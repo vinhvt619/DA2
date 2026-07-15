@@ -111,13 +111,25 @@ export default function ResumeForm({
 
   const onImageChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      showToast("Chỉ hỗ trợ ảnh JPG, PNG hoặc WebP.", "error");
+      e.target.value = "";
+      return;
     }
+
+    if (file.size > 2 * 1024 * 1024) {
+      showToast("Ảnh đại diện không được lớn hơn 2 MB.", "error");
+      e.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => setImage(reader.result);
+    reader.onerror = () => showToast("Không thể đọc tệp ảnh này.", "error");
+    reader.readAsDataURL(file);
   };
 
   const handleEditEducation = (item) => {
@@ -345,7 +357,7 @@ export default function ResumeForm({
         <input
           id="avatar"
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
           onChange={onImageChange}
           className="hidden"
         />

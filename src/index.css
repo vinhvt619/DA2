@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@config "../tailwind.config.js";
 
 :root {
   --sidebar-width: 220px;
@@ -6,9 +7,10 @@
   --border-width-fine: 0.5px;
   --text-size-body: 13px;
   --surface-1: #ffffff;
-  --surface-2: #f4f0fa;
+  --surface-2: #f1f3f7;
   --surface-3: #f1f5f9;
-  --border-color: rgba(196, 180, 240, 0.4);
+  --border-color: rgba(148, 163, 184, 0.35);
+  --page-background: #f5f4f7;
 }
 
 html,
@@ -18,7 +20,7 @@ body,
 }
 
 body {
-  background: linear-gradient(to bottom right, #f8f4fc, #e8dcfa);
+  background: var(--page-background);
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -61,4 +63,24 @@ body {
 
 .page-transition {
   animation: pageFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 1rem;
+}
+
+/* Keep every TopPage component in proportion while making the approved UI 5% larger. */
+.top-page-scale {
+  width: calc(100% / 1.05);
+  zoom: 1.05;
+}
+
+/* Scale only the ResumeSelection content; the shared header keeps its normal size. */
+.resume-selection-scale {
+  width: calc(100% / 0.9);
+  zoom: 0.9;
 }

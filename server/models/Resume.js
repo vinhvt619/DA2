@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const ProfileSchema = new mongoose.Schema({ networkName: String, username: String, link: String });
 const ExperienceSchema = new mongoose.Schema({ title: String, company: String, location: String, startDate: String, endDate: String, description: String });
-const EducationSchema = new mongoose.Schema({ title: String, company: String, location: String, startDate: String, endDate: String, description: String });
+const EducationSchema = new mongoose.Schema({ title: String, major: String, company: String, location: String, startDate: String, endDate: String, score: String, description: String });
 const SkillSchema = new mongoose.Schema({ title: String, description: String, performance: String });
 const LanguageSchema = new mongoose.Schema({ title: String, description: String });
 const CertificateSchema = new mongoose.Schema({ title: String, date: String, publisher: String, description: String });
@@ -35,7 +35,11 @@ const ResumeSchema = new mongoose.Schema({
   project: [ProjectSchema],
   award: [AwardSchema],
   hobby: [HobbySchema],
-  selectedTemplate: { type: String, default: "modern" },
+  selectedTemplate: {
+    type: String,
+    enum: ["classic", "modern", "professional", "elegant", "creative", "compact"],
+    default: "modern",
+  },
 }, { timestamps: true });
 
 export default mongoose.model('Resume', ResumeSchema);

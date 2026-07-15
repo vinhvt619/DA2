@@ -8,6 +8,7 @@ import cookieParser from "cookie-parser";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
+import sanitizeHtml from "sanitize-html";
 import Resume from "./models/Resume.js";
 import User from "./models/User.js";
 import Message from "./models/Message.js";
@@ -239,6 +240,97 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
+const RESUME_TEMPLATES = new Set([
+  "classic",
+  "modern",
+  "professional",
+  "elegant",
+  "creative",
+  "compact",
+]);
+
+const richTextOptions = {
+  allowedTags: [
+    "p",
+    "br",
+    "strong",
+    "b",
+    "em",
+    "i",
+    "u",
+    "s",
+    "strike",
+    "ul",
+    "ol",
+    "li",
+    "blockquote",
+    "code",
+    "pre",
+    "h1",
+    "h2",
+    "h3",
+    "hr",
+  ],
+  allowedAttributes: {},
+};
+
+const cleanRichText = (value) =>
+  typeof value === "string" ? sanitizeHtml(value, richTextOptions) : "";
+
+const cleanExternalUrl = (value) => {
+  if (typeof value !== "string" || !value.trim()) return "";
+
+  const rawUrl = value.trim();
+  if (/^[a-z][a-z\d+.-]*:/i.test(rawUrl) && !/^https?:\/\//i.test(rawUrl)) {
+    return "";
+  }
+  const candidate = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+
+  try {
+    const parsedUrl = new URL(candidate);
+    return ["http:", "https:"].includes(parsedUrl.protocol) ? candidate : "";
+  } catch {
+    return "";
+  }
+};
+
+const cleanDescriptions = (items) =>
+  Array.isArray(items)
+    ? items.map((item) => ({
+        ...item,
+        description: cleanRichText(item?.description),
+      }))
+    : [];
+
+const sanitizeResumeData = (source) => {
+  const data = source?.toObject ? source.toObject() : source || {};
+
+  return {
+    ...data,
+    personalInfo: {
+      ...(data.personalInfo || {}),
+      website: cleanExternalUrl(data.personalInfo?.website),
+    },
+    bio: cleanRichText(data.bio),
+    profile: Array.isArray(data.profile)
+      ? data.profile.map((item) => ({
+          ...item,
+          link: cleanExternalUrl(item?.link),
+        }))
+      : [],
+    experience: cleanDescriptions(data.experience),
+    education: cleanDescriptions(data.education),
+    skill: cleanDescriptions(data.skill),
+    language: cleanDescriptions(data.language),
+    certificate: cleanDescriptions(data.certificate),
+    project: cleanDescriptions(data.project).map((item) => ({
+      ...item,
+      link: cleanExternalUrl(item?.link),
+    })),
+    award: cleanDescriptions(data.award),
+  };
+};
+
 app.get("/api/resumes", authMiddleware, async (req, res) => {
   try {
     const resumes = await Resume.find({ 
@@ -249,7 +341,7 @@ app.get("/api/resumes", authMiddleware, async (req, res) => {
     .sort({
       updatedAt: -1,
     });
-    res.status(200).json(resumes);
+    res.status(200).json(resumes.map(sanitizeResumeData));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -266,7 +358,7 @@ app.get("/api/resume/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "Khong tim thay CV" });
     }
 
-    res.status(200).json(resume);
+    res.status(200).json(sanitizeResumeData(resume));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -274,39 +366,68 @@ app.get("/api/resume/:id", authMiddleware, async (req, res) => {
 
 app.post("/api/resume", authMiddleware, async (req, res) => {
   try {
-    const data = req.body;
+    const data = sanitizeResumeData(req.body);
+    const requestedId = data._id;
+
+    delete data._id;
+    delete data.userId;
+    delete data.createdAt;
+    delete data.updatedAt;
+    delete data.__v;
+    delete data.isVirtual;
+    delete data.pdfData;
+    delete data.fileName;
+
+    data.title = typeof data.title === "string" ? data.title.trim() : "";
+
+    if (!data.title) {
+      return res.status(400).json({ message: "Vui long nhap ten CV." });
+    }
+
+    if (!RESUME_TEMPLATES.has(data.selectedTemplate)) {
+      return res.status(400).json({ message: "Mau CV khong hop le." });
+    }
+    if (requestedId && !mongoose.isValidObjectId(requestedId)) {
+      return res.status(400).json({ message: "ID CV khong hop le." });
+    }
+
     const titleCheck = await Resume.findOne({
       title: data.title,
       userId: req.user.id,
     });
 
-    if (titleCheck && (!data._id || titleCheck._id.toString() !== data._id)) {
+    if (
+      titleCheck &&
+      (!requestedId || titleCheck._id.toString() !== requestedId.toString())
+    ) {
       return res.status(400).json({
         message: "Ten CV nay da ton tai. Vui long chon ten khac.",
       });
     }
 
-    if (data._id) {
+    if (requestedId) {
       const resume = await Resume.findOne({
-        _id: data._id,
+        _id: requestedId,
         userId: req.user.id,
       });
 
-      if (resume) {
-        Object.assign(resume, data);
-        await resume.save();
-        return res.status(200).json({
-          message: "Cap nhat CV thanh cong",
-          resume,
-        });
+      if (!resume) {
+        return res.status(404).json({ message: "Khong tim thay CV de cap nhat." });
       }
+
+      Object.assign(resume, data);
+      await resume.save();
+      return res.status(200).json({
+        message: "Cap nhat CV thanh cong",
+        resume: sanitizeResumeData(resume),
+      });
     }
 
     const newResume = new Resume({ ...data, userId: req.user.id });
     await newResume.save();
     res.status(200).json({
       message: "T?o CV moi thanh cong",
-      resume: newResume,
+      resume: sanitizeResumeData(newResume),
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1428,7 +1549,7 @@ app.get("/api/resumes/view/:id", authMiddleware, async (req, res) => {
         message: "Bạn không có quyền xem CV này" 
       });
     }
-    return res.status(200).json(resume);
+    return res.status(200).json(sanitizeResumeData(resume));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1487,7 +1608,7 @@ io.use((socket, next) => {
     const decoded = jwt.verify(token, jwtSecret);
     socket.user = decoded;
     next();
-  } catch (error) {
+  } catch {
     next(new Error("Authentication error: Invalid token"));
   }
 });

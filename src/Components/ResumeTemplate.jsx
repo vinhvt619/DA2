@@ -4,7 +4,7 @@ import { CheckIcon } from "@heroicons/react/24/outline";
 const templates = [
   {
     id: "classic",
-    name: "Cơ Bản",
+    name: "Cơ bản tối giản",
     desc: "Truyền thống, rõ ràng",
     accent: "bg-gray-100",
     preview: (
@@ -33,7 +33,7 @@ const templates = [
   },
   {
     id: "modern",
-    name: "Hiện Đại",
+    name: "Hiện đại",
     desc: "Sáng tạo, nổi bật",
     accent: "bg-blue-50",
     preview: (
@@ -60,7 +60,7 @@ const templates = [
   },
   {
     id: "professional",
-    name: "Chuyên Nghiệp",
+    name: "Chuyên nghiệp",
     desc: "Tối giản, lịch sự",
     accent: "bg-slate-800",
     preview: (
@@ -81,6 +81,93 @@ const templates = [
             <div className="border-b border-gray-100 pb-0.5 font-bold text-gray-500">HỌC VẤN</div>
             <div className="font-semibold">Đại học ABC</div>
           </div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "elegant",
+    name: "Thanh lịch đơn sắc",
+    desc: "Tối giản, chuyên nghiệp",
+    accent: "bg-stone-50",
+    preview: (
+      <div className="h-28 overflow-hidden rounded-lg border border-stone-200 bg-white p-2 text-[3.5px]">
+        <div className="flex items-start justify-between border-b-2 border-slate-800 pb-1.5">
+          <div>
+            <div className="text-[6px] font-bold text-slate-900">Họ và Tên</div>
+            <div className="mt-0.5 uppercase tracking-wider text-slate-500">Vị trí công việc</div>
+          </div>
+          <div className="h-5 w-5 bg-slate-200" />
+        </div>
+        <div className="mt-2 grid grid-cols-5 gap-1.5">
+          <div className="col-span-3 space-y-1">
+            <div className="border-b border-slate-300 font-bold text-slate-800">KINH NGHIỆM</div>
+            <div className="h-1 rounded bg-slate-200" />
+            <div className="h-1 w-4/5 rounded bg-slate-100" />
+            <div className="border-b border-slate-300 pt-1 font-bold text-slate-800">DỰ ÁN</div>
+            <div className="h-1 rounded bg-slate-200" />
+          </div>
+          <div className="col-span-2 border-l border-stone-200 pl-1.5">
+            <div className="border-b border-slate-300 font-bold text-slate-800">KỸ NĂNG</div>
+            <div className="mt-1 border-b border-slate-100 pb-0.5">Kỹ năng 1</div>
+            <div className="mt-1 border-b border-slate-100 pb-0.5">Kỹ năng 2</div>
+          </div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "creative",
+    name: "Sáng tạo hai cột",
+    desc: "Màu sắc, cân bằng",
+    accent: "bg-teal-50",
+    preview: (
+      <div className="h-28 overflow-hidden rounded-lg border border-teal-100 bg-white text-[3.5px]">
+        <div className="flex h-[36%] items-center gap-2 bg-teal-800 px-2 text-white">
+          <div className="h-6 w-6 rounded-full border border-white/30 bg-white/15" />
+          <div>
+            <div className="text-[6px] font-black">HỌ VÀ TÊN</div>
+            <div className="mt-0.5 text-teal-100">Vị trí công việc</div>
+          </div>
+        </div>
+        <div className="grid h-[64%] grid-cols-5">
+          <div className="col-span-3 p-2">
+            <div className="mt-2 border-b border-teal-200 pb-0.5 font-bold text-teal-800">KINH NGHIỆM</div>
+            <div className="mt-1 h-1 rounded bg-slate-200" />
+            <div className="mt-1 h-1 w-5/6 rounded bg-slate-100" />
+          </div>
+          <div className="col-span-2 bg-teal-50 p-2">
+            <div className="border-b border-teal-200 pb-0.5 font-bold text-teal-900">KỸ NĂNG</div>
+            <div className="mt-1">Kỹ năng 1</div>
+            <div className="mt-1">Kỹ năng 2</div>
+          </div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "compact",
+    name: "Tối ưu ATS",
+    desc: "Một cột, dễ đọc bởi ATS",
+    accent: "bg-slate-100",
+    preview: (
+      <div className="h-28 overflow-hidden rounded-lg border border-slate-200 bg-white p-2 text-[3.5px]">
+        <div className="border-b border-slate-800 pb-1.5">
+          <div className="text-[6px] font-bold tracking-wide text-slate-900">HỌ VÀ TÊN</div>
+          <div className="font-semibold uppercase text-slate-600">Vị trí công việc</div>
+          <div className="mt-0.5 text-slate-400">Email · Điện thoại · Địa điểm</div>
+        </div>
+        <div className="mt-1.5 space-y-1">
+          <div className="border-b border-slate-400 font-bold text-slate-800">KINH NGHIỆM LÀM VIỆC</div>
+          <div className="flex justify-between font-semibold">
+            <span>Vị trí · Công ty</span><span>2022–nay</span>
+          </div>
+          <div className="h-1 rounded bg-slate-100" />
+          <div className="h-1 w-5/6 rounded bg-slate-100" />
+          <div className="border-b border-slate-400 pt-1 font-bold text-slate-800">HỌC VẤN</div>
+          <div className="font-semibold">Chuyên ngành · Trường đại học</div>
+          <div className="border-b border-slate-400 pt-1 font-bold text-slate-800">KỸ NĂNG</div>
+          <div className="text-slate-500">Kỹ năng 1 · Kỹ năng 2 · Kỹ năng 3</div>
         </div>
       </div>
     ),

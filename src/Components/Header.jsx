@@ -16,7 +16,7 @@ import {
 
 export default function Header() {
   const { currentUser, isAuthChecked, logout } = useAuth();
-  const { socket, hasNewMessage, setHasNewMessage } = useSocket();
+  const { hasNewMessage, setHasNewMessage } = useSocket();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState("");
@@ -136,13 +136,13 @@ export default function Header() {
   return (
     <header
       ref={headerRef}
-      className="relative z-50 bg-linear-to-r from-white via-[#D9C9EE] to-[#9246f570]"
+      className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-sm"
     >
-      <nav className="mx-auto flex items-center bg-transparent px-4 sm:px-6 lg:px-8">
+      <nav className="mx-auto flex min-h-16 max-w-[1536px] items-center px-4 sm:px-5 lg:px-6">
         <div className="flex shrink-0">
           <Link to="/WelcomePageCustomer" className="-m-1.5 p-1.5">
             <span className="sr-only">RabbitCV</span>
-            <img alt="RabbitCV" src="/RabbitCV.png" className="h-15 w-15" />
+            <img alt="RabbitCV" src="/RabbitCV.png" className="h-12 w-12 object-contain" />
           </Link>
         </div>
 
@@ -155,23 +155,37 @@ export default function Header() {
           <Bars3Icon className="size-6" />
         </button>
 
-        <div className="ml-10 hidden items-center lg:flex lg:gap-x-8">
-          {getNavLinks().map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className="group relative text-sm font-bold leading-6 text-gray-700 hover:text-[#9346F5]"
-            >
-              {item.label}
-              <span className="absolute -bottom-1 left-0 h-0.5 w-0 bg-[#9346F5] group-hover:w-full" />
-            </Link>
-          ))}
+        <div className="ml-8 hidden items-center lg:flex lg:gap-x-7">
+          {getNavLinks().map((item) => {
+            const isActive =
+              location.pathname.toLowerCase() === item.to.toLowerCase();
+
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                aria-current={isActive ? "page" : undefined}
+                className={`group relative py-5 text-[13px] font-medium transition-colors ${
+                  isActive
+                    ? "text-violet-700"
+                    : "text-slate-600 hover:text-slate-950"
+                }`}
+              >
+                {item.label}
+                <span
+                  className={`absolute inset-x-0 bottom-0 h-0.5 bg-violet-600 transition-transform ${
+                    isActive ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
+                  }`}
+                />
+              </Link>
+            );
+          })}
         </div>
 
         <div className="ml-auto hidden items-center gap-2 lg:flex">
           <div className="relative flex items-center justify-end">
             <div
-              className={`flex h-8 items-center overflow-hidden rounded-full border border-gray-300 bg-white shadow-sm ${
+              className={`flex h-9 items-center overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm transition-all ${
                 isSearchOpen
                   ? "mr-2 w-64 px-3 opacity-100"
                   : "pointer-events-none w-0 border-none px-0 opacity-0"
@@ -189,7 +203,7 @@ export default function Header() {
             <button
               type="button"
               onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-white"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100"
             >
               <MagnifyingGlassIcon
                 className={`h-5 w-5 ${
@@ -207,7 +221,7 @@ export default function Header() {
             <button
               type="button"
               onClick={() => toggleMenu("message")}
-              className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-white relative"
+              className="relative flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-slate-100"
             >
               <ChatBubbleOvalLeftIcon className="h-5 w-5 text-gray-700" />
               {hasNewMessage && (
@@ -223,7 +237,7 @@ export default function Header() {
             <button
               type="button"
               onClick={() => toggleMenu("user")}
-              className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-white"
+              className="flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-slate-100"
             >
               <UserCircleIcon className="h-5 w-5 text-gray-700" />
             </button>
@@ -258,13 +272,13 @@ export default function Header() {
       </nav>
 
       {mobileMenuOpen && (
-        <div className="border-t border-purple-100 bg-white px-4 py-3 lg:hidden">
+        <div className="border-t border-slate-100 bg-white px-4 py-3 lg:hidden">
           {getNavLinks().map((item) => (
             <Link
               key={item.to}
               to={item.to}
               onClick={() => setMobileMenuOpen(false)}
-              className="block rounded-lg px-3 py-2 text-sm font-bold text-gray-700 hover:bg-purple-50"
+              className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-violet-50"
             >
               {item.label}
             </Link>

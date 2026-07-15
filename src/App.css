@@ -132,8 +132,6 @@ input[type="password"]::-ms-clear {
   }
 
   /* --- Hide header & footer when printing --- */
-  header,
-  footer,
   .print\:hidden {
     display: none !important;
   }
@@ -158,10 +156,10 @@ input[type="password"]::-ms-clear {
 
   /* --- CV layout root: stretch to full A4 page height (297mm) --- */
   .cv-print-layout {
-    height: auto !important;
+    height: 297mm !important;
     min-height: 297mm !important;
-    max-height: none !important;
-    overflow: visible !important;
+    max-height: 297mm !important;
+    overflow: hidden !important;
     transform: none !important;
     box-shadow: none !important;
     width: 100% !important;
@@ -246,9 +244,11 @@ input[type="password"]::-ms-clear {
   .cv-wrapper {
     zoom: 1 !important;
     transform: none !important;
-    width: 100% !important;
-    max-width: none !important;
-    min-height: 0 !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
+    overflow: hidden !important;
     box-shadow: none !important;
     border: none !important;
     border-radius: 0 !important;
@@ -260,7 +260,10 @@ input[type="password"]::-ms-clear {
 /* --- CV Wrapper Layout (Desktop & Responsive Mobile) --- */
 .cv-wrapper {
   width: 210mm;
+  height: 297mm;
   min-height: 297mm;
+  max-height: 297mm;
+  overflow: hidden;
   zoom: var(--cv-zoom, 0.9);
   margin-left: auto;
   margin-right: auto;
@@ -272,8 +275,6 @@ input[type="password"]::-ms-clear {
   .cv-wrapper {
     transform: scale(var(--cv-zoom, 0.9));
     transform-origin: top center;
-    width: calc(210mm * var(--cv-zoom, 0.9)) !important;
-    min-height: calc(297mm * var(--cv-zoom, 0.9)) !important;
-    transition: transform 0.15s ease, width 0.15s ease, min-height 0.15s ease;
+    transition: transform 0.15s ease;
   }
 }

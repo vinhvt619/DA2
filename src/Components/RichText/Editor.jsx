@@ -22,11 +22,10 @@ function Editor({ content = "", onChange, className = "" }) {
 
   useEffect(() => {
     if (!editor) return;
+    const nextContent = content || "";
     const currentHTML = editor.getHTML();
-    if (content !== currentHTML && content !== "") {
-      if (editor.isEmpty) {
-        editor.commands.setContent(content, false);
-      }
+    if (nextContent !== currentHTML) {
+      editor.commands.setContent(nextContent, false);
     }
   }, [content, editor]);
 

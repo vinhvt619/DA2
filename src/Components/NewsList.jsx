@@ -1,60 +1,38 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { CalendarDaysIcon, TagIcon } from "@heroicons/react/24/outline";
-import { newsArticles, getCategoryImg } from "../data/newsArticles.js";
+import {
+  ArrowRightIcon,
+  CalendarDaysIcon,
+  NewspaperIcon,
+} from "@heroicons/react/24/outline";
+import { getCategoryImg, newsArticles } from "../data/newsArticles.js";
 
-const categoryColor = (category) => {
-  const c = category?.toLowerCase() || "";
-  if (c.includes("thị trường"))
-    return "bg-green-50 text-green-700 border-green-200/60";
-  if (c.includes("hướng dẫn") || c.includes("cv"))
-    return "bg-indigo-50 text-indigo-700 border-indigo-200/60";
-  if (c.includes("phỏng vấn"))
-    return "bg-pink-50 text-pink-700 border-pink-200/60";
-  if (c.includes("kỹ năng"))
-    return "bg-amber-50 text-amber-700 border-amber-200/60";
-  return "bg-slate-50 text-slate-600 border-slate-200/60";
-};
+const displayContent = [
+  {
+    title: "Xu hướng tuyển dụng 2026: Nhà tuyển dụng tìm gì ở ứng viên trẻ?",
+    category: "Thị trường",
+  },
+  {
+    title: "Cách viết CV ấn tượng cho sinh viên chưa có kinh nghiệm",
+    category: "Hướng dẫn CV",
+  },
+  {
+    title: "Nghệ thuật quản lý thời gian giúp tăng hiệu suất làm việc",
+    category: "Kỹ năng",
+  },
+];
 
-function NewsItem({ article }) {
-  const imageUrl = getCategoryImg(article.slug, article.category);
-
+function NewsRow({ article, display }) {
   return (
-    <Link
-      to={`/News/${article.slug}`}
-      className="group flex flex-col rounded-xl border border-gray-100 bg-white/60 backdrop-blur-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all"
-    >
-      <div className="relative overflow-hidden aspect-[16/9] w-full bg-gray-100">
-        <img
-          src={imageUrl}
-          alt={article.title}
-          className="w-full h-full object-cover"
-          loading="lazy"
-        />
-        <div className="absolute bottom-2 left-2.5">
-          <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 text-violet-600 text-[10px] font-semibold px-2.5 py-0.5 border border-violet-100/50">
-            <TagIcon className="w-2.5 h-2.5" />
-            {article.category}
-          </span>
-        </div>
+    <Link to={`/News/${article.slug}`} className="group flex gap-3 border-b border-slate-100 py-3 first:pt-0 last:border-0 last:pb-0">
+      <div className="h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+        <img src={getCategoryImg(article.slug, article.category)} alt={display.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" loading="lazy" />
       </div>
-
-      <div className="flex flex-col flex-1 p-3">
-        <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-slate-800 group-hover:text-violet-600">
-          {article.title}
-        </h3>
-        <p className="line-clamp-2 text-xs text-slate-500 mt-1 leading-relaxed flex-1">
-          {article.summary}
-        </p>
-
-        <div className="mt-2 flex items-center justify-between">
-          <span className="flex items-center gap-1 text-[11px] text-slate-400">
-            <CalendarDaysIcon className="w-3 h-3" />
-            {article.date}
-          </span>
-          <span className="text-[11px] font-medium text-violet-600 group-hover:underline">
-            Đọc tiếp →
-          </span>
+      <div className="min-w-0 flex-1">
+        <h3 className="line-clamp-2 text-xs font-semibold leading-4.5 text-slate-800 transition group-hover:text-violet-700">{display.title}</h3>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[9px]">
+          <span className="rounded-full bg-violet-50 px-2 py-0.5 font-medium text-violet-600">{display.category}</span>
+          <span className="inline-flex items-center gap-1 text-slate-400"><CalendarDaysIcon className="h-2.5 w-2.5" />{article.date}</span>
         </div>
       </div>
     </Link>
@@ -62,15 +40,20 @@ function NewsItem({ article }) {
 }
 
 export default function ListNews() {
+  const articles = newsArticles.slice(0, 3);
+
   return (
-    <div className="w-full">
-      <div className="px-4 pb-5 pt-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {newsArticles.slice(0, 6).map((article) => (
-            <NewsItem key={article.slug} article={article} />
-          ))}
+    <section className="overflow-hidden rounded-2xl border border-white/80 bg-white/85 shadow-[0_8px_28px_rgba(74,58,110,0.07)] backdrop-blur-xl">
+      <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4 sm:px-5">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-600"><NewspaperIcon className="h-4 w-4" /></span>
+          <h2 className="text-sm font-semibold text-slate-800">Tin tức tuyển dụng</h2>
         </div>
+        <Link to="/News" className="flex items-center gap-1 text-[10px] font-medium text-violet-600 hover:text-violet-700">Xem tất cả <ArrowRightIcon className="h-3 w-3" /></Link>
       </div>
-    </div>
+      <div className="p-4 sm:p-5">
+        {articles.map((article, index) => <NewsRow key={article.slug} article={article} display={displayContent[index]} />)}
+      </div>
+    </section>
   );
 }

@@ -9,7 +9,7 @@ import { ArrowLeftIcon, PrinterIcon, ChatBubbleLeftEllipsisIcon } from "@heroico
 export default function ViewResume() {
   const { resumeId } = useParams();
   const navigate = useNavigate();
-  useCvZoom();
+  const previewRef = useCvZoom();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [resumeData, setResumeData] = useState(null);
@@ -92,7 +92,7 @@ export default function ViewResume() {
         <Header />
       </div>
 
-      <div className="flex-1 overflow-y-auto py-8 px-4 flex flex-col items-center print:py-0 print:px-0 view-resume-scroll print:overflow-visible print:h-auto print:flex-none">
+      <div ref={previewRef} className="flex-1 overflow-y-auto py-8 px-4 flex flex-col items-center print:py-0 print:px-0 view-resume-scroll print:overflow-visible print:h-auto print:flex-none">
         <div className="w-full max-w-5xl flex items-center justify-between mb-6 print:hidden">
           <button
             onClick={handleBack}
@@ -220,7 +220,7 @@ export default function ViewResume() {
             </div>
 
             {/* Wrapper chuẩn hóa */}
-            <div className="cv-wrapper bg-white shadow-lg print:shadow-none print:w-full rounded-sm overflow-hidden mb-10">
+            <div className="cv-wrapper bg-white shadow-lg print:shadow-none print:w-full rounded-sm mb-10">
               <ResumePreview
                 selectedTemplate={resumeData.selectedTemplate || "modern"}
                 image={resumeData.image || ""}

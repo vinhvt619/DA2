@@ -1,5 +1,5 @@
 import React from "react";
-import { useLocation, Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   BriefcaseIcon,
   BookmarkIcon,
@@ -13,7 +13,7 @@ import { useAuth } from "../context/AuthContext";
 
 const navItems = [
   { icon: BriefcaseIcon, label: "Tìm công việc", href: "/MainMenu" },
-  { icon: DocumentTextIcon, label: "Công việc của tôi", href: "#" },
+  { icon: DocumentTextIcon, label: "Công việc của tôi", href: "/AllJobs" },
   { icon: BookmarkIcon, label: "Đã lưu", href: "/saved-jobs" },
   { icon: Cog6ToothIcon, label: "Cài đặt", href: "/SettingAndPrivate" },
 ];
@@ -39,78 +39,75 @@ export default function StickyProfile() {
     currentUser?.experiences?.length > 0,
   ];
 
-  const progress = Math.round(
-    (fields.filter(Boolean).length / fields.length) * 100
-  );
+  const progress = Math.round((fields.filter(Boolean).length / fields.length) * 100);
 
   return (
-    <aside className="w-full shrink-0 lg:sticky lg:top-4">
+    <aside className="w-full shrink-0">
       <div className="space-y-3">
-        <div className="rounded-2xl border border-white/60 bg-white/80 backdrop-blur-sm shadow-md overflow-hidden">
-          <div className="relative h-16 bg-gradient-to-r from-violet-600 via-purple-500 to-violet-400">
-            <div
-              className="absolute inset-0 opacity-20"
-              style={{
-                backgroundImage:
-                  "radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)",
-                backgroundSize: "30px 30px",
-              }}
-            />
+        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,0.035)]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-sm font-semibold text-violet-700">
+              {initials}
+            </div>
+            <div className="min-w-0 text-left">
+              <div className="truncate text-[13px] font-semibold text-slate-950">
+                {currentUser?.fullName || currentUser?.username || "Người dùng"}
+              </div>
+              <div className="mt-0.5 truncate text-[10px] font-medium text-violet-700">
+                {currentUser?.experiences?.[0]?.position || (
+                  <Link to="/Profile" className="text-violet-500 hover:text-violet-700">
+                    + Thêm vị trí
+                  </Link>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="px-4 pb-4">
-            <div className="relative -mt-6 mb-3">
-              <div className="h-12 w-12 rounded-xl border-2 border-white bg-gradient-to-br from-violet-100 to-purple-100 shadow-md flex items-center justify-center">
-                <span className="text-lg font-bold text-violet-700">
-                  {initials}
+
+          <div className="mt-3.5 space-y-2 border-t border-slate-100 pt-3.5 text-left">
+              <div className="flex items-start gap-2 text-[10px] leading-4 text-slate-600">
+                <MapPinIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500" />
+                <span className="line-clamp-2">
+                {currentUser?.address || currentUser?.hometown || (
+                  <Link to="/Profile" className="text-violet-500 hover:text-violet-700">
+                    + Thêm địa chỉ
+                  </Link>
+                )}
                 </span>
               </div>
-            </div>
-
-            <div className="text-sm font-bold text-slate-900">
-              {currentUser?.fullName || currentUser?.username || "Người dùng"}
-            </div>
-            <div className="text-xs text-violet-600 font-medium mt-0.5">
-              {currentUser?.experiences?.[0]?.position || "Chưa cập nhật"}
-            </div>
-
-            <div className="mt-3 space-y-1.5">
-              <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                <MapPinIcon className="h-3.5 w-3.5 shrink-0 text-violet-400" />
-                {currentUser?.address || currentUser?.hometown || "Chưa cập nhật"}
-              </div>
-              <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                <AcademicCapIcon className="h-3.5 w-3.5 shrink-0 text-violet-400" />
-                {currentUser?.educations?.[0]?.school || "Chưa cập nhật"}
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] text-gray-600">
-                  Hoàn thiện hồ sơ
-                </span>
-                <span className="text-[11px] font-bold text-violet-700">
-                  {progress}%
+              <div className="flex items-start gap-2 text-[10px] leading-4 text-slate-600">
+                <AcademicCapIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500" />
+                <span className="line-clamp-2">
+                {currentUser?.educations?.[0]?.school || (
+                  <Link to="/Profile" className="text-violet-500 hover:text-violet-700">
+                    + Thêm học vấn
+                  </Link>
+                )}
                 </span>
               </div>
-              <div className="h-1.5 w-full rounded-full bg-violet-100">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-violet-500 to-purple-500 transition-all duration-500"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
-
-            <Link
-              to="/Profile"
-              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#9346F5]/20 bg-violet-50 py-1.5 text-xs font-semibold text-[#9346F5] hover:bg-violet-100 shadow-sm hover:shadow-md transition-all"
-            >
-              Xem hồ sơ
-            </Link>
           </div>
-        </div>
 
-        <nav className="rounded-2xl border border-white/60 bg-white/80 backdrop-blur-sm shadow-md space-y-0.5 p-3">
+          <div className="mt-3.5 text-left">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[10px] text-slate-500">Hoàn thiện hồ sơ</span>
+              <span className="text-[10px] font-semibold text-violet-700">{progress}%</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="h-full rounded-full bg-violet-600 transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+
+          <Link
+            to="/Profile"
+            className="mt-3 inline-flex items-center text-[11px] font-semibold text-violet-700 transition hover:text-violet-900 focus:outline-none"
+          >
+            Xem hồ sơ →
+          </Link>
+        </section>
+
+        <nav className="space-y-0.5 rounded-xl border border-slate-200 bg-white p-2 shadow-[0_2px_8px_rgba(15,23,42,0.035)]">
           {navItems.map(({ icon: Icon, label, href }) => {
             const isActive =
               currentPath === href ||
@@ -119,20 +116,20 @@ export default function StickyProfile() {
               <Link
                 key={label}
                 to={href}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors mb-1 ${
+                aria-current={isActive ? "page" : undefined}
+                className={`flex min-h-9 items-center gap-2.5 border-l-2 px-3 text-[11px] font-medium transition ${
                   isActive
-                    ? "bg-[#9346F5]/10 text-[#9346F5] font-semibold shadow-sm"
-                    : "text-gray-700 hover:bg-violet-50/80 hover:text-gray-900"
+                    ? "border-violet-600 bg-violet-50/70 font-semibold text-violet-700"
+                    : "border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 }`}
               >
                 <Icon
-                  className={`h-4 w-4 ${isActive ? "text-[#9346F5]" : "text-gray-500"}`}
+                  className={`h-4 w-4 ${isActive ? "text-violet-600" : "text-slate-500"}`}
                 />
                 {label}
               </Link>
             );
           })}
-          <div className="border-t border-gray-100 mt-1" />
         </nav>
 
         <Terms />
