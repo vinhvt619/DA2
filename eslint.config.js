@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'playground-1.mongodb.js']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
@@ -29,6 +29,10 @@ export default defineConfig([
   },
   {
     files: ['**/Toast.jsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
+  {
+    files: ['src/context/*.jsx'],
     rules: { 'react-refresh/only-export-components': 'off' },
   },
 ])

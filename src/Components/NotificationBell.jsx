@@ -1,134 +1,137 @@
-import { useState, useRef, useEffect } from 'react';
-import { BellIcon } from '@heroicons/react/24/outline';
-import useNotifications from '../hooks/useNotifications';
-import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import {
+  BellAlertIcon,
+  BellIcon,
+  BriefcaseIcon,
+} from "@heroicons/react/24/outline";
+import { useNavigate } from "react-router-dom";
+import useNotifications from "../hooks/useNotifications";
+import { useAuth } from "../context/AuthContext";
 
-export default function NotificationBell() {
-  const { unreadCount, notifications, loading, fetchNotifications, markAsRead } = useNotifications();
+export default function NotificationBell({ isOpen, onToggle, onClose }) {
+  const { unreadCount, notifications, loading, fetchNotifications, markAsRead, markAllAsRead } = useNotifications();
   const { currentUser } = useAuth();
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  // Click outside to close
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const toggleDropdown = () => {
-    setIsOpen(!isOpen);
-    // Nếu dropdown chuẩn bị mở ra, tiến hành fetch list thông báo mới nhất
-    if (!isOpen) {
-      fetchNotifications();
+  const handleToggle = () => {
+    const isOpening = !isOpen;
+    onToggle();
+    if (isOpening) {
+      void (async () => {
+        await markAllAsRead();
+        await fetchNotifications();
+      })();
     }
   };
 
-  const handleNotificationClick = (notif) => {
-    // Đánh dấu đã đọc nếu chưa đọc
-    if (!notif.isRead) {
-      markAsRead(notif._id);
-    }
-    setIsOpen(false);
-    
-    // Xử lý điều hướng
-    if (notif.link) {
-      navigate(notif.link);
+  const handleNotificationClick = (notification) => {
+    if (!notification.isRead) markAsRead(notification._id);
+    onClose();
+
+    if (notification.link) {
+      navigate(notification.link);
+    } else if (currentUser?.role === "company") {
+      navigate("/CompanyDashboard");
     } else {
-      if (currentUser?.role === 'company') {
-        navigate('/CompanyDashboard');
-      } else if (currentUser?.role === 'employee') {
-        navigate('/UserDashboard');
-      }
+      navigate("/UserDashboard");
     }
   };
 
   const formatTime = (dateString) => {
     const date = new Date(dateString);
-    return new Intl.DateTimeFormat('vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      day: '2-digit',
-      month: '2-digit'
+    if (Number.isNaN(date.getTime())) return "";
+    return new Intl.DateTimeFormat("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      day: "2-digit",
+      month: "2-digit",
     }).format(date);
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative">
       <button
         type="button"
-        onClick={toggleDropdown}
-        className="relative flex h-8 w-8 items-center justify-center rounded-full hover:bg-white transition-colors"
+        aria-label="Thông báo"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={handleToggle}
+        className={`relative flex h-9 w-9 items-center justify-center rounded-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+          isOpen ? "bg-violet-100 text-violet-700" : "text-slate-700 hover:bg-violet-50 hover:text-violet-700"
+        }`}
       >
-        <BellIcon className="h-5 w-5 text-gray-700" />
+        <BellIcon className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#9346F5] text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
-            {unreadCount > 99 ? '99+' : unreadCount}
+          <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-violet-600 px-1 text-[9px] font-bold text-white ring-2 ring-white">
+            {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 md:w-96 rounded-xl border border-gray-200 bg-white shadow-sm z-50 overflow-hidden">
-          <div className="p-2 border-b border-gray-200 flex justify-between items-center">
-            <p className="text-sm font-bold text-gray-800">
-              Thông báo
-            </p>
+        <div
+          role="menu"
+          aria-label="Danh sách thông báo"
+          className="absolute right-0 mt-2 w-[min(270px,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-violet-100 bg-white p-2 shadow-[0_14px_36px_rgba(76,29,149,0.14)]"
+        >
+          <div className="flex items-center justify-between px-2 py-1.5">
+            <h3 className="text-[13px] font-bold text-slate-900">Thông báo</h3>
+            {unreadCount > 0 && (
+              <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-bold text-violet-700">
+                {unreadCount} mới
+              </span>
+            )}
           </div>
-          
-          <div className="max-h-[60vh] overflow-y-auto">
+
+          <div className="max-h-[300px] overflow-y-auto rounded-lg">
             {loading && notifications.length === 0 ? (
-              <div className="p-4 flex justify-center">
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#9346F5] border-t-transparent"></div>
+              <div className="flex justify-center p-8">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-violet-600 border-t-transparent" />
               </div>
             ) : notifications.length === 0 ? (
-              <div className="p-6 text-center text-gray-500">
-                <p className="text-sm">Chưa có thông báo nào</p>
+              <div className="px-4 py-6 text-center">
+                <BellAlertIcon className="mx-auto h-8 w-8 text-violet-300" />
+                <p className="mt-2 text-[13px] font-semibold text-slate-700">Chưa có thông báo</p>
+                <p className="mt-1 text-xs text-slate-500">Các cập nhật mới sẽ xuất hiện tại đây.</p>
               </div>
             ) : (
-              notifications.map((notif) => (
-                <div
-                  key={notif._id}
-                  onClick={() => handleNotificationClick(notif)}
-                  className={`p-4 hover:bg-violet-50/20 transition-colors border-b border-gray-50 cursor-pointer relative group ${
-                    !notif.isRead ? 'bg-violet-50/40' : ''
+              notifications.slice(0, 4).map((notification) => (
+                <button
+                  key={notification._id}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => handleNotificationClick(notification)}
+                  className={`flex w-full gap-2.5 border-t border-slate-100 px-2 py-2.5 text-left transition first:border-t-0 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500 ${
+                    notification.isRead ? "bg-white" : "bg-violet-50/70"
                   }`}
                 >
-                  {!notif.isRead && (
-                    <span className="absolute left-2 top-4.5 w-1.5 h-1.5 bg-[#9346F5] rounded-full"></span>
-                  )}
-                  <div className="pl-3">
-                    <h4 className={`text-sm ${!notif.isRead ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>
-                      {notif.title}
-                    </h4>
-                    <p className={`text-[13px] mt-0.5 leading-relaxed ${!notif.isRead ? 'text-gray-700' : 'text-gray-500'}`}>
-                      {notif.message}
-                    </p>
-                    <span className="text-[11px] text-gray-400 font-medium mt-1.5 block">
-                      {formatTime(notif.createdAt)}
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-700">
+                    <BriefcaseIcon className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-start gap-2">
+                      <span className={`line-clamp-1 flex-1 text-[13px] ${notification.isRead ? "font-semibold text-slate-700" : "font-bold text-slate-900"}`}>
+                        {notification.title}
+                      </span>
+                      {!notification.isRead && <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-600" />}
                     </span>
-                  </div>
-                </div>
+                    <span className="mt-0.5 line-clamp-2 text-xs leading-5 text-slate-500">{notification.message}</span>
+                    <span className="mt-1 block text-[10px] font-medium text-violet-600">{formatTime(notification.createdAt)}</span>
+                  </span>
+                </button>
               ))
             )}
           </div>
-          
-          {/* Xem tất cả thông báo */}
-          <div 
-            className="border-t border-gray-200 p-3 text-center text-[13px] font-semibold text-[#9346F5] cursor-pointer hover:bg-violet-50 transition-colors"
+
+          <button
+            type="button"
             onClick={() => {
-              setIsOpen(false);
-              navigate('/notifications');
+              onClose();
+              navigate("/notifications");
             }}
+            className="mt-2 flex h-9 w-full items-center justify-center rounded-lg bg-violet-600 text-[11px] font-bold text-white shadow-sm transition hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
           >
             Xem tất cả thông báo
-          </div>
+          </button>
         </div>
       )}
     </div>

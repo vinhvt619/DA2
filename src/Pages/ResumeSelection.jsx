@@ -6,6 +6,7 @@ import {
   ChevronDownIcon,
   ClockIcon,
   DocumentTextIcon,
+  DocumentArrowDownIcon,
   MagnifyingGlassIcon,
   PencilSquareIcon,
   PlusIcon,
@@ -200,7 +201,7 @@ function SortDropdown({ value, onChange }) {
   );
 }
 
-function SavedResumeCard({ cv, editingId, tempTitle, setEditingId, setTempTitle, onRename, onEdit, onDelete }) {
+function SavedResumeCard({ cv, editingId, tempTitle, setEditingId, setTempTitle, onRename, onEdit, onDownload, onDelete }) {
   const template = cv.selectedTemplate || "modern";
   const label = TEMPLATES.find((item) => item.id === template)?.category || "Hiện đại";
 
@@ -220,6 +221,7 @@ function SavedResumeCard({ cv, editingId, tempTitle, setEditingId, setTempTitle,
 
       <div className="flex shrink-0 items-center gap-2 sm:ml-auto">
         <button type="button" onClick={() => onEdit(cv)} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-semibold text-violet-700 transition hover:bg-violet-50"><PencilSquareIcon className="h-4 w-4" />Chỉnh sửa</button>
+        <button type="button" onClick={() => onDownload(cv)} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-3 text-xs font-semibold text-violet-700 transition hover:border-violet-300 hover:bg-violet-100"><DocumentArrowDownIcon className="h-4 w-4" />Tải PDF</button>
         <span className="hidden h-7 border-l border-slate-200 sm:block" />
         <button type="button" onClick={() => { setEditingId(cv._id); setTempTitle(cv.title || "CV mới của tôi"); }} aria-label="Đổi tên CV" title="Đổi tên CV" className="flex h-9 w-9 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-violet-600"><PencilSquareIcon className="h-4 w-4" /></button>
         <button type="button" onClick={() => onDelete(cv._id)} aria-label="Xóa CV" title="Xóa CV" className="flex h-9 w-9 items-center justify-center rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-500"><TrashIcon className="h-4 w-4" /></button>
@@ -253,6 +255,33 @@ export default function ResumeSelection() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
   const [templateFilter, setTemplateFilter] = useState("Tất cả");
+  const [resumeToPrint, setResumeToPrint] = useState(null);
+
+  useEffect(() => {
+    if (!resumeToPrint) return undefined;
+
+    const previousTitle = document.title;
+    const safeTitle = (resumeToPrint.title?.trim() || "CV-cua-toi")
+      .replace(/[\\/:*?"<>|]+/g, "-")
+      .replace(/\s+/g, " ");
+    let printTimer;
+
+    const finishPrinting = () => {
+      window.clearTimeout(printTimer);
+      document.title = previousTitle;
+      setResumeToPrint(null);
+    };
+
+    document.title = safeTitle;
+    window.addEventListener("afterprint", finishPrinting, { once: true });
+    printTimer = window.setTimeout(() => window.print(), 100);
+
+    return () => {
+      window.clearTimeout(printTimer);
+      window.removeEventListener("afterprint", finishPrinting);
+      document.title = previousTitle;
+    };
+  }, [resumeToPrint]);
 
   useEffect(() => {
     if (!isAuthChecked) return;
@@ -317,6 +346,7 @@ export default function ResumeSelection() {
 
   return (
     <div className="min-h-screen bg-[var(--page-background)] font-sans text-slate-900 antialiased page-transition">
+      <div className="resume-library-screen">
       <Header />
       <main className="mx-auto w-full max-w-[1180px] px-4 pb-14 pt-7 sm:px-6 lg:px-8">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -337,7 +367,7 @@ export default function ResumeSelection() {
           </div>
 
           {loading ? <LoadingSkeleton /> : visibleResumes.length > 0 ? (
-            <div>{visibleResumes.map((cv) => <SavedResumeCard key={cv._id} cv={cv} editingId={editingId} tempTitle={tempTitle} setEditingId={setEditingId} setTempTitle={setTempTitle} onRename={handleRename} onEdit={(resume) => navigate(`/resume/${resume._id}`)} onDelete={handleDeleteResume} />)}</div>
+            <div>{visibleResumes.map((cv) => <SavedResumeCard key={cv._id} cv={cv} editingId={editingId} tempTitle={tempTitle} setEditingId={setEditingId} setTempTitle={setTempTitle} onRename={handleRename} onEdit={(resume) => navigate(`/resume/${resume._id}`)} onDownload={setResumeToPrint} onDelete={handleDeleteResume} />)}</div>
           ) : (
             <div className="py-12 text-center"><span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-violet-50 text-violet-600"><DocumentTextIcon className="h-5 w-5" /></span><h3 className="mt-3 text-sm font-semibold text-slate-700">{searchQuery ? "Không tìm thấy CV phù hợp" : "Bạn chưa tạo bản CV nào"}</h3><p className="mt-1 text-xs text-slate-400">{searchQuery ? "Hãy thử một từ khóa khác." : "Chọn một mẫu bên dưới để bắt đầu."}</p></div>
           )}
@@ -351,6 +381,29 @@ export default function ResumeSelection() {
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{visibleTemplates.map((template) => <TemplateCard key={template.id} template={template} onSelect={(id) => navigate("/resume", { state: { template: id } })} />)}</div>
         </section>
       </main>
+      </div>
+
+      {resumeToPrint && (
+        <div className="resume-library-print-root" aria-hidden="true">
+          <div className="cv-wrapper bg-white">
+            <ResumePreview
+              selectedTemplate={resumeToPrint.selectedTemplate || "modern"}
+              image={resumeToPrint.image || ""}
+              personalInfo={resumeToPrint.personalInfo || {}}
+              bio={resumeToPrint.bio || ""}
+              profile={resumeToPrint.profile || []}
+              experience={resumeToPrint.experience || []}
+              education={resumeToPrint.education || []}
+              skill={resumeToPrint.skill || []}
+              language={resumeToPrint.language || []}
+              certificate={resumeToPrint.certificate || []}
+              project={resumeToPrint.project || []}
+              award={resumeToPrint.award || []}
+              hobby={resumeToPrint.hobby || []}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

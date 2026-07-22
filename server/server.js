@@ -16,7 +16,10 @@ import Job from "./models/Job.js";
 import Application from "./models/Application.js";
 import Notification from "./models/Notification.js";
 import HiddenChat from "./models/HiddenChat.js";
+import ChatReadState from "./models/ChatReadState.js";
 import { createNotification, createNotificationsBulk } from "./utils/notificationService.js";
+import { validatePdfUpload } from "./utils/pdfValidation.js";
+import { isJobDeleted, isJobUnavailable } from "./utils/jobAvailability.js";
 import "./cron/jobExpiryCron.js";
 
 dotenv.config();
@@ -476,6 +479,8 @@ app.post("/api/register", async (req, res) => {
       email,
       password: hashedPassword,
       role: userRole,
+      status: userRole === "company" ? "pending" : "active",
+      companyVerificationStatus: userRole === "company" ? "pending" : undefined,
     });
 
     await newUser.save();
@@ -508,6 +513,10 @@ app.post("/api/login", async (req, res) => {
       return res.status(400).json({ message: "Mat khau khong chinh xac" });
     }
 
+    if (user.isBanned) {
+      return res.status(403).json({ message: "Tai khoan da bi khoa" });
+    }
+
     const payload = {
       id: user._id,
       username: user.username,
@@ -524,7 +533,10 @@ app.post("/api/login", async (req, res) => {
       maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000,
     });
 
-    res.status(200).json({ message: "Dang nhap thanh cong", user: payload });
+    const safeUser = user.toObject();
+    delete safeUser.password;
+
+    res.status(200).json({ message: "Dang nhap thanh cong", user: safeUser });
   } catch (err) {
     res.status(500).json({
       message: getPublicErrorMessage(err, "Co loi xay ra khi dang nhap"),
@@ -537,6 +549,34 @@ app.get("/api/me", authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
     res.status(200).json({ user });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/users/search", authMiddleware, async (req, res) => {
+  try {
+    const query = String(req.query.q || "").trim();
+    if (!query) {
+      return res.status(200).json({ users: [] });
+    }
+
+    const pattern = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+    const users = await User.find({
+      _id: { $ne: req.user.id },
+      isBanned: { $ne: true },
+      $or: [
+        { fullName: pattern },
+        { username: pattern },
+        { email: pattern },
+        { companyIndustry: pattern },
+      ],
+    })
+      .select("fullName username email role status address country hometown companyIndustry companyWebsite")
+      .limit(12)
+      .lean();
+
+    res.status(200).json({ users });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -572,6 +612,12 @@ app.put("/api/user/profile", authMiddleware, async (req, res) => {
       age,
       birthDate,
       email,
+      companyIndustry,
+      companySize,
+      companyWebsite,
+      companyDescription,
+      companyFoundedYear,
+      companyTaxCode,
       educations,
       experiences,
       activities,
@@ -597,6 +643,12 @@ app.put("/api/user/profile", authMiddleware, async (req, res) => {
         age,
         birthDate,
         email,
+        companyIndustry,
+        companySize,
+        companyWebsite,
+        companyDescription,
+        companyFoundedYear,
+        companyTaxCode,
         educations,
         experiences,
         activities,
@@ -776,7 +828,7 @@ app.get("/api/chat/users", authMiddleware, async (req, res) => {
 // Get active chat threads for the current user
 app.get("/api/chat/threads", authMiddleware, async (req, res) => {
   try {
-    const currentUserId = req.user.id;
+    const currentUserId = String(req.user.id);
 
     // 1. Dung Aggregation lay tin nhan cuoi moi phong
     const aggregatedMessages = await Message.aggregate([
@@ -886,7 +938,95 @@ app.get("/api/chat/threads", authMiddleware, async (req, res) => {
       return lastMsgTime > hiddenTime;
     });
 
-    res.status(200).json(visibleThreads);
+    res.status(200).json(
+      visibleThreads.filter((thread) => thread.room.startsWith("private_")),
+    );
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get the number of private conversations containing messages the current user
+// has not opened yet. This persists the message badge across refreshes/logins.
+app.get("/api/chat/unread-count", authMiddleware, async (req, res) => {
+  try {
+    const currentUserId = req.user.id;
+    const readStates = await ChatReadState.find({ userId: currentUserId }).lean();
+    const readAtByRoom = new Map(
+      readStates.map((state) => [state.room, new Date(state.lastReadAt)]),
+    );
+
+    const receivedMessages = await Message.find({
+      room: { $regex: `^private_.*${currentUserId}` },
+      senderId: { $ne: currentUserId },
+    })
+      .select("room createdAt")
+      .lean();
+
+    const unreadRooms = new Set();
+    for (const message of receivedMessages) {
+      const lastReadAt = readAtByRoom.get(message.room);
+      if (!lastReadAt || new Date(message.createdAt) > lastReadAt) {
+        unreadRooms.add(message.room);
+      }
+    }
+
+    res.status(200).json({ unreadCount: unreadRooms.size });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Opening the message menu acknowledges every conversation that currently
+// contains received messages. Persisting this timestamp prevents the badge
+// from returning after a page refresh.
+app.patch("/api/chat/mark-all-read", authMiddleware, async (req, res) => {
+  try {
+    const currentUserId = String(req.user.id);
+    const readAt = new Date();
+    const rooms = await Message.distinct("room", {
+      room: { $regex: `^private_.*${currentUserId}` },
+      senderId: { $ne: currentUserId },
+    });
+
+    if (rooms.length > 0) {
+      await ChatReadState.bulkWrite(
+        rooms.map((room) => ({
+          updateOne: {
+            filter: { userId: currentUserId, room },
+            update: { $set: { lastReadAt: readAt } },
+            upsert: true,
+          },
+        })),
+      );
+    }
+
+    res.status(200).json({ markedRooms: rooms.length, readAt });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// A thread becomes read only when the user opens that specific conversation.
+app.patch("/api/chat/threads/:room/read", authMiddleware, async (req, res) => {
+  try {
+    const { room } = req.params;
+    const currentUserId = req.user.id;
+    const participantIds = room.startsWith("private_")
+      ? room.replace("private_", "").split("_")
+      : [];
+
+    if (!participantIds.includes(currentUserId)) {
+      return res.status(403).json({ message: "Khong co quyen truy cap doan chat nay" });
+    }
+
+    await ChatReadState.findOneAndUpdate(
+      { userId: currentUserId, room },
+      { lastReadAt: new Date() },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+
+    res.status(200).json({ message: "Da danh dau da doc" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -920,7 +1060,8 @@ app.get("/api/jobs", async (req, res) => {
   try {
     const currentDate = new Date();
     const jobs = await Job.find({
-      status: { $nin: ["Draft", "Expired"] },
+      status: { $nin: ["Draft", "Expired", "Deleted"] },
+      deletedAt: null,
       $or: [
         { expiryDate: { $exists: false } },
         { expiryDate: null },
@@ -936,7 +1077,11 @@ app.get("/api/jobs", async (req, res) => {
 // Get jobs posted by the currently logged-in company
 app.get("/api/jobs/my", authMiddleware, async (req, res) => {
   try {
-    const jobs = await Job.find({ companyId: req.user.id }).sort({
+    const jobs = await Job.find({
+      companyId: req.user.id,
+      status: { $ne: "Deleted" },
+      deletedAt: null,
+    }).sort({
       createdAt: -1,
     });
     res.status(200).json(jobs);
@@ -952,7 +1097,7 @@ app.get("/api/jobs/applications", authMiddleware, async (req, res) => {
     const jobIds = jobs.map((j) => j._id);
 
     const applications = await Application.find({ jobId: { $in: jobIds } })
-      .populate("jobId", "title")
+      .populate("jobId", "title company status deletedAt")
       .sort({ createdAt: -1 });
 
     res.status(200).json(applications);
@@ -965,7 +1110,7 @@ app.get("/api/jobs/applications", authMiddleware, async (req, res) => {
 app.get("/api/jobs/applications/mine", authMiddleware, async (req, res) => {
   try {
     const applications = await Application.find({ candidateId: req.user.id })
-      .populate("jobId", "title company")
+      .populate("jobId", "title company location type salary status expiryDate deletedAt")
       .sort({ createdAt: -1 });
 
     res.status(200).json(applications);
@@ -983,6 +1128,9 @@ app.post("/api/jobs", authMiddleware, async (req, res) => {
       location,
       type,
       salary,
+      experience,
+      education,
+      workModel,
       description,
       requirements,
       benefits,
@@ -1016,6 +1164,9 @@ app.post("/api/jobs", authMiddleware, async (req, res) => {
       location,
       type,
       salary,
+      experience: experience || "Không yêu cầu",
+      education: education || "Không yêu cầu",
+      workModel: workModel || (type === "Remote" ? "Làm từ xa" : type === "Hybrid" ? "Kết hợp" : "Tại văn phòng"),
       description,
       requirements: Array.isArray(requirements)
         ? requirements
@@ -1060,8 +1211,15 @@ app.post("/api/jobs/apply", authMiddleware, async (req, res) => {
     if (!job) {
       return res.status(404).json({ message: "Khong tim thay cong viec" });
     }
+    if (isJobUnavailable(job)) {
+      return res.status(410).json({ message: "Tin tuyen dung da het han, da dong hoac da bi xoa" });
+    }
 
-    const resume = await Resume.findById(resumeId);
+    const resume = await Resume.findOne({
+      _id: resumeId,
+      userId: req.user.id,
+      isVirtual: { $ne: true },
+    });
     if (!resume) {
       return res.status(404).json({ message: "Khong tim thay CV" });
     }
@@ -1089,6 +1247,13 @@ app.post("/api/jobs/apply", authMiddleware, async (req, res) => {
       email: resume.personalInfo?.email || user.email,
       phone: resume.personalInfo?.phone || user.phoneNumber || "",
       status: "Pending",
+      jobSnapshot: {
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        type: job.type,
+        salary: job.salary,
+      },
     });
 
     await newApp.save();
@@ -1123,7 +1288,7 @@ app.post("/api/jobs/apply", authMiddleware, async (req, res) => {
 
 });
 
-// Submit application with local file upload (PDF, DOC, DOCX)
+// Submit application with local PDF upload
 app.post("/api/jobs/apply-file", authMiddleware, async (req, res) => {
   try {
     const { jobId, fileData, fileName } = req.body;
@@ -1131,9 +1296,18 @@ app.post("/api/jobs/apply-file", authMiddleware, async (req, res) => {
       return res.status(400).json({ message: "Thieu thong tin ung tuyen" });
     }
 
+    const pdfValidation = validatePdfUpload({ fileData, fileName });
+    if (!pdfValidation.valid) {
+      return res.status(400).json({ message: pdfValidation.message });
+    }
+    const normalizedFileName = pdfValidation.fileName;
+
     const job = await Job.findById(jobId);
     if (!job) {
       return res.status(404).json({ message: "Khong tim thay cong viec" });
+    }
+    if (isJobUnavailable(job)) {
+      return res.status(410).json({ message: "Tin tuyen dung da het han, da dong hoac da bi xoa" });
     }
 
     const user = await User.findById(req.user.id);
@@ -1153,9 +1327,9 @@ app.post("/api/jobs/apply-file", authMiddleware, async (req, res) => {
     // Tao Resume ao tu file
     const virtualResume = new Resume({
       userId: req.user.id,
-      title: `File CV - ${fileName}`,
+      title: `File CV - ${normalizedFileName}`,
       pdfData: fileData,
-      fileName: fileName,
+      fileName: normalizedFileName,
       isVirtual: true,
       personalInfo: {
         fullName: user.fullName || user.username,
@@ -1174,8 +1348,20 @@ app.post("/api/jobs/apply-file", authMiddleware, async (req, res) => {
       email: user.email,
       phone: user.phoneNumber || "",
       status: "Pending",
+      jobSnapshot: {
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        type: job.type,
+        salary: job.salary,
+      },
     });
-    await newApp.save();
+    try {
+      await newApp.save();
+    } catch (error) {
+      await Resume.deleteOne({ _id: virtualResume._id });
+      throw error;
+    }
 
     if (job) {
       await createNotificationsBulk([
@@ -1228,6 +1414,9 @@ app.put("/api/jobs/:id", authMiddleware, async (req, res) => {
       location,
       type,
       salary,
+      experience,
+      education,
+      workModel,
       description,
       requirements,
       benefits,
@@ -1239,6 +1428,9 @@ app.put("/api/jobs/:id", authMiddleware, async (req, res) => {
     const job = await Job.findById(req.params.id);
     if (!job) {
       return res.status(404).json({ message: "Khong tim thay tin tuyen dung" });
+    }
+    if (isJobDeleted(job)) {
+      return res.status(410).json({ message: "Tin tuyen dung da bi xoa" });
     }
 
     const requester = await User.findById(req.user.id);
@@ -1256,6 +1448,9 @@ app.put("/api/jobs/:id", authMiddleware, async (req, res) => {
     job.location = location || job.location;
     job.type = type || job.type;
     job.salary = salary || job.salary;
+    if (experience !== undefined) job.experience = experience || "Không yêu cầu";
+    if (education !== undefined) job.education = education || "Không yêu cầu";
+    if (workModel !== undefined) job.workModel = workModel || "Tại văn phòng";
     job.description = description || job.description;
 
     if (requirements !== undefined) {
@@ -1337,10 +1532,13 @@ app.delete("/api/jobs/:id", authMiddleware, async (req, res) => {
         .json({ message: "Ban khong co quyen xoa tin nay" });
     }
 
-    await Job.findByIdAndDelete(req.params.id);
-    await Application.deleteMany({ jobId: req.params.id });
+    job.status = "Deleted";
+    job.deletedAt = new Date();
+    await job.save();
 
-    res.status(200).json({ message: "Xoa tin tuyen dung thanh cong" });
+    res.status(200).json({
+      message: "Da xoa tin tuyen dung. Lich su ung tuyen va viec da luu duoc giu lai.",
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1505,6 +1703,14 @@ app.post("/api/saved-jobs/:jobId", authMiddleware, async (req, res) => {
       return res.status(400).json({ message: "Thieu thong tin jobId" });
     }
 
+    const job = await Job.findById(jobId);
+    if (!job) {
+      return res.status(404).json({ message: "Khong tim thay cong viec" });
+    }
+    if (isJobUnavailable(job)) {
+      return res.status(410).json({ message: "Khong the luu tin da dong hoac da bi xoa" });
+    }
+
     await User.findOneAndUpdate(
       { _id: req.user.id, 'savedJobs.jobId': { $ne: jobId } },
       { $push: { savedJobs: { jobId: jobId, savedAt: new Date() } } }
@@ -1544,7 +1750,16 @@ app.get("/api/resumes/view/:id", authMiddleware, async (req, res) => {
     }
     const isOwner = resume.userId.toString() === req.user.id.toString();
     const isAdmin = req.user.role === "admin";
-    if (!isOwner && !isAdmin) {
+    let isHiringCompany = false;
+
+    if (req.user.role === "company") {
+      const companyJobIds = await Job.find({ companyId: req.user.id }).distinct("_id");
+      isHiringCompany = Boolean(
+        await Application.exists({ resumeId: resume._id, jobId: { $in: companyJobIds } }),
+      );
+    }
+
+    if (!isOwner && !isAdmin && !isHiringCompany) {
       return res.status(403).json({ 
         message: "Bạn không có quyền xem CV này" 
       });
@@ -1568,7 +1783,7 @@ app.get("/api/admin/stats", authMiddleware, async (req, res) => {
     const totalUsers = await User.countDocuments({});
     const totalCompanies = await User.countDocuments({ role: "company" });
     const totalEmployees = await User.countDocuments({ role: "employee" });
-    const totalJobs = await Job.countDocuments({});
+    const totalJobs = await Job.countDocuments({ status: { $ne: "Deleted" }, deletedAt: null });
     const totalApplications = await Application.countDocuments({});
 
     const allUsers = await User.find({})
@@ -1585,6 +1800,201 @@ app.get("/api/admin/stats", authMiddleware, async (req, res) => {
       },
       users: allUsers,
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/admin/jobs", authMiddleware, async (req, res) => {
+  try {
+    const requester = await User.findById(req.user.id);
+    if (!requester || requester.role !== "admin") {
+      return res.status(403).json({ message: "Quyen truy cap chi danh cho Admin" });
+    }
+
+    const jobs = await Job.find({ status: { $ne: "Deleted" }, deletedAt: null }).sort({ createdAt: -1 }).lean();
+    const applicationCounts = await Application.aggregate([
+      { $group: { _id: "$jobId", count: { $sum: 1 } } },
+    ]);
+    const countByJob = new Map(
+      applicationCounts.map((item) => [item._id.toString(), item.count]),
+    );
+
+    const normalizedJobs = jobs.map((job) => ({
+      ...job,
+      company: { name: job.company },
+      status:
+        job.status === "Active"
+          ? "active"
+          : job.status === "Draft"
+            ? "pending"
+            : "closed",
+      applicantCount: countByJob.get(job._id.toString()) || 0,
+    }));
+
+    res.status(200).json({ jobs: normalizedJobs });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put("/api/admin/jobs/:id/hide", authMiddleware, async (req, res) => {
+  try {
+    const requester = await User.findById(req.user.id);
+    if (!requester || requester.role !== "admin") {
+      return res.status(403).json({ message: "Quyen truy cap chi danh cho Admin" });
+    }
+
+    const job = await Job.findByIdAndUpdate(
+      req.params.id,
+      { status: "Expired", isAdminHidden: true },
+      { new: true },
+    );
+    if (!job) return res.status(404).json({ message: "Khong tim thay cong viec" });
+    res.status(200).json({ message: "Da an tin tuyen dung", job });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put("/api/admin/jobs/:id/unhide", authMiddleware, async (req, res) => {
+  try {
+    const requester = await User.findById(req.user.id);
+    if (!requester || requester.role !== "admin") {
+      return res.status(403).json({ message: "Quyen truy cap chi danh cho Admin" });
+    }
+
+    const job = await Job.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: "Khong tim thay cong viec" });
+    if (!job.isAdminHidden) {
+      return res.status(400).json({ message: "Tin nay khong bi admin an" });
+    }
+    if (job.expiryDate && new Date(job.expiryDate) < new Date()) {
+      return res.status(400).json({ message: "Tin da het han va khong the hien lai" });
+    }
+
+    job.status = "Active";
+    job.isAdminHidden = false;
+    await job.save();
+    res.status(200).json({ message: "Da hien lai tin tuyen dung", job });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete("/api/admin/jobs/:id", authMiddleware, async (req, res) => {
+  try {
+    const requester = await User.findById(req.user.id);
+    if (!requester || requester.role !== "admin") {
+      return res.status(403).json({ message: "Quyen truy cap chi danh cho Admin" });
+    }
+
+    const job = await Job.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: "Khong tim thay cong viec" });
+    job.status = "Deleted";
+    job.deletedAt = new Date();
+    await job.save();
+    res.status(200).json({
+      message: "Da xoa tin tuyen dung. Lich su ung tuyen va viec da luu duoc giu lai.",
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/admin/companies", authMiddleware, async (req, res) => {
+  try {
+    const requester = await User.findById(req.user.id);
+    if (!requester || requester.role !== "admin") {
+      return res.status(403).json({ message: "Quyen truy cap chi danh cho Admin" });
+    }
+
+    const companies = await User.find({ role: "company" }).select("-password").sort({ createdAt: -1 }).lean();
+    const jobCounts = await Job.aggregate([
+      { $match: { status: { $ne: "Deleted" }, deletedAt: null } },
+      { $group: { _id: "$companyId", count: { $sum: 1 } } },
+    ]);
+    const jobCountByCompany = new Map(jobCounts.map((item) => [item._id.toString(), item.count]));
+
+    res.status(200).json({
+      companies: companies.map((company) => ({
+        ...company,
+        jobCount: jobCountByCompany.get(company._id.toString()) || 0,
+        verificationStatus: company.companyVerificationStatus || "verified",
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put("/api/admin/companies/:id/verification", authMiddleware, async (req, res) => {
+  try {
+    const requester = await User.findById(req.user.id);
+    if (!requester || requester.role !== "admin") {
+      return res.status(403).json({ message: "Quyen truy cap chi danh cho Admin" });
+    }
+
+    const { action } = req.body;
+    if (!["approve", "reject", "suspend", "restore"].includes(action)) {
+      return res.status(400).json({ message: "Thao tac khong hop le" });
+    }
+
+    const updates = {
+      approve: { companyVerificationStatus: "verified", status: "active", isBanned: false },
+      reject: { companyVerificationStatus: "rejected", isBanned: true },
+      suspend: { isBanned: true },
+      restore: { companyVerificationStatus: "verified", status: "active", isBanned: false },
+    }[action];
+
+    const company = await User.findOneAndUpdate(
+      { _id: req.params.id, role: "company" },
+      updates,
+      { new: true },
+    ).select("-password");
+    if (!company) return res.status(404).json({ message: "Khong tim thay doanh nghiep" });
+
+    res.status(200).json({ message: "Da cap nhat doanh nghiep", company });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put("/api/admin/users/:id/ban", authMiddleware, async (req, res) => {
+  try {
+    const requester = await User.findById(req.user.id);
+    if (!requester || requester.role !== "admin") {
+      return res.status(403).json({ message: "Quyen truy cap chi danh cho Admin" });
+    }
+    if (req.params.id === req.user.id) {
+      return res.status(400).json({ message: "Khong the khoa tai khoan dang dung" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { isBanned: true },
+      { new: true },
+    ).select("-password");
+    if (!user) return res.status(404).json({ message: "Khong tim thay nguoi dung" });
+    res.status(200).json({ message: "Da khoa tai khoan", user });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete("/api/admin/users/:id", authMiddleware, async (req, res) => {
+  try {
+    const requester = await User.findById(req.user.id);
+    if (!requester || requester.role !== "admin") {
+      return res.status(403).json({ message: "Quyen truy cap chi danh cho Admin" });
+    }
+    if (req.params.id === req.user.id) {
+      return res.status(400).json({ message: "Khong the xoa tai khoan dang dung" });
+    }
+
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) return res.status(404).json({ message: "Khong tim thay nguoi dung" });
+    res.status(200).json({ message: "Da xoa nguoi dung" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

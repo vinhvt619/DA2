@@ -8,7 +8,7 @@ import {
 export default function AdminReviews() {
   const [cvs, setCvs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [_error, setError] = useState(null);
 
   // Filter tabs state
   const [activeTab, setActiveTab] = useState("all"); // all, pending, approved, rejected
@@ -82,6 +82,8 @@ export default function AdminReviews() {
 
   useEffect(() => {
     fetchCvs();
+    // This demo screen intentionally loads once and can be refreshed manually.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Approve CV action

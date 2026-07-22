@@ -1,4 +1,3 @@
-import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useToastContext } from "./Toast.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -14,7 +13,7 @@ import {
 
 const NAV_ITEMS = [
   { path: "/UserDashboard", match: "/userdashboard", label: "Tổng quan", icon: HomeIcon },
-  { path: "/Profile", match: "/profile", label: "Thông tin cá nhân", icon: UserIcon },
+  { path: "/PersonalInformation", match: "/personalinformation", label: "Thông tin cá nhân", icon: UserIcon },
   { path: "/Accessibility", match: "/accessibility", label: "Trợ năng & Giao diện", icon: MoonIcon },
   { path: "/SettingAndPrivate", match: "/settingandprivate", label: "Quyền riêng tư", icon: Cog6ToothIcon },
 ];

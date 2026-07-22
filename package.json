@@ -7,10 +7,15 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "test": "node --test",
+    "check": "npm run lint && npm run test && npm run build",
     "preview": "vite preview",
     "start": "nodemon server/server.js",
+    "start:all": "node scripts/start-all.mjs",
     "migrate:mongo": "node scripts/migrate-mongo.js",
-    "migrate:mongo:apply": "node scripts/migrate-mongo.js --apply"
+    "migrate:mongo:apply": "node scripts/migrate-mongo.js --apply",
+    "seed:fpt": "node scripts/seed-fpt-software.js",
+    "seed:companies": "node scripts/seed-company-accounts.js"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -36,6 +41,7 @@
     "mongodb": "^7.1.1",
     "mongoose": "^9.3.3",
     "node-cron": "^4.5.0",
+    "pdfjs-dist": "^5.4.624",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-router-dom": "^7.11.0",

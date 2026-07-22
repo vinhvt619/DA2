@@ -1,9 +1,10 @@
 import "../App.css";
-import HeaderNoUser from "../Components/HeaderNoUser";
+import Header from "../Components/Header";
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useToastContext } from "../Components/Toast";
 import { useAuth } from "../context/AuthContext.jsx";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 
 function Register() {
   const navigate = useNavigate();
@@ -19,6 +20,8 @@ function Register() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const readApiMessage = async (response) => {
     try {
@@ -105,7 +108,7 @@ function Register() {
         if (loginData.user?.role === "company") {
           setTimeout(() => navigate("/CompanyDashboard"), 1000);
         } else {
-          setTimeout(() => navigate("/WelcomePageCustomer"), 1000);
+          setTimeout(() => navigate("/MainMenu"), 1000);
         }
       } else {
         const message =
@@ -121,7 +124,7 @@ function Register() {
 
   return (
     <div className="w-full min-h-screen bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] flex flex-col page-transition">
-      <HeaderNoUser />
+      <Header />
 
       <div className="flex-1 flex flex-col items-center justify-center p-4">
         <div className="flex flex-col items-center mb-4">
@@ -172,34 +175,50 @@ function Register() {
                 />
               </div>
 
-              <div>
+              <div className="relative">
                 <label className="block text-sm font-semibold text-gray-700 mb-1 ml-1">
                   Mật khẩu
                 </label>
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
                   autoComplete="new-password"
-                  className="w-full border-2 border-gray-300 px-4 py-2 rounded-xl focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/20"
+                  className="w-full rounded-xl border-2 border-gray-300 py-2 pl-4 pr-11 focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/20"
                   placeholder="Nhập mật khẩu"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  className="absolute bottom-2 right-3 grid h-6 w-6 place-items-center text-slate-400 hover:text-violet-600"
+                  aria-label={showPassword ? "Ẩn mật khẩu" : "Hiển thị mật khẩu"}
+                >
+                  {showPassword ? <EyeSlashIcon className="size-5" /> : <EyeIcon className="size-5" />}
+                </button>
               </div>
 
-              <div>
+              <div className="relative">
                 <label className="block text-sm font-semibold text-gray-700 mb-1 ml-1">
                   Xác nhận mật khẩu
                 </label>
                 <input
-                  type="password"
+                  type={showConfirmPassword ? "text" : "password"}
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   autoComplete="new-password"
-                  className="w-full border-2 border-gray-300 px-4 py-2 rounded-xl focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/20"
+                  className="w-full rounded-xl border-2 border-gray-300 py-2 pl-4 pr-11 focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/20"
                   placeholder="Nhập lại mật khẩu"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((visible) => !visible)}
+                  className="absolute bottom-2 right-3 grid h-6 w-6 place-items-center text-slate-400 hover:text-violet-600"
+                  aria-label={showConfirmPassword ? "Ẩn mật khẩu xác nhận" : "Hiển thị mật khẩu xác nhận"}
+                >
+                  {showConfirmPassword ? <EyeSlashIcon className="size-5" /> : <EyeIcon className="size-5" />}
+                </button>
               </div>
 
               <div>

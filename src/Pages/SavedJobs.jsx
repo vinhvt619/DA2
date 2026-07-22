@@ -1,205 +1,301 @@
-import React, { useState, useEffect } from "react";
-import { BookmarkIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
-import Header from "../Components/Header";
-import StickyProfile from "../Components/SitckyProfile";
-import Jobs from "../Components/ListJob";
-import { useSavedJobs } from "../context/SavedJobsContext";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  ArrowPathIcon,
+  BookmarkIcon,
+  BuildingOffice2Icon,
+  CheckCircleIcon,
+  ChevronRightIcon,
+  CurrencyDollarIcon,
+  ExclamationTriangleIcon,
+  MapPinIcon,
+} from "@heroicons/react/24/outline";
+import Header from "../Components/Header.jsx";
+import StickyProfile from "../Components/SitckyProfile.jsx";
+import { useSavedJobs } from "../context/SavedJobsContext.jsx";
 import { getJobById } from "../data/jobsData";
-import "../App.css";
 
-function ErrorJobCard({ jobId, onRetry, onRemove }) {
+function SavedJobSkeleton() {
+  return (
+    <div className="animate-pulse rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex gap-3">
+        <div className="h-10 w-10 rounded-lg bg-slate-200" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 w-2/3 rounded bg-slate-200" />
+          <div className="h-3 w-1/3 rounded bg-slate-100" />
+          <div className="h-7 w-full rounded bg-slate-100" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ErrorJobCard({ jobId, onRetry }) {
   const [retrying, setRetrying] = useState(false);
 
-  const handleRetry = async () => {
+  const retry = async () => {
     setRetrying(true);
-    await onRetry(jobId, onRemove);
+    await onRetry(jobId);
     setRetrying(false);
   };
 
   return (
-    <div className="flex items-center justify-between p-4 bg-red-50/50 border border-red-100 rounded-lg">
-      <div className="text-sm text-red-600">
-        Không tải được thông tin công việc.
-      </div>
+    <div className="rounded-xl border border-rose-100 bg-rose-50/60 p-4 text-center">
+      <p className="text-xs font-semibold text-rose-700">Không tải được thông tin công việc.</p>
       <button
-        onClick={handleRetry}
+        type="button"
+        onClick={retry}
         disabled={retrying}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-white border border-red-200 rounded-md hover:bg-red-50 disabled:opacity-50"
+        className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-[11px] font-semibold text-rose-700 ring-1 ring-rose-200 hover:bg-rose-50 disabled:opacity-50"
       >
-        <ArrowPathIcon className={`w-3.5 h-3.5 ${retrying ? "animate-spin" : ""}`} />
+        <ArrowPathIcon className={`h-3.5 w-3.5 ${retrying ? "animate-spin" : ""}`} />
         Thử lại
       </button>
     </div>
   );
 }
 
-function SkeletonJobCard() {
-  return (
-    <div className="p-4 bg-white border border-slate-200 rounded-lg animate-pulse">
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 bg-slate-200 rounded-lg shrink-0"></div>
-        <div className="flex-1 space-y-2">
-          <div className="w-3/4 h-4 bg-slate-200 rounded"></div>
-          <div className="w-1/2 h-3 bg-slate-200 rounded"></div>
-          <div className="flex gap-2 mt-3">
-            <div className="w-20 h-5 bg-slate-200 rounded-full"></div>
-            <div className="w-16 h-5 bg-slate-200 rounded-full"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function SavedJobs() {
-  const { savedJobIdList, isLoadingSavedIds } = useSavedJobs();
+  const navigate = useNavigate();
+  const {
+    savedJobIdList,
+    isLoadingSavedIds,
+    toggleSave,
+    pendingIds,
+  } = useSavedJobs();
   const [resolvedJobs, setResolvedJobs] = useState({});
   const [loadingJobs, setLoadingJobs] = useState(new Set());
   const [errorJobs, setErrorJobs] = useState(new Set());
 
-  const resolveJob = async (jobId, onRemove) => {
-    // 1. Check static data
+  const resolveJob = async (jobId) => {
     const staticJob = getJobById(jobId);
     if (staticJob) {
-      setResolvedJobs((prev) => ({ ...prev, [jobId]: staticJob }));
+      setResolvedJobs((current) => ({ ...current, [jobId]: staticJob }));
+      setErrorJobs((current) => {
+        const next = new Set(current);
+        next.delete(jobId);
+        return next;
+      });
       return;
     }
 
-    // 2. Fetch from DB
     try {
-      const res = await fetch(`/api/jobs/${jobId}`);
-      if (res.status === 404) {
-        onRemove(jobId);
-      } else if (res.ok) {
-        const data = await res.json();
-        const normalizedJob = {
-          ...data,
-          id: data._id,
-          postedAt: new Date(data.createdAt).toLocaleDateString("vi-VN"),
-        };
-        setResolvedJobs((prev) => ({ ...prev, [jobId]: normalizedJob }));
-        setErrorJobs((prev) => {
-          const next = new Set(prev);
+      const response = await fetch(`/api/jobs/${jobId}`);
+      if (response.status === 404 || response.status === 410) {
+        setResolvedJobs((current) => ({
+          ...current,
+          [jobId]: {
+            id: jobId,
+            title: "Tin tuyển dụng không còn tồn tại",
+            company: "Không còn thông tin công ty",
+            status: "Deleted",
+            isLegacyDeleted: true,
+          },
+        }));
+        setErrorJobs((current) => {
+          const next = new Set(current);
           next.delete(jobId);
           return next;
         });
-      } else {
-        throw new Error("Failed to fetch");
+        return;
       }
+      if (!response.ok) throw new Error("Không thể tải công việc");
+      const data = await response.json();
+      setResolvedJobs((current) => ({
+        ...current,
+        [jobId]: {
+          ...data,
+          id: data._id,
+        },
+      }));
+      setErrorJobs((current) => {
+        const next = new Set(current);
+        next.delete(jobId);
+        return next;
+      });
     } catch {
-      setErrorJobs((prev) => new Set([...prev, jobId]));
+      setErrorJobs((current) => new Set([...current, jobId]));
     }
   };
 
   useEffect(() => {
     if (isLoadingSavedIds) return;
 
-    const fetchAllJobs = async () => {
-      const jobsToFetch = savedJobIdList.filter(
-        (id) => !resolvedJobs[id] && !errorJobs.has(id)
-      );
+    const jobsToLoad = savedJobIdList.filter(
+      (jobId) => !resolvedJobs[jobId] && !errorJobs.has(jobId),
+    );
+    if (jobsToLoad.length === 0) return;
 
-      if (jobsToFetch.length === 0) return;
-
-      setLoadingJobs(new Set(jobsToFetch));
-
-      const onRemove = (id) => {
-        // We do a silent remove if it's 404
-        setResolvedJobs((prev) => {
-          const next = { ...prev };
-          delete next[id];
-          return next;
-        });
-      };
-
-      await Promise.allSettled(
-        jobsToFetch.map(async (jobId) => {
-          await resolveJob(jobId, onRemove);
-          setLoadingJobs((prev) => {
-            const next = new Set(prev);
-            next.delete(jobId);
-            return next;
-          });
-        })
-      );
-    };
-
-    fetchAllJobs();
-  }, [savedJobIdList, isLoadingSavedIds]); // Removed resolvedJobs and errorJobs to avoid infinite loops
-
-  // Display logic
-  const displayedJobs = savedJobIdList.filter((id) => {
-    // Hide 404s (jobs that were attempted but neither resolved nor errored out - meaning silent remove)
-    if (!loadingJobs.has(id) && !errorJobs.has(id) && !resolvedJobs[id]) {
-      return false;
-    }
-    return true;
-  });
+    setLoadingJobs((current) => new Set([...current, ...jobsToLoad]));
+    Promise.allSettled(jobsToLoad.map(resolveJob)).finally(() => {
+      setLoadingJobs((current) => {
+        const next = new Set(current);
+        jobsToLoad.forEach((jobId) => next.delete(jobId));
+        return next;
+      });
+    });
+    // resolvedJobs and errorJobs are intentionally excluded to avoid repeated requests.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoadingSavedIds, savedJobIdList]);
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] flex flex-col font-sans antialiased text-slate-900 text-sm page-transition">
+    <div className="min-h-screen bg-[var(--page-background)] font-sans text-slate-900 antialiased page-transition">
       <Header />
-      
-      <div className="flex-1 max-w-7xl mx-auto w-full px-4 lg:px-6 py-6 lg:py-8">
-        <div className="flex flex-col lg:flex-row items-start gap-6">
-          <div className="w-full lg:w-72 shrink-0 lg:sticky lg:top-6">
+
+      <main className="mx-auto w-full max-w-[1360px] px-3 py-4 sm:px-5 lg:px-6">
+        <div className="flex w-full flex-col items-start gap-4 lg:mx-auto lg:max-w-[960px] lg:flex-row xl:max-w-[1236px]">
+          <div className="order-2 w-full shrink-0 lg:sticky lg:top-20 lg:order-none lg:w-56">
             <StickyProfile />
           </div>
 
-          <div className="flex-1 min-w-0 w-full space-y-5 pb-12">
-            <div
-              className="bg-white/70 rounded-2xl border border-white/80 shadow-sm p-6"
-              style={{ backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}
-            >
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-violet-100 rounded-lg text-[#9346F5]">
-                  <BookmarkIcon className="w-5 h-5" />
-                </div>
+          <section className="order-1 min-w-0 flex-1 overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-[0_8px_30px_rgba(76,29,149,0.06)] lg:order-none">
+            <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50/80 to-white px-5 py-5 sm:px-6">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+                  <BookmarkIcon className="h-5 w-5" />
+                </span>
                 <div>
-                  <h1 className="text-lg font-bold text-gray-900">Việc làm đã lưu</h1>
-                  <p className="text-xs text-gray-500">Danh sách các cơ hội nghề nghiệp bạn đang quan tâm</p>
+                  <h1 className="text-lg font-bold text-slate-950">Việc làm đã lưu</h1>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Xem lại những cơ hội bạn đã lưu để ứng tuyển sau.
+                  </p>
                 </div>
               </div>
+            </div>
 
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+              <span className="text-xs font-semibold text-slate-700">Danh sách đã lưu</span>
+              <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-bold text-violet-700">
+                {savedJobIdList.length} công việc
+              </span>
+            </div>
+
+            <div className="p-4 sm:p-5">
               {isLoadingSavedIds ? (
-                <div className="flex justify-center py-12">
-                  <ArrowPathIcon className="w-6 h-6 text-[#9346F5] animate-spin" />
+                <div className="grid items-stretch gap-3 md:grid-cols-2">
+                  {Array.from({ length: 4 }, (_, index) => <SavedJobSkeleton key={index} />)}
                 </div>
-              ) : displayedJobs.length === 0 ? (
-                <div className="py-16 text-center">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-violet-50 mb-4">
-                    <BookmarkIcon className="w-8 h-8 text-[#9346F5]" />
-                  </div>
-                  <h3 className="text-sm font-bold text-gray-900 mb-1">Chưa có việc làm nào được lưu</h3>
-                  <p className="text-xs text-gray-500">Hãy tiếp tục khám phá và lưu lại những cơ hội phù hợp nhé!</p>
+              ) : savedJobIdList.length === 0 ? (
+                <div className="px-5 py-14 text-center">
+                  <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-50 text-violet-500">
+                    <BookmarkIcon className="h-7 w-7" />
+                  </span>
+                  <h2 className="mt-4 text-sm font-bold text-slate-900">Bạn chưa lưu công việc nào</h2>
+                  <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-slate-500">
+                    Lưu lại những công việc phù hợp để dễ dàng xem và ứng tuyển sau.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/Jobs")}
+                    className="mt-4 rounded-lg bg-violet-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-violet-700"
+                  >
+                    Tìm công việc
+                  </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {displayedJobs.map((jobId) => {
-                    if (loadingJobs.has(jobId)) {
-                      return <SkeletonJobCard key={jobId} />;
+                <div className="grid items-start gap-3 md:grid-cols-2">
+                  {savedJobIdList.map((jobId) => {
+                    if (loadingJobs.has(jobId) || (!resolvedJobs[jobId] && !errorJobs.has(jobId))) {
+                      return <SavedJobSkeleton key={jobId} />;
                     }
                     if (errorJobs.has(jobId)) {
-                      return (
-                        <ErrorJobCard
-                          key={jobId}
-                          jobId={jobId}
-                          onRetry={resolveJob}
-                          onRemove={() => {}} // Handle onRemove inside resolveJob
-                        />
-                      );
+                      return <ErrorJobCard key={jobId} jobId={jobId} onRetry={resolveJob} />;
                     }
-                    if (resolvedJobs[jobId]) {
-                      return <Jobs key={jobId} job={resolvedJobs[jobId]} />;
-                    }
-                    return null;
+
+                    const job = resolvedJobs[jobId];
+                    const isDeleted = job.status === "Deleted" || Boolean(job.deletedAt);
+                    const isClosed = isDeleted || job.status === "Expired" || job.status === "closed";
+                    const isPending = pendingIds.has(jobId);
+
+                    return (
+                      <article
+                        key={jobId}
+                        className="group flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 transition hover:border-violet-200 hover:shadow-[0_8px_24px_rgba(76,29,149,0.08)]"
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700">
+                            <BuildingOffice2Icon className="h-5 w-5" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <h2 className="line-clamp-2 text-[13px] font-bold leading-5 text-slate-900">{job.title}</h2>
+                              <span className={`shrink-0 rounded-full border px-2 py-1 text-[9px] font-bold ${isClosed ? "border-slate-200 bg-slate-50 text-slate-500" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
+                                {isDeleted ? "Tin đã xoá" : isClosed ? "Đã đóng" : "Đang tuyển"}
+                              </span>
+                            </div>
+                            <p className="mt-0.5 truncate text-[11px] font-medium text-slate-500">{job.company}</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 flex min-h-4 flex-wrap gap-x-3 gap-y-1.5 text-[10px] text-slate-500">
+                          {job.location && (
+                            <span className="inline-flex items-center gap-1">
+                              <MapPinIcon className="h-3.5 w-3.5 text-violet-400" />
+                              {job.location}
+                            </span>
+                          )}
+                          {job.salary && (
+                            <span className="inline-flex items-center gap-1">
+                              <CurrencyDollarIcon className="h-3.5 w-3.5 text-violet-400" />
+                              {job.salary}
+                            </span>
+                          )}
+                          {!job.location && !job.salary && (
+                            <span className="text-slate-400">Thông tin chi tiết không còn khả dụng</span>
+                          )}
+                        </div>
+
+                        <div className={`mt-3 flex min-h-[56px] items-start gap-2 rounded-lg border px-3 py-2.5 text-[11px] leading-4 ${
+                          isDeleted
+                            ? "border-amber-200 bg-amber-50 text-amber-800"
+                            : isClosed
+                              ? "border-slate-200 bg-slate-50 text-slate-600"
+                              : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        }`}>
+                          {isDeleted || isClosed ? (
+                            <ExclamationTriangleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                          ) : (
+                            <CheckCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                          )}
+                          <span>
+                            {isDeleted
+                              ? "Công việc này đã bị xoá và không thể ứng tuyển. Bạn vẫn có thể bỏ lưu."
+                              : isClosed
+                                ? "Tin tuyển dụng đã đóng và hiện không còn nhận hồ sơ mới."
+                                : "Tin tuyển dụng đang nhận hồ sơ. Bạn có thể xem chi tiết và ứng tuyển ngay."}
+                          </span>
+                        </div>
+
+                        <div className="mt-2 flex min-h-8 items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => toggleSave(jobId)}
+                            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-semibold text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:opacity-50"
+                          >
+                            <BookmarkIcon className="h-4 w-4" />
+                            Bỏ lưu
+                          </button>
+                          {!isDeleted && (
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/jobs/${job.id || job._id}`)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-700 transition hover:text-violet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+                            >
+                              Xem công việc
+                              <ChevronRightIcon className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </article>
+                    );
                   })}
                 </div>
               )}
             </div>
-          </div>
+          </section>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

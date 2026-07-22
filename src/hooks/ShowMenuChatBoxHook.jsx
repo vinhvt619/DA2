@@ -6,6 +6,7 @@ export default function ShowMenuChatHook(initial = true) {
   const toggleMenu = () => {
     setOpenMenu((prev) => !prev);
   };
+  const showMenu = () => setOpenMenu(true);
 
-  return { openMenu, toggleMenu };
+  return { openMenu, toggleMenu, showMenu };
 }

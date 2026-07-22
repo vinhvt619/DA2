@@ -136,6 +136,35 @@ input[type="password"]::-ms-clear {
     display: none !important;
   }
 
+  .resume-editor-toolbar,
+  .resume-editor-root [data-resume-editor-panel],
+  .resume-editor-preview-label,
+  .resume-library-screen {
+    display: none !important;
+  }
+
+  .resume-editor-root,
+  .resume-editor-preview {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .resume-library-print-root {
+    display: block !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
   /* --- Layout resets for print wrappers --- */
   .view-resume-root,
   .view-resume-scroll,
@@ -257,6 +286,10 @@ input[type="password"]::-ms-clear {
   }
 }
 
+.resume-library-print-root {
+  display: none;
+}
+
 /* --- CV Wrapper Layout (Desktop & Responsive Mobile) --- */
 .cv-wrapper {
   width: 210mm;
@@ -268,6 +301,24 @@ input[type="password"]::-ms-clear {
   margin-left: auto;
   margin-right: auto;
   transition: zoom 0.15s ease;
+}
+
+/* Render uploaded PDFs as clean paper pages instead of a browser PDF viewer. */
+.pdf-resume-canvas {
+  object-fit: contain;
+  object-position: center top;
+}
+
+.pdf-resume-page + .pdf-resume-page {
+  margin-top: 20px;
+}
+
+@media print {
+  .pdf-resume-page + .pdf-resume-page {
+    margin-top: 0 !important;
+    break-before: page;
+    page-break-before: always;
+  }
 }
 
 /* Fallback cho trình duyệt không hỗ trợ zoom (Firefox cũ) */

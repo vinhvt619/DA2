@@ -29,7 +29,28 @@ export default function AdminUsers() {
 
   // Dropdown menu state
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [menuPlacement, setMenuPlacement] = useState("bottom");
   const dropdownRef = useRef(null);
+
+  const toggleActionMenu = (event, userId) => {
+    event.stopPropagation();
+    if (openMenuId === userId) {
+      setOpenMenuId(null);
+      return;
+    }
+
+    const buttonRect = event.currentTarget.getBoundingClientRect();
+    const tableContainer = event.currentTarget.closest("[data-users-table]");
+    const containerRect = tableContainer?.getBoundingClientRect();
+    const visibleBottom = Math.min(window.innerHeight, containerRect?.bottom ?? window.innerHeight);
+    const visibleTop = Math.max(0, containerRect?.top ?? 0);
+    const menuHeight = 78;
+    const spaceBelow = visibleBottom - buttonRect.bottom;
+    const spaceAbove = buttonRect.top - visibleTop;
+
+    setMenuPlacement(spaceBelow < menuHeight && spaceAbove > spaceBelow ? "top" : "bottom");
+    setOpenMenuId(userId);
+  };
 
   const fetchUsers = async () => {
     try {
@@ -237,7 +258,7 @@ export default function AdminUsers() {
             Không tìm thấy kết quả nào phù hợp.
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" data-users-table>
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/50 border-b-[0.5px] border-slate-200/80 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
@@ -315,10 +336,7 @@ export default function AdminUsers() {
                       {/* Actions */}
                       <td className="px-6 py-3 text-right relative">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenMenuId(openMenuId === u._id ? null : u._id);
-                          }}
+                          onClick={(event) => toggleActionMenu(event, u._id)}
                           className="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100/50 transition-colors"
                         >
                           <EllipsisHorizontalIcon className="size-5" />
@@ -328,7 +346,11 @@ export default function AdminUsers() {
                         {openMenuId === u._id && (
                           <div
                             ref={dropdownRef}
-                            className="absolute right-6 top-10 bg-white border border-slate-200/80 rounded-[6px] shadow-lg py-1 z-50 min-w-[120px] text-left"
+                            className={`absolute right-6 z-50 min-w-[120px] rounded-[6px] border border-slate-200/80 bg-white py-1 text-left shadow-lg ${
+                              menuPlacement === "top"
+                                ? "bottom-[calc(100%-0.5rem)]"
+                                : "top-10"
+                            }`}
                           >
                             <button
                               onClick={() => handleBanUser(u._id)}

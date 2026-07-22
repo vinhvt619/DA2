@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   UsersIcon,
   BriefcaseIcon,
+  BuildingOffice2Icon,
   ChartBarIcon,
   FlagIcon,
   ArrowRightStartOnRectangleIcon,
@@ -11,6 +12,7 @@ import {
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../context/AuthContext";
+import NotificationBell from "../Components/NotificationBell.jsx";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -24,6 +26,7 @@ export default function AdminLayout() {
     systemErrors: 1,
     pendingReviews: 12
   });
+  const [notificationOpen, setNotificationOpen] = useState(false);
 
   useEffect(() => {
     const fetchLayoutStats = async () => {
@@ -69,8 +72,8 @@ export default function AdminLayout() {
         return { title: "Quản lý Việc làm & Tuyển dụng", subtitle: "Danh sách tin đăng của các doanh nghiệp." };
       case "/admin/reports":
         return { title: "Tố cáo & Vi phạm", subtitle: "Giải quyết các báo cáo từ cộng đồng." };
-      case "/admin/reviews":
-        return { title: "Kiểm duyệt hồ sơ CV", subtitle: "Duyệt hồ sơ xin việc của ứng viên." };
+      case "/admin/companies":
+        return { title: "Quản lý doanh nghiệp", subtitle: "Xác minh và quản trị các tài khoản nhà tuyển dụng." };
       case "/admin/system-logs":
         return { title: "Lỗi & Hệ thống", subtitle: "Lịch sử hoạt động và ghi nhận ngoại lệ real-time." };
       default:
@@ -94,8 +97,8 @@ export default function AdminLayout() {
       case "reports":
         navigate("/admin/reports?status=pending");
         break;
-      case "pending_reviews":
-        navigate("/admin/users?role=company&status=pending");
+      case "pending_companies":
+        navigate("/admin/companies?status=pending");
         break;
       case "system_errors":
         navigate("/admin/system-logs");
@@ -127,20 +130,16 @@ export default function AdminLayout() {
     <div className="bg-slate-50/50 min-h-screen text-[13px] text-slate-700 font-sans flex overflow-hidden h-screen antialiased">
       
       {/* LEFT SIDEBAR (220px) */}
-      <aside className="w-[220px] bg-[#F4F0FA] border-r-[0.5px] border-[rgba(196,180,240,0.4)] flex flex-col justify-between py-5 shrink-0 relative z-20">
+      <aside className="w-[250px] bg-[#F4F0FA] border-r-[0.5px] border-[rgba(196,180,240,0.4)] flex flex-col justify-between py-5 shrink-0 relative z-20">
         <div>
           {/* Logo Branding */}
           <div className="px-5 mb-8 flex items-center gap-2">
-            <svg className="size-7 text-violet-600 shrink-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M35 45C35 25 42 15 42 15C42 15 47 28 47 45" stroke="currentColor" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M53 45C53 25 60 15 60 15C60 15 65 28 65 45" stroke="currentColor" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
-              <rect x="25" y="42" width="50" height="38" rx="8" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="43" cy="56" r="3.5" fill="currentColor" />
-              <circle cx="57" cy="56" r="3.5" fill="currentColor" />
-              <path d="M47 64L50 66L53 64" stroke="currentColor" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span className="font-extrabold text-[15px] tracking-tight text-slate-900 leading-none">
+            <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-[9px] border border-violet-100 bg-white shadow-sm">
+              <img src="/RabbitCV.png" alt="RabbitCV" className="size-9 object-contain" />
+            </span>
+            <span className="font-extrabold text-[15px] tracking-tight text-slate-900 leading-tight">
               Rabbit<span className="text-violet-600 font-medium">CV</span>
+              <span className="block text-[10px] font-semibold text-slate-500">Admin Portal</span>
             </span>
           </div>
 
@@ -159,7 +158,7 @@ export default function AdminLayout() {
             </div>
             <div onClick={() => navigate("/admin/jobs")} className={navItemClass("/admin/jobs")}>
               <BriefcaseIcon className="size-4" />
-              <span>Tuyển dụng & Việc làm</span>
+              <span className="whitespace-nowrap">Việc làm & Tuyển dụng</span>
             </div>
 
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-1.5 mt-5">
@@ -174,13 +173,13 @@ export default function AdminLayout() {
                 {layoutStats.pendingReports}
               </span>
             </div>
-            <div onClick={() => navigate("/admin/reviews")} className={navItemWithBadgeClass("/admin/reviews")}>
+            <div onClick={() => navigate("/admin/companies")} className={navItemWithBadgeClass("/admin/companies")}>
               <div className="flex items-center gap-2.5">
-                <DocumentMagnifyingGlassIcon className="size-4" />
-                <span>Kiểm duyệt hồ sơ</span>
+                <BuildingOffice2Icon className="size-4" />
+                <span>Quản lý doanh nghiệp</span>
               </div>
               <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-amber-100 text-amber-600 min-w-[16px] text-center">
-                {layoutStats.pendingReviews}
+                {layoutStats.pendingCompanies}
               </span>
             </div>
             <div onClick={() => navigate("/admin/system-logs")} className={navItemClass("/admin/system-logs")}>
@@ -231,10 +230,11 @@ export default function AdminLayout() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <button className="relative text-slate-400 hover:text-slate-900 transition-colors p-1">
-              <BellIcon className="size-5" />
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-            </button>
+            <NotificationBell
+              isOpen={notificationOpen}
+              onToggle={() => setNotificationOpen((current) => !current)}
+              onClose={() => setNotificationOpen(false)}
+            />
             <div className="w-[0.5px] h-5 bg-[rgba(196,180,240,0.4)]"></div>
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-700 text-xs">VN / EN</span>
@@ -258,7 +258,7 @@ export default function AdminLayout() {
           <div className="flex flex-col gap-2">
             {[
               { id: "reports", label: "Tài khoản bị báo cáo", count: layoutStats.pendingReports, color: "bg-red-50 text-red-600 border-red-100/50 hover:bg-red-100/30" },
-              { id: "pending_reviews", label: "Doanh nghiệp chờ duyệt", count: layoutStats.pendingCompanies, color: "bg-amber-50 text-amber-600 border-amber-100/50 hover:bg-amber-100/30" },
+              { id: "pending_companies", label: "Doanh nghiệp chờ duyệt", count: layoutStats.pendingCompanies, color: "bg-amber-50 text-amber-600 border-amber-100/50 hover:bg-amber-100/30" },
               { id: "system_errors", label: "Lỗi hệ thống ghi nhận", count: layoutStats.systemErrors, color: "bg-rose-50 text-rose-600 border-rose-100/50 hover:bg-rose-100/30" }
             ].map((item) => (
               <button 
@@ -268,7 +268,7 @@ export default function AdminLayout() {
               >
                 <div className="flex items-center gap-2">
                   {item.id === "reports" && <FlagIcon className="size-3.5" />}
-                  {item.id === "pending_reviews" && <DocumentMagnifyingGlassIcon className="size-3.5" />}
+                  {item.id === "pending_companies" && <BuildingOffice2Icon className="size-3.5" />}
                   {item.id === "system_errors" && <ExclamationTriangleIcon className="size-3.5" />}
                   <span className="font-bold text-[12px]">{item.label}</span>
                 </div>

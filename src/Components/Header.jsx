@@ -4,11 +4,11 @@ import { useToastContext } from "./Toast";
 import HeaderNoUser from "./HeaderNoUser.jsx";
 import NotificationBell from "./NotificationBell.jsx";
 import MessageDropdown from "./MessageDropdown.jsx";
+import ProfileDropdown from "./ProfileDropdown.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSocket } from "../context/SocketContext.jsx";
 import {
   Bars3Icon,
-  BellIcon,
   ChatBubbleOvalLeftIcon,
   MagnifyingGlassIcon,
   UserCircleIcon,
@@ -16,7 +16,7 @@ import {
 
 export default function Header() {
   const { currentUser, isAuthChecked, logout } = useAuth();
-  const { hasNewMessage, setHasNewMessage } = useSocket();
+  const { hasNewMessage, markAllMessagesAsRead } = useSocket();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState("");
@@ -38,7 +38,7 @@ export default function Header() {
 
   const handleSearch = (e) => {
     if (e.key === "Enter" && searchQuery.trim()) {
-      navigate("/MainMenu", { state: { searchKeyword: searchQuery.trim() } });
+      navigate("/Jobs", { state: { searchKeyword: searchQuery.trim() } });
       setIsSearchOpen(false);
       setSearchQuery("");
     }
@@ -55,6 +55,7 @@ export default function Header() {
       const protectedPaths = [
         "/resume",
         "/resumeselection",
+        "/personalinformation",
         "/profile",
         "/message",
         "/accessibility",
@@ -63,6 +64,7 @@ export default function Header() {
         "/admin",
         "/companydashboard",
         "/saved-jobs",
+        "/my-applications",
       ];
       if (protectedPaths.some((p) => path.includes(p))) {
         navigate("/login");
@@ -82,20 +84,22 @@ export default function Header() {
   const getNavLinks = () => {
     if (currentUser?.role === "admin") {
       return [
+        { to: "/MainMenu", label: "Trang chủ" },
         { to: "/AdminDashboard", label: "Quản lý Admin" },
         { to: "/News", label: "Tin tức" },
       ];
     } else if (currentUser?.role === "company") {
       return [
+        { to: "/MainMenu", label: "Trang chủ" },
         { to: "/CompanyDashboard", label: "Kênh tuyển dụng" },
-        { to: "/MainMenu", label: "Tìm việc làm" },
+        { to: "/Jobs", label: "Tìm việc làm" },
         { to: "/TopPage", label: "Bảng xếp hạng" },
         { to: "/News", label: "Tin tức" },
       ];
     } else {
       return [
-        { to: "/WelcomePageCustomer", label: "Trang chủ" },
-        { to: "/MainMenu", label: "Tìm việc làm" },
+        { to: "/MainMenu", label: "Trang chủ" },
+        { to: "/Jobs", label: "Tìm việc làm" },
         { to: "/ResumeSelection", label: "Tạo CV" },
         { to: "/TopPage", label: "Bảng xếp hạng" },
         { to: "/News", label: "Tin tức" },
@@ -119,8 +123,9 @@ export default function Header() {
   };
 
   const toggleMenu = (name) => {
-    if (name === "message" && hasNewMessage) {
-      setHasNewMessage(false);
+    const isOpening = openMenu !== name;
+    if (name === "message" && isOpening && hasNewMessage) {
+      void markAllMessagesAsRead();
     }
     setOpenMenu((current) => (current === name ? "" : name));
   };
@@ -140,9 +145,8 @@ export default function Header() {
     >
       <nav className="mx-auto flex min-h-16 max-w-[1536px] items-center px-4 sm:px-5 lg:px-6">
         <div className="flex shrink-0">
-          <Link to="/WelcomePageCustomer" className="-m-1.5 p-1.5">
-            <span className="sr-only">RabbitCV</span>
-            <img alt="RabbitCV" src="/RabbitCV.png" className="h-12 w-12 object-contain" />
+          <Link to="/" className="text-[22px] font-black tracking-[-1px] text-[#7c00e8] hover:text-[#962fea]">
+            RabbitCV
           </Link>
         </div>
 
@@ -213,59 +217,57 @@ export default function Header() {
             </button>
           </div>
 
-          <div onClick={() => setOpenMenu("")}>
-            <NotificationBell />
-          </div>
+          <NotificationBell
+            isOpen={openMenu === "notification"}
+            onToggle={() => toggleMenu("notification")}
+            onClose={() => setOpenMenu("")}
+          />
 
           <div className="relative">
             <button
               type="button"
+              aria-label="Tin nhắn"
+              aria-haspopup="menu"
+              aria-expanded={openMenu === "message"}
               onClick={() => toggleMenu("message")}
-              className="relative flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-slate-100"
+              className={`relative flex h-9 w-9 items-center justify-center rounded-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+                openMenu === "message"
+                  ? "bg-violet-100 text-violet-700"
+                  : "text-slate-700 hover:bg-violet-50 hover:text-violet-700"
+              }`}
             >
-              <ChatBubbleOvalLeftIcon className="h-5 w-5 text-gray-700" />
+              <ChatBubbleOvalLeftIcon className="h-5 w-5" />
               {hasNewMessage && (
-                <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-red-500 border border-white" />
+                <span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-violet-600" />
               )}
             </button>
             {openMenu === "message" && (
-              <MessageDropdown toggleMenu={toggleMenu} />
+              <MessageDropdown toggleMenu={toggleMenu} hasNewMessage={hasNewMessage} />
             )}
           </div>
 
           <div className="relative">
             <button
               type="button"
+              aria-label="Tài khoản"
+              aria-haspopup="menu"
+              aria-expanded={openMenu === "user"}
               onClick={() => toggleMenu("user")}
-              className="flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-slate-100"
+              className={`flex h-9 w-9 items-center justify-center rounded-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+                openMenu === "user"
+                  ? "bg-violet-100 text-violet-700"
+                  : "text-slate-700 hover:bg-violet-50 hover:text-violet-700"
+              }`}
             >
-              <UserCircleIcon className="h-5 w-5 text-gray-700" />
+              <UserCircleIcon className="h-5 w-5" />
             </button>
             {openMenu === "user" && (
-              <div className="absolute right-0 mt-2 w-56 rounded-lg bg-white py-2 shadow-2xl ring-1 ring-black/5">
-                <button
-                  type="button"
-                  onClick={() => navigate("/Profile")}
-                  className="w-full rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Thông tin cá nhân
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate("/Accessibility")}
-                  className="w-full rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Cài đặt
-                </button>
-                <div className="my-1 border-t border-gray-100" />
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="w-full rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-                >
-                  Đăng xuất
-                </button>
-              </div>
+              <ProfileDropdown
+                currentUser={currentUser}
+                onClose={() => setOpenMenu("")}
+                onLogout={handleLogout}
+                navigate={navigate}
+              />
             )}
           </div>
         </div>

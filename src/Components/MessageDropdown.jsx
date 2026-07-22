@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
 import { useNavigate } from "react-router-dom";
 
-export default function MessageDropdown({ toggleMenu }) {
+export default function MessageDropdown({ toggleMenu, hasNewMessage }) {
   const navigate = useNavigate();
   const [threads, setThreads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -9,13 +10,15 @@ export default function MessageDropdown({ toggleMenu }) {
   useEffect(() => {
     const fetchThreads = async () => {
       try {
-        const res = await fetch("/api/chat/threads", { credentials: "include" });
-        if (res.ok) {
-          const data = await res.json();
-          setThreads(data);
+        const response = await fetch("/api/chat/threads", { credentials: "include" });
+        if (response.ok) {
+          const data = await response.json();
+          // Nhóm chung không phải là cuộc trò chuyện cá nhân, nên không hiển thị
+          // trong danh sách rút gọn ở header.
+          setThreads(data.filter((thread) => thread?.room?.startsWith("private_")));
         }
-      } catch (err) {
-        console.error("Lỗi tải tin nhắn:", err);
+      } catch (error) {
+        console.error("Lỗi tải tin nhắn:", error);
       } finally {
         setLoading(false);
       }
@@ -23,75 +26,95 @@ export default function MessageDropdown({ toggleMenu }) {
     fetchThreads();
   }, []);
 
-  const handleThreadClick = (room) => {
+  const openInbox = () => {
     toggleMenu("");
-    // We could pass room state, but Message.jsx currently doesn't read state from router, it handles activeRoom itself
     navigate("/Message");
   };
 
   const formatTime = (dateString) => {
-    try {
-      const date = new Date(dateString);
-      return new Intl.DateTimeFormat('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        day: '2-digit',
-        month: '2-digit'
-      }).format(date);
-    } catch {
-      return "";
-    }
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return "";
+    return new Intl.DateTimeFormat("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      day: "2-digit",
+      month: "2-digit",
+    }).format(date);
   };
 
+  const getInitials = (name) => name
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
   return (
-    <div className="absolute right-0 mt-2 w-80 md:w-96 rounded-xl border border-gray-200 bg-white shadow-sm z-50 overflow-hidden">
-      <div className="p-2 border-b border-gray-200 flex justify-between items-center">
-        <p className="text-sm font-bold text-gray-800">Tin nhắn gần nhất</p>
+    <div
+      role="menu"
+      aria-label="Tin nhắn gần nhất"
+      className="absolute right-0 mt-2 w-[min(270px,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-violet-100 bg-white p-2 shadow-[0_14px_36px_rgba(76,29,149,0.14)]"
+    >
+      <div className="flex items-center justify-between px-2 py-1.5">
+        <h3 className="text-[13px] font-bold text-slate-900">Tin nhắn</h3>
+        {hasNewMessage && (
+          <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-bold text-violet-700">Có tin mới</span>
+        )}
       </div>
 
-      <div className="max-h-[60vh] overflow-y-auto">
+      <div className="max-h-[300px] overflow-y-auto rounded-lg">
         {loading ? (
-          <div className="p-4 text-center text-sm text-gray-500">Đang tải...</div>
+          <div className="flex justify-center p-8">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-violet-600 border-t-transparent" />
+          </div>
         ) : threads.length === 0 ? (
-          <div className="p-6 text-center text-gray-500">
-            <p className="text-sm">Chưa có tin nhắn nào</p>
+          <div className="px-4 py-6 text-center">
+            <ChatBubbleLeftRightIcon className="mx-auto h-8 w-8 text-violet-300" />
+            <p className="mt-2 text-[13px] font-semibold text-slate-700">Chưa có tin nhắn</p>
+            <p className="mt-1 text-xs text-slate-500">Cuộc trò chuyện mới sẽ xuất hiện tại đây.</p>
           </div>
         ) : (
-          threads.map((thread) => {
-            const displayName = thread.partner ? thread.partner.name : "Phòng nhóm chung";
-            
+          threads.slice(0, 4).map((thread, index) => {
+            const displayName = thread.partner?.name || thread.senderName || "Tài khoản";
+            const isLatest = hasNewMessage && index === 0;
+
             return (
-              <div
+              <button
                 key={thread.room}
-                className="p-4 hover:bg-violet-50/20 transition-colors border-b border-gray-50 cursor-pointer relative group"
-                onClick={() => handleThreadClick(thread.room)}
+                type="button"
+                role="menuitem"
+                onClick={openInbox}
+                className={`flex w-full gap-2.5 border-t border-slate-100 px-2 py-2.5 text-left transition first:border-t-0 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500 ${isLatest ? "bg-violet-50/70" : "bg-white"}`}
               >
-                <div className="pl-1">
-                  <h4 className="text-sm font-medium text-gray-700">
-                    {displayName}
-                  </h4>
-                  <p className="text-[13px] mt-0.5 leading-relaxed text-gray-500 truncate">
-                    {thread.lastMessage || "Chưa có tin nhắn"}
-                  </p>
-                  <span className="text-[11px] text-gray-400 font-medium mt-1.5 block">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-700">
+                  {getInitials(displayName) || "RC"}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-start gap-2">
+                    <span className={`line-clamp-1 flex-1 text-[13px] ${isLatest ? "font-bold text-slate-900" : "font-semibold text-slate-700"}`}>
+                      {displayName}
+                    </span>
+                    {isLatest && <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-600" />}
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs text-slate-500">{thread.lastMessage || "Chưa có tin nhắn"}</span>
+                  <span className="mt-1 block text-[10px] font-medium text-violet-600">
                     {thread.lastMessageAt ? formatTime(thread.lastMessageAt) : ""}
                   </span>
-                </div>
-              </div>
+                </span>
+              </button>
             );
           })
         )}
       </div>
 
-      <div
-        className="border-t border-gray-200 p-3 text-center text-[13px] font-semibold text-[#9346F5] cursor-pointer hover:bg-violet-50 transition-colors"
-        onClick={() => {
-          toggleMenu("");
-          navigate("/Message");
-        }}
+      <button
+        type="button"
+        onClick={openInbox}
+        className="mt-2 flex h-9 w-full items-center justify-center rounded-lg bg-violet-600 text-[11px] font-bold text-white shadow-sm transition hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
       >
-        Xem tất cả tin nhắn
-      </div>
+        Mở hộp thư
+      </button>
     </div>
   );
 }

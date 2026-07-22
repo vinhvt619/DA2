@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { XMarkIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { normalizeActivityDateFields } from "../utils/dateInput.js";
 
 export default function AddActivityPopUp({ active, popUp, type, initialData, onSave, onDelete }) {
   const [formData, setFormData] = useState({});
 
   useEffect(() => {
     if (initialData) {
-      setFormData(initialData);
+      setFormData(normalizeActivityDateFields(initialData));
     } else {
       setFormData({});
     }

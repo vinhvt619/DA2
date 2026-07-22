@@ -1,9 +1,8 @@
 import "../App.css";
-import React, { useEffect } from "react";
+import React from "react";
 import { ArrowRightIcon, BriefcaseIcon } from "@heroicons/react/24/outline";
-import HeaderNoUser from "../Components/HeaderNoUser";
+import Header from "../Components/Header.jsx";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext.jsx";
 
 const highlights = [
   { value: "05", label: "mẫu CV nổi bật" },
@@ -13,23 +12,10 @@ const highlights = [
 
 function WelcomePage() {
   const navigate = useNavigate();
-  const { currentUser, isAuthChecked } = useAuth();
-
-  useEffect(() => {
-    if (isAuthChecked && currentUser) {
-      if (currentUser.role === "admin") {
-        navigate("/admin");
-      } else if (currentUser.role === "company") {
-        navigate("/CompanyDashboard");
-      } else {
-        navigate("/WelcomePageCustomer");
-      }
-    }
-  }, [currentUser, isAuthChecked, navigate]);
 
   return (
     <div className="w-full min-h-screen bg-[#F8F4FC] text-slate-950 page-transition">
-      <HeaderNoUser />
+      <Header />
 
       <main className="relative overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(17,24,39,0.05)_1px,transparent_1px),linear-gradient(rgba(17,24,39,0.05)_1px,transparent_1px)] bg-size-[36px_36px]" />
@@ -56,7 +42,7 @@ function WelcomePage() {
                 <ArrowRightIcon className="h-5 w-5" />
               </button>
               <button
-                onClick={() => navigate("/MainMenu")}
+                onClick={() => navigate("/Jobs")}
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white/85 px-6 py-3 text-sm font-bold text-slate-800 shadow-sm hover:-translate-y-0.5 hover:border-[#9346F5]/40 hover:text-[#9346F5]"
               >
                 Xem việc làm

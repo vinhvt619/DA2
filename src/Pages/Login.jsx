@@ -1,10 +1,10 @@
 import "../App.css";
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import HeaderNoUser from "../Components/HeaderNoUser";
+import Header from "../Components/Header";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToastContext } from "../Components/Toast";
-import { EyeSlashIcon } from "@heroicons/react/24/outline";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 
 function Login() {
   const navigate = useNavigate();
@@ -17,6 +17,7 @@ function Login() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const readApiMessage = async (response) => {
     try {
@@ -68,7 +69,7 @@ function Login() {
         } else if (data.user?.role === "company") {
           setTimeout(() => navigate("/CompanyDashboard"), 800);
         } else {
-          setTimeout(() => navigate("/WelcomePageCustomer"), 800);
+          setTimeout(() => navigate("/MainMenu"), 800);
         }
       } else {
         setError(
@@ -87,7 +88,7 @@ function Login() {
 
   return (
     <div className="w-full min-h-screen bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] flex flex-col page-transition">
-      <HeaderNoUser />
+      <Header />
 
       <div className="flex-1 flex flex-col items-center justify-center">
         <div className="flex flex-col items-center mb-6">
@@ -127,13 +128,21 @@ function Login() {
                   Mật khẩu
                 </label>
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  className="w-full border-2 border-gray-300 px-3 py-2.5 rounded-xl focus:border-[#9346F5]"
+                  className="w-full rounded-xl border-2 border-gray-300 py-2.5 pl-3 pr-11 focus:border-[#9346F5]"
                   placeholder="Nhập mật khẩu"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  className="absolute bottom-2.5 right-3 grid h-6 w-6 place-items-center text-slate-400 hover:text-violet-600"
+                  aria-label={showPassword ? "Ẩn mật khẩu" : "Hiển thị mật khẩu"}
+                >
+                  {showPassword ? <EyeSlashIcon className="size-5" /> : <EyeIcon className="size-5" />}
+                </button>
               </div>
 
               <div className="flex items-center justify-between">

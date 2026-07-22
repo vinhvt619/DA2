@@ -5,7 +5,7 @@ import ShowMenuChatHook from "../hooks/ShowMenuChatBoxHook.jsx";
 import {
   EllipsisHorizontalIcon,
   MagnifyingGlassIcon,
-  PlusIcon,
+  ChatBubbleLeftRightIcon,
 } from "@heroicons/react/24/outline";
 import ListChatBox from "../Components/ListChatBox.jsx";
 import ChatBox from "../Components/ChatBox.jsx";
@@ -14,37 +14,103 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSocket } from "../context/SocketContext.jsx";
 
+const NEW_CHAT_PLACEHOLDER = "Bắt đầu cuộc trò chuyện mới...";
+const draftStorageKey = (userId) => `rabbitcv_chat_drafts_${userId}`;
+
+const readDraftThreads = (userId) => {
+  if (!userId) return [];
+  try {
+    const stored = JSON.parse(localStorage.getItem(draftStorageKey(userId)) || "[]");
+    return Array.isArray(stored)
+      ? stored.filter((thread) => thread?.room && thread.room !== "general")
+      : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeDraftThreads = (userId, threads) => {
+  if (!userId) return;
+  try {
+    localStorage.setItem(draftStorageKey(userId), JSON.stringify(threads));
+  } catch {
+    // Tin nhắn vẫn hoạt động nếu trình duyệt chặn localStorage.
+  }
+};
+
+const isDraftThread = (thread) => thread?.lastMessage === NEW_CHAT_PLACEHOLDER;
+const getUserId = (user) => String(user?._id || user?.id || "");
+
+const getPartnerIdFromRoom = (room, currentUser) => {
+  const currentUserId = getUserId(currentUser);
+  if (!room?.startsWith("private_") || !currentUserId) return "";
+
+  return room
+    .slice("private_".length)
+    .split("_")
+    .map(String)
+    .find((id) => id && id !== currentUserId) || "";
+};
+
 function Messenger() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { openMenu, toggleMenu } = ShowMenuChatHook(true);
+  const { openMenu, toggleMenu, showMenu } = ShowMenuChatHook(true);
   const [openSettingChat, setOpenSettingChat] = useState(false);
   
   const { currentUser, isAuthChecked } = useAuth();
-  const { socket } = useSocket();
+  const { socket, markRoomAsRead } = useSocket();
   const [threads, setThreads] = useState([]);
-  const [activeRoom, setActiveRoom] = useState("general");
+  const [activeRoom, setActiveRoom] = useState("");
   const [allUsers, setAllUsers] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState("");
-  const [activeFilter, setActiveFilter] = useState("all"); // 'all', 'unread', 'group'
 
   const fetchThreads = useCallback(async () => {
     try {
       const res = await fetch("/api/chat/threads", { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
-        setThreads((prevThreads) => {
-          const realRooms = new Set(data.map(t => t.room));
-          const virtualThreads = prevThreads.filter(
-            t => t.lastMessage === "Bắt đầu cuộc trò chuyện mới..." && !realRooms.has(t.room)
-          );
-          return [...virtualThreads, ...data];
+        const privateThreads = data.filter((thread) => thread.room?.startsWith("private_"));
+        const hydratedThreads = await Promise.all(privateThreads.map(async (thread) => {
+          if (thread.partner?.name) return thread;
+          const partnerId = getPartnerIdFromRoom(thread.room, currentUser);
+          if (!partnerId) return thread;
+
+          try {
+            const profileResponse = await fetch(`/api/user/profile/${partnerId}`, { credentials: "include" });
+            if (!profileResponse.ok) return thread;
+            const profileData = await profileResponse.json();
+            const partner = profileData?.user || profileData;
+            if (!partner?._id) return thread;
+            return {
+              ...thread,
+              partner: {
+                id: partner._id,
+                name: partner.fullName || partner.username,
+                role: partner.role,
+              },
+            };
+          } catch {
+            return thread;
+          }
+        }));
+        const realRooms = new Set(hydratedThreads.map((thread) => thread.room));
+        const savedDrafts = readDraftThreads(currentUser?._id).filter(
+          (thread) => !realRooms.has(thread.room)
+        );
+        const mergedThreads = [...savedDrafts, ...hydratedThreads];
+
+        writeDraftThreads(currentUser?._id, savedDrafts);
+        setActiveRoom((currentRoom) => {
+          if (currentRoom && mergedThreads.some((thread) => thread.room === currentRoom)) return currentRoom;
+          return mergedThreads[0]?.room || "";
         });
+        setThreads(mergedThreads);
       }
     } catch (err) {
       console.error("Lỗi tải cuộc trò chuyện:", err);
     }
-  }, []);
+  }, [currentUser]);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -70,47 +136,56 @@ function Messenger() {
 
   useEffect(() => {
     if (!socket) return;
-    const handleNewMessage = () => {
+    const handleNewMessage = (message) => {
       fetchThreads();
+      if (message?.room === activeRoom) {
+        void markRoomAsRead(activeRoom);
+      }
     };
     socket.on("newMessage", handleNewMessage);
     return () => socket.off("newMessage", handleNewMessage);
-  }, [socket, fetchThreads]);
+  }, [socket, fetchThreads, activeRoom, markRoomAsRead]);
+
+  useEffect(() => {
+    if (!activeRoom) return;
+    void markRoomAsRead(activeRoom);
+  }, [activeRoom, markRoomAsRead]);
 
   const handleStartPrivateChat = useCallback((partner) => {
     if (!currentUser) return;
-    const room = [currentUser._id, partner._id].sort().join("_");
+    const room = [getUserId(currentUser), getUserId(partner)].sort().join("_");
     const privateRoomId = `private_${room}`;
     setActiveRoom(privateRoomId);
     setSearchKeyword("");
     
-    // Add temporary thread if not exists so it shows up selected immediately
+    // Lưu cuộc trò chuyện nháp để nó không biến mất khi đổi trang.
     setThreads((prev) => {
-      if (!prev.some((t) => t.room === privateRoomId)) {
-        return [
-          {
-            room: privateRoomId,
-            lastMessage: "Bắt đầu cuộc trò chuyện mới...",
-            lastMessageAt: new Date(),
-            senderName: "",
-            senderId: "",
-            partner: {
-              id: partner._id,
-              name: partner.fullName || partner.username,
-              role: partner.role,
-            },
+      if (prev.some((thread) => thread.room === privateRoomId)) return prev;
+
+      const nextThreads = [
+        {
+          room: privateRoomId,
+          lastMessage: NEW_CHAT_PLACEHOLDER,
+          lastMessageAt: new Date(),
+          senderName: "",
+          senderId: "",
+          partner: {
+            id: partner._id,
+            name: partner.fullName || partner.username,
+            role: partner.role,
           },
-          ...prev,
-        ];
-      }
-      return prev;
+        },
+        ...prev,
+      ];
+      writeDraftThreads(currentUser._id, nextThreads.filter(isDraftThread));
+      return nextThreads;
     });
   }, [currentUser]);
 
   // Handle partnerId from URL query param to auto-start chat
   useEffect(() => {
     const partnerId = searchParams.get("partnerId");
-    if (!partnerId || !currentUser || allUsers.length === 0) return;
+    if (!partnerId || !currentUser) return;
     
     const partner = allUsers.find(u => u._id === partnerId);
     if (partner) {
@@ -121,8 +196,9 @@ function Messenger() {
       fetch(`/api/user/profile/${partnerId}`, { credentials: "include" })
         .then(res => res.json())
         .then(data => {
-          if (data && data._id) {
-            handleStartPrivateChat(data);
+          const partnerProfile = data?.user || data;
+          if (partnerProfile?._id) {
+            handleStartPrivateChat(partnerProfile);
             setSearchParams({});
           }
         })
@@ -138,13 +214,45 @@ function Messenger() {
     : [];
 
   const activeThread = threads.find((t) => t.room === activeRoom);
+  const getThreadPartner = (thread) => {
+    if (!thread) return null;
+    if (thread.partner?.name) return thread.partner;
 
-  const displayThreads = threads.filter((t) => {
-    if (activeFilter === "group") {
-      return t.room === "general";
-    }
-    return true;
-  });
+    const partnerId = getPartnerIdFromRoom(thread.room, currentUser);
+    const partner = allUsers.find((user) => getUserId(user) === partnerId);
+    if (partner) return partner;
+
+    return {
+      id: partnerId,
+      name: String(thread.senderId) !== getUserId(currentUser) && thread.senderName
+        ? thread.senderName
+        : "Tài khoản không còn tồn tại",
+    };
+  };
+  const activePartner = getThreadPartner(activeThread);
+
+  const handleMessageSent = useCallback((message) => {
+    if (!message || !activeRoom) return;
+
+    setThreads((previousThreads) => {
+      const nextThreads = previousThreads
+        .map((thread) => (
+          thread.room === activeRoom
+            ? {
+                ...thread,
+                lastMessage: message.content || "Đã gửi một hình ảnh",
+                lastMessageAt: message.createdAt || new Date().toISOString(),
+                senderId: message.senderId,
+                senderName: message.senderName,
+              }
+            : thread
+        ))
+        .sort((first, second) => new Date(second.lastMessageAt) - new Date(first.lastMessageAt));
+
+      writeDraftThreads(currentUser?._id, nextThreads.filter(isDraftThread));
+      return nextThreads;
+    });
+  }, [activeRoom, currentUser?._id]);
 
   if (!isAuthChecked) {
     return (
@@ -156,14 +264,12 @@ function Messenger() {
   }
 
   const handleHideChat = async (roomToHide) => {
-    if (roomToHide === "general") return; // Lớp bảo vệ ở frontend
+    const remainingThreads = threads.filter((thread) => thread.room !== roomToHide);
+    setThreads(remainingThreads);
+    writeDraftThreads(currentUser?._id, remainingThreads.filter(isDraftThread));
     
-    // Optimistic update: xoá khỏi danh sách ngay lập tức
-    setThreads(prev => prev.filter(t => t.room !== roomToHide));
-    
-    // Nếu đang mở phòng đó, chuyển về general hoặc rỗng
     if (activeRoom === roomToHide) {
-      setActiveRoom("general");
+      setActiveRoom(remainingThreads[0]?.room || "");
     }
     
     try {
@@ -178,14 +284,15 @@ function Messenger() {
 
   return (
     <div className="bg-gradient-to-br from-[#F8F4FC] to-[#EDE5F7] h-screen flex flex-col font-sans overflow-hidden text-slate-900 text-sm page-transition">
-      <Header />
+      {currentUser?.role !== "company" && <Header />}
 
-      <div className="flex flex-1 items-start h-[calc(100vh-80px)] w-full max-w-[1600px] mx-auto p-4 gap-4 overflow-hidden">
-        <div className="border border-gray-200 w-[320px] bg-white rounded-xl flex flex-col h-full shadow-sm shrink-0 overflow-hidden relative">
-          <div className="flex items-center justify-between px-4 pt-4 pb-2.5">
-            <h1 className="font-bold text-lg text-gray-900">
-              Đoạn chat
-            </h1>
+      <div className={`mx-auto flex w-full max-w-[1600px] flex-1 items-start gap-3 overflow-hidden p-4 ${currentUser?.role === "company" ? "h-screen" : "h-[calc(100vh-80px)]"}`}>
+        <div className="relative flex h-full w-[300px] shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3.5">
+            <div className="flex items-center gap-2">
+              <ChatBubbleLeftRightIcon className="size-5 text-violet-600" />
+              <h1 className="text-base font-bold text-gray-900">Tin nhắn</h1>
+            </div>
             <div className="flex gap-2 relative">
               <button
                 className="bg-gray-50 hover:bg-gray-100 text-gray-500 rounded-lg p-1.5 cursor-pointer border border-gray-200"
@@ -208,14 +315,14 @@ function Messenger() {
             </div>
           </div>
 
-          <div className="px-4 mb-3 relative">
+          <div className="relative px-3 pb-2 pt-3">
             <MagnifyingGlassIcon className="size-4.5 text-gray-400 absolute left-7 top-1/2 -translate-y-1/2" />
             <input
               type="search"
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
-              placeholder="Tìm kiếm tài khoản thực..."
-              className="bg-gray-50 border border-gray-200 rounded-lg py-2 pl-9 pr-4 text-xs w-full outline-none focus:border-violet-400 focus:bg-white font-medium placeholder:text-gray-400 text-gray-800"
+              placeholder="Tìm cuộc trò chuyện"
+              className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-4 text-xs font-medium text-gray-800 outline-none placeholder:text-gray-400 focus:border-violet-400 focus:bg-white"
             />
           </div>
 
@@ -241,6 +348,16 @@ function Messenger() {
                           {user.role === "company" ? "Doanh nghiệp" : "Ứng viên"}
                         </div>
                       </div>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          navigate(`/profile/${user._id}`);
+                        }}
+                        className="rounded-md border border-violet-100 bg-violet-50 px-2 py-1 text-[10px] font-bold text-violet-700 hover:bg-violet-100"
+                      >
+                        Xem hồ sơ
+                      </button>
                     </div>
                   ))
                 ) : (
@@ -250,34 +367,12 @@ function Messenger() {
             </div>
           ) : (
             <>
-              <div className="flex items-center gap-1.5 px-4 mb-3 overflow-x-auto no-scrollbar">
-                <button
-                  onClick={() => setActiveFilter("all")}
-                  className={`rounded-md px-3 py-1 text-xs font-semibold ${
-                    activeFilter === "all"
-                      ? "bg-violet-600 text-white"
-                      : "text-gray-500 bg-gray-50 hover:bg-gray-100 border border-gray-100"
-                  }`}
-                >
-                  Tất cả
-                </button>
-                <button
-                  onClick={() => setActiveFilter("group")}
-                  className={`rounded-md px-3 py-1 text-xs font-semibold ${
-                    activeFilter === "group"
-                      ? "bg-violet-600 text-white"
-                      : "text-gray-500 bg-gray-50 hover:bg-gray-100 border border-gray-100"
-                  }`}
-                >
-                  Nhóm
-                </button>
-              </div>
-
               <div className="flex-1 w-full overflow-y-auto custom-scrollbar">
-                <div className="space-y-1 mt-1 px-2.5 pb-2.5 flex flex-col">
-                  {displayThreads.map((thread) => {
-                    const isGeneral = thread.room === "general";
-                    const displayName = isGeneral ? "Phòng nhóm chung" : (thread.partner?.name || "Tài khoản");
+                <div className="px-3 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Gần đây</div>
+                <div className="flex flex-col gap-1 px-2.5 pb-2.5">
+                  {threads.map((thread) => {
+                    const partner = getThreadPartner(thread);
+                    const displayName = partner?.name || "Tài khoản không còn tồn tại";
                     const relativeTime = thread.lastMessageAt
                       ? new Date(thread.lastMessageAt).toLocaleTimeString("vi-VN", {
                           hour: "2-digit",
@@ -289,6 +384,7 @@ function Messenger() {
                         <ListChatBox
                           room={thread.room}
                           name={displayName}
+                          role={partner?.role}
                           chat={thread.lastMessage}
                           hour={relativeTime}
                           choose={activeRoom === thread.room}
@@ -303,24 +399,22 @@ function Messenger() {
           )}
         </div>
 
-        <div className="h-full border border-gray-200 bg-white rounded-xl shadow-sm flex flex-col overflow-hidden flex-1">
-          <ChatBox
-            activeRoom={activeRoom}
-            currentUser={currentUser}
-            partner={activeThread?.partner}
-            onMessageSent={fetchThreads}
-            onToggleMenu={toggleMenu}
-          />
+        <div className="flex h-full flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          {activeRoom ? (
+            <ChatBox activeRoom={activeRoom} currentUser={currentUser} partner={activePartner} onMessageSent={handleMessageSent} onToggleMenu={toggleMenu} onShowMenu={showMenu} />
+          ) : (
+            <div className="grid h-full place-items-center px-6 text-center"><div><div className="mx-auto grid h-10 w-10 place-items-center rounded-full bg-violet-50 text-lg text-violet-600">✦</div><h2 className="mt-3 text-sm font-bold text-slate-700">Chưa có cuộc trò chuyện</h2><p className="mt-1 text-xs text-slate-400">Tìm một tài khoản để bắt đầu nhắn tin.</p></div></div>
+          )}
         </div>
 
         <div
-          className={`h-full border border-gray-200 bg-white rounded-xl shadow-sm flex flex-col overflow-hidden shrink-0 transition-all ${
-            openMenu ? "w-[300px]" : "w-0 border-none opacity-0 pointer-events-none"
+          className={`flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all ${
+            openMenu && activeRoom ? "w-[280px]" : "pointer-events-none w-0 border-none opacity-0"
           }`}
         >
-          {openMenu && (
-            <div className="min-w-[300px] h-full overflow-y-auto no-scrollbar">
-              <ProfileChatBox activeRoom={activeRoom} partner={activeThread?.partner} onHideChat={() => handleHideChat(activeRoom)} />
+          {openMenu && activeRoom && (
+            <div className="h-full min-w-[280px] overflow-y-auto no-scrollbar">
+              <ProfileChatBox activeRoom={activeRoom} partner={activePartner} onHideChat={() => handleHideChat(activeRoom)} />
             </div>
           )}
         </div>

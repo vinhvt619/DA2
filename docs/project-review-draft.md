@@ -124,7 +124,7 @@ npm run preview
 - Xoa CV.
 - Xem CV theo id.
 - CV gom thong tin ca nhan, bio, profile links, kinh nghiem, hoc van, ky nang, ngon ngu, chung chi, du an, giai thuong, so thich.
-- Ho tro CV ao khi ung vien upload file PDF/DOC/DOCX luc ung tuyen.
+- Ho tro CV ao khi ung vien upload file PDF luc ung tuyen.
 
 ### 5.4. Tim viec va ung tuyen
 

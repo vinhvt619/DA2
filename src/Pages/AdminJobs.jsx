@@ -3,13 +3,14 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   TrashIcon,
+  EyeIcon,
   EyeSlashIcon,
 } from "@heroicons/react/24/outline";
 
 export default function AdminJobs() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [_error, setError] = useState(null);
 
   // Filters state
   const [searchTerm, setSearchTerm] = useState("");
@@ -126,6 +127,20 @@ export default function AdminJobs() {
       setJobs((prev) =>
         prev.map((job) => (job._id === id ? { ...job, status: "closed" } : job))
       );
+    }
+  };
+
+  const handleRestoreJob = async (id) => {
+    try {
+      const res = await fetch(`/api/admin/jobs/${id}/unhide`, {
+        method: "PUT",
+        credentials: "include",
+      });
+      if (res.ok) {
+        fetchJobs();
+      }
+    } catch (err) {
+      console.error("Lỗi hiện lại việc làm:", err);
     }
   };
 
@@ -274,7 +289,7 @@ export default function AdminJobs() {
 
                       {/* Status Badge */}
                       <td className="px-6 py-3.5">
-                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${statusBadge}`}>
+                        <span className={`whitespace-nowrap px-2 py-0.5 text-[10px] font-bold rounded-full border ${statusBadge}`}>
                           {statusText}
                         </span>
                       </td>
@@ -294,6 +309,15 @@ export default function AdminJobs() {
                               title="Ẩn tin tuyển dụng (đóng tuyển)"
                             >
                               <EyeSlashIcon className="size-4" />
+                            </button>
+                          )}
+                          {job.isAdminHidden && (
+                            <button
+                              onClick={() => handleRestoreJob(job._id)}
+                              className="p-1 text-violet-500 hover:bg-violet-50 hover:text-violet-700 rounded transition-colors"
+                              title="Hiện lại tin tuyển dụng"
+                            >
+                              <EyeIcon className="size-4" />
                             </button>
                           )}
                           <button

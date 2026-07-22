@@ -4,7 +4,7 @@ import { ExclamationTriangleIcon, ExclamationCircleIcon, CheckCircleIcon, ArrowP
 export default function AdminSystemLogs() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [_error, setError] = useState(null);
 
   // TODO: replace with real API backend logs endpoint later
   const mockLogs = [
@@ -62,6 +62,8 @@ export default function AdminSystemLogs() {
 
   useEffect(() => {
     fetchLogs();
+    // This demo screen intentionally loads once and can be refreshed manually.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

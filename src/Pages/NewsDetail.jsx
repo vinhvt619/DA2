@@ -1,27 +1,20 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import Header from "../Components/Header.jsx";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
+  BriefcaseIcon,
   CalendarDaysIcon,
-  TagIcon,
+  ChatBubbleLeftRightIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  DocumentTextIcon,
+  ListBulletIcon,
   SparklesIcon,
+  TagIcon,
 } from "@heroicons/react/24/outline";
 import { getArticleBySlug, getCategoryImg, newsArticles } from "../data/newsArticles.js";
-
-const categoryColors = (category) => {
-  const c = category?.toLowerCase() || "";
-  if (c.includes("thị trường"))
-    return "bg-emerald-50 text-emerald-700 border-emerald-200/60";
-  if (c.includes("hướng dẫn") || c.includes("cv"))
-    return "bg-indigo-50 text-indigo-700 border-indigo-200/60";
-  if (c.includes("phỏng vấn"))
-    return "bg-pink-50 text-pink-700 border-pink-200/60";
-  if (c.includes("kỹ năng"))
-    return "bg-amber-50 text-amber-700 border-amber-200/60";
-  return "bg-slate-50 text-slate-700 border-slate-200/60";
-};
 
 export default function NewsDetail() {
   const { slug } = useParams();
@@ -29,197 +22,201 @@ export default function NewsDetail() {
 
   const related = useMemo(() => {
     if (!article) return [];
+
     return newsArticles
-      .filter((a) => a.slug !== article.slug && a.category === article.category)
-      .concat(newsArticles.filter((a) => a.slug !== article.slug))
-      .filter((a, i, arr) => arr.findIndex((b) => b.slug === a.slug) === i)
-      .slice(0, 4); // Display up to 4 related articles for richer sidebar
+      .filter((item) => item.slug !== article.slug && item.category === article.category)
+      .concat(newsArticles.filter((item) => item.slug !== article.slug))
+      .filter((item, index, items) => items.findIndex((candidate) => candidate.slug === item.slug) === index)
+      .slice(0, 3);
+  }, [article]);
+
+  const readingTime = useMemo(() => {
+    if (!article) return 0;
+
+    const content = [
+      article.title,
+      article.summary,
+      article.intro,
+      ...article.sections.flatMap((section) => [
+        section.heading || "",
+        ...(section.paragraphs || []),
+        ...(section.bullets || []),
+      ]),
+    ].join(" ");
+
+    return Math.max(3, Math.ceil(content.trim().split(/\s+/).length / 220));
   }, [article]);
 
   if (!article) return <Navigate to="/News" replace />;
 
   const coverImage = getCategoryImg(article.slug, article.category);
+  const tocSections = article.sections
+    .map((section, index) => ({ ...section, index }))
+    .filter((section) => section.heading);
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] relative overflow-hidden text-slate-800 page-transition">
-      {/* Decorative background glows */}
-      <div className="absolute top-[10%] left-[-10%] w-[350px] h-[350px] rounded-full bg-purple-200/40 blur-3xl pointer-events-none" />
-      <div className="absolute top-[40%] right-[-10%] w-[400px] h-[400px] rounded-full bg-violet-200/30 blur-3xl pointer-events-none" />
-      <div className="absolute bottom-[10%] left-[20%] w-[380px] h-[380px] rounded-full bg-fuchsia-100/40 blur-3xl pointer-events-none" />
-
+    <div className="min-h-screen bg-[var(--page-background)] font-sans text-slate-900 page-transition">
       <Header />
 
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 relative z-10">
-        
-        {/* Back Link */}
-        <div className="flex text-left">
+      <main className="mx-auto w-full max-w-[1040px] px-3 py-4 sm:px-5 lg:px-6">
+        <div className="mb-2.5">
           <Link
             to="/News"
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-full border border-violet-100/80 bg-white/70 backdrop-blur-md text-violet-700 shadow-xs transition-all duration-300 hover:bg-violet-50 hover:border-violet-300/80 hover:text-violet-900 hover:shadow-md mb-6 active:scale-95 group"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-violet-700"
           >
-            <ArrowLeftIcon className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
-            Quay lại tin tức
+            <ArrowLeftIcon className="h-4 w-4" />
+            Tin tức
           </Link>
+
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-[1fr_300px] items-start">
-          
-          {/* Main Article Container */}
-          <article className="rounded-3xl border border-violet-100/80 bg-white/90 backdrop-blur-xs shadow-2xl shadow-purple-500/[0.03] overflow-hidden">
-            
-            {/* Cover Image & Header Overlay */}
-            <div className="h-[280px] sm:h-[400px] relative overflow-hidden bg-slate-900">
-              <img
-                src={coverImage}
-                alt={article.title}
-                className="w-full h-full object-cover"
-              />
-              {/* Dark overlay gradients for excellent readability */}
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent" />
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-950/40 via-transparent to-transparent" />
-              
-              {/* Article Header info absolute container */}
-              <div className="absolute bottom-0 inset-x-0 p-6 sm:p-10 flex flex-col justify-end text-left">
-                
-                {/* Meta details (Category & Date) */}
-                <div className="flex flex-wrap items-center gap-3 text-xs mb-3 font-semibold text-slate-300">
-                  <span className="inline-flex items-center gap-1 rounded-full border border-white/20 backdrop-blur-md bg-white/10 px-3 py-1 text-white">
-                    <TagIcon className="w-3.5 h-3.5 text-violet-300" />
-                    {article.category}
-                  </span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400/60" />
-                  <span className="flex items-center gap-1">
-                    <CalendarDaysIcon className="w-3.5 h-3.5 text-slate-400" />
-                    {article.date}
-                  </span>
-                </div>
-
-                {/* Main Title */}
-                <h1 className="text-2xl sm:text-4xl font-extrabold text-white leading-tight tracking-tight">
-                  {article.title}
-                </h1>
-                
-                {/* Summary */}
-                <p className="mt-3 text-sm sm:text-base text-slate-300/90 leading-relaxed font-normal max-w-3xl border-l-2 border-violet-400/70 pl-3">
-                  {article.summary}
-                </p>
-              </div>
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_275px]">
+          <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="h-48 overflow-hidden bg-violet-100 sm:h-60">
+              <img src={coverImage} alt={article.title} className="h-full w-full object-cover" />
             </div>
 
-            {/* Article Content Body */}
-            <div className="p-6 sm:p-10 text-left">
-              
-              {/* Highlighted Intro Box */}
-              <div className="relative border-l-4 border-violet-500 bg-violet-50/40 rounded-r-2xl p-5 sm:p-6 mb-8 shadow-xs">
-                <div className="absolute top-2 right-4 text-violet-200/50">
-                  <SparklesIcon className="w-8 h-8" />
+            <div className="p-4 sm:p-6">
+              <header>
+                <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 font-semibold text-violet-700">
+                    <TagIcon className="h-3.5 w-3.5" />
+                    {article.category}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <CalendarDaysIcon className="h-3.5 w-3.5" />
+                    {article.date}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <ClockIcon className="h-3.5 w-3.5" />
+                    {readingTime} phút đọc
+                  </span>
                 </div>
-                <p className="text-base font-medium text-violet-950 leading-relaxed italic relative z-10">
-                  "{article.intro}"
-                </p>
+
+                <h1 className="text-xl font-bold leading-tight text-slate-950 sm:text-2xl">
+                  {article.title}
+                </h1>
+                <p className="mt-3 text-sm leading-6 text-slate-600">{article.summary}</p>
+              </header>
+
+              <div className="my-5 border-l-4 border-violet-600 bg-violet-50 px-4 py-3 text-sm font-medium leading-6 text-slate-700">
+                {article.intro}
               </div>
 
-              {/* Sections rendering with beautiful typography */}
-              <div className="space-y-10">
-                {article.sections.map((section, i) => (
-                  <div key={i} className="group">
+              <div>
+                {article.sections.map((section, index) => (
+                  <section
+                    id={`section-${index}`}
+                    key={`${section.heading || "section"}-${index}`}
+                    className="scroll-mt-24 border-t border-slate-100 py-5 first:border-t-0 first:pt-0"
+                  >
                     {section.heading && (
-                      <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight mb-4 border-b border-slate-100 pb-2 group-hover:text-violet-700 transition-colors duration-300">
+                      <h2 className="mb-2.5 text-base font-bold text-slate-950 sm:text-lg">
                         {section.heading}
                       </h2>
                     )}
-                    <div className="space-y-4 text-sm sm:text-base text-slate-600 leading-relaxed">
-                      {section.paragraphs.map((p, j) => (
-                        <p key={j} className="text-justify">{p}</p>
+
+                    <div className="space-y-3 text-sm leading-6 text-slate-600">
+                      {(section.paragraphs || []).map((paragraph, paragraphIndex) => (
+                        <p key={paragraphIndex}>{paragraph}</p>
                       ))}
                     </div>
+
                     {section.bullets && (
-                      <ul className="mt-5 space-y-3.5 pl-1.5">
-                        {section.bullets.map((b, k) => (
-                          <li key={k} className="flex items-start gap-3.5 text-sm sm:text-base text-slate-600 leading-relaxed">
-                            <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
-                            <span>{b}</span>
+                      <ul className="mt-3 space-y-2.5">
+                        {section.bullets.map((bullet, bulletIndex) => (
+                          <li key={bulletIndex} className="flex gap-2 text-sm leading-6 text-slate-600">
+                            <CheckCircleIcon className="mt-1 h-4 w-4 shrink-0 text-violet-600" />
+                            <span>{bullet}</span>
                           </li>
                         ))}
                       </ul>
                     )}
-                  </div>
+                  </section>
                 ))}
               </div>
 
-              {/* Share/Footer Section */}
-              <div className="mt-12 pt-8 flex flex-col sm:flex-row gap-4 justify-between items-center border-t border-slate-100">
+              <footer className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <Link
                   to="/News"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-full bg-slate-100 hover:bg-violet-50 border border-transparent hover:border-violet-200 text-slate-600 hover:text-violet-700 transition-all duration-300 shadow-xs group active:scale-95"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 transition hover:text-violet-800"
                 >
-                  <ArrowLeftIcon className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
+                  <ArrowLeftIcon className="h-4 w-4" />
                   Xem tất cả tin tức
                 </Link>
-                <div className="text-xs text-slate-400 font-medium">
-                  Đăng ngày: <span className="text-slate-600">{article.date}</span>
-                </div>
-              </div>
-              
+                <span className="text-xs text-slate-400">Cập nhật ngày {article.date}</span>
+              </footer>
             </div>
           </article>
 
-          {/* Sidebar - Related Articles */}
-          <aside className="lg:sticky lg:top-6 flex flex-col gap-6 text-left">
-            <div className="rounded-3xl p-6 border border-violet-100/80 bg-white/95 backdrop-blur-md shadow-xl shadow-purple-500/[0.02]">
-              <h3 className="text-base font-bold text-slate-900 mb-5 pb-3 border-b border-slate-100 flex items-center gap-2">
-                <SparklesIcon className="w-4 h-4 text-violet-500" />
-                Bài viết liên quan
-              </h3>
-              
-              <div className="space-y-4">
-                {related.map((item) => {
-                  const itemImg = getCategoryImg(item.slug, item.category);
-                  const tagColor = categoryColors(item.category);
-                  
+          <aside className="space-y-4 lg:sticky lg:top-20">
+            {tocSections.length > 0 && (
+              <nav aria-label="Mục lục bài viết" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <h2 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-950">
+                  <ListBulletIcon className="h-4 w-4 text-violet-600" />
+                  Trong bài viết
+                </h2>
+                <ol className="divide-y divide-slate-100">
+                  {tocSections.map((section) => (
+                    <li key={section.index}>
+                      <a
+                        href={`#section-${section.index}`}
+                        className="block py-2.5 text-xs leading-5 text-slate-600 transition hover:text-violet-700"
+                      >
+                        {section.heading}
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              </nav>
+            )}
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2 text-sm font-bold text-slate-950">
+                  <SparklesIcon className="h-4 w-4 text-violet-600" />
+                  Bài viết liên quan
+                </h2>
+                <Link to="/News" className="text-[11px] font-semibold text-violet-700 hover:text-violet-800">
+                  Xem tất cả
+                </Link>
+              </div>
+
+              <div className="space-y-3">
+                {related.map((item, index) => {
+                  const ItemIcon = index === 0 ? DocumentTextIcon : index === 1 ? ChatBubbleLeftRightIcon : BriefcaseIcon;
+
                   return (
                     <Link
                       key={item.slug}
                       to={`/News/${item.slug}`}
-                      className="group flex gap-3.5 rounded-2xl p-2.5 hover:bg-violet-50/50 border border-transparent hover:border-violet-100/60 transition-all duration-300"
+                      className="group grid grid-cols-[56px_minmax(0,1fr)] gap-2.5 rounded-xl border border-transparent p-1.5 transition hover:border-violet-100 hover:bg-violet-50/50"
                     >
-                      {/* Image Thumbnail */}
-                      <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-slate-100 border border-violet-100/50 relative">
-                        <img
-                          src={itemImg}
-                          alt={item.title}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          loading="lazy"
-                        />
+                      <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
+                        <ItemIcon className="h-5 w-5" />
                       </div>
-                      
-                      {/* Content details */}
-                      <div className="flex flex-col justify-center min-w-0">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-wider ${tagColor}`}>
-                            {item.category}
-                          </span>
-                        </div>
-                        <h4 className="text-xs font-bold leading-snug text-slate-700 group-hover:text-violet-700 transition-colors duration-300 line-clamp-2">
+                      <div className="min-w-0">
+                        <h3 className="line-clamp-2 text-xs font-bold leading-5 text-slate-700 transition group-hover:text-violet-700">
                           {item.title}
-                        </h4>
-                        <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400">
-                          <span>{item.date}</span>
-                          <span className="flex items-center gap-0.5 text-violet-500 font-bold opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            Đọc
-                            <ArrowRightIcon className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform" />
-                          </span>
-                        </div>
+                        </h3>
+                        <p className="mt-0.5 text-[11px] text-slate-400">{item.date}</p>
                       </div>
                     </Link>
                   );
                 })}
               </div>
-            </div>
-          </aside>
 
+              <Link
+                to="/News"
+                className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-violet-700 transition hover:text-violet-800"
+              >
+                Xem thêm bài viết
+                <ArrowRightIcon className="h-3.5 w-3.5" />
+              </Link>
+            </section>
+          </aside>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

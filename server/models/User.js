@@ -23,6 +23,12 @@ const UserSchema = new mongoose.Schema(
     hometown: { type: String, default: "" },
     age: { type: Number, default: null },
     birthDate: { type: String, default: "" },
+    companyIndustry: { type: String, default: "" },
+    companySize: { type: String, default: "" },
+    companyWebsite: { type: String, default: "" },
+    companyDescription: { type: String, default: "" },
+    companyFoundedYear: { type: String, default: "" },
+    companyTaxCode: { type: String, default: "" },
 
     // Security Information
     phoneNumber: { type: String, default: "" },
@@ -45,6 +51,17 @@ const UserSchema = new mongoose.Schema(
       enum: ["admin", "employee", "company"],
       default: "employee",
     },
+    status: {
+      type: String,
+      enum: ["active", "pending"],
+      default: "active",
+    },
+    companyVerificationStatus: {
+      type: String,
+      enum: ["pending", "verified", "rejected"],
+      default: undefined,
+    },
+    isBanned: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

@@ -86,7 +86,7 @@ function StatCard({
 }) {
   return (
     <div
-      className={`bg-white/80 p-5 rounded-2xl border ${borderClass} shadow-[0_4px_20px_rgba(147,70,245,0.02)] flex flex-col justify-between hover:shadow-md hover:-translate-y-0.5 transition-all group duration-300`}
+      className={`group flex flex-col justify-between rounded-xl border bg-white p-4 shadow-sm transition hover:border-violet-200 hover:shadow-md ${borderClass}`}
     >
       <div className="flex justify-between items-start mb-4">
         <div>
@@ -97,9 +97,7 @@ function StatCard({
             {value}
           </h3>
         </div>
-        <div
-          className={`p-2.5 rounded-xl border ${bgClass} ${borderClass} ${textClass} shrink-0`}
-        >
+        <div className={`shrink-0 rounded-lg p-2.5 ${bgClass} ${textClass}`}>
           {icon}
         </div>
       </div>
@@ -213,8 +211,8 @@ export default function UserDashboard() {
           />
         </div>
 
-        <div className="rounded-2xl border border-violet-100/50 bg-white/70 overflow-hidden shadow-xs">
-          <div className="px-4.5 py-3.5 border-b border-violet-100/50 bg-violet-50/30 flex items-center justify-between">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-4.5 py-3.5">
             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               Công việc ứng tuyển gần đây
             </h2>

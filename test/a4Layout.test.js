@@ -1,0 +1,40 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+const A4_WIDTH_MM = 210;
+const A4_HEIGHT_MM = 297;
+
+test("CV wrapper and print page use A4 dimensions", async () => {
+  const css = await readFile(new URL("../src/App.css", import.meta.url), "utf8");
+
+  assert.match(css, /@page\s*{[\s\S]*?size:\s*A4\s*;/);
+  assert.match(css, /\.cv-wrapper\s*{[\s\S]*?width:\s*210mm\s*;/);
+  assert.match(css, /\.cv-wrapper\s*{[\s\S]*?height:\s*297mm\s*;/);
+  assert.ok(Math.abs(A4_WIDTH_MM / A4_HEIGHT_MM - 1 / 1.414) < 0.001);
+});
+
+test("CV editor and library expose PDF download actions backed by print", async () => {
+  const [editor, library] = await Promise.all([
+    readFile(new URL("../src/Pages/Resume.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/Pages/ResumeSelection.jsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(editor, /Tải PDF/);
+  assert.match(editor, /window\.print\(\)/);
+  assert.match(library, /Tải PDF/);
+  assert.match(library, /resume-library-print-root/);
+  assert.match(library, /window\.print\(\)/);
+});
+
+test("uploaded PDF resumes render as clean A4 pages without a native iframe viewer", async () => {
+  const [viewer, pdfPreview] = await Promise.all([
+    readFile(new URL("../src/Pages/ViewResume.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/Components/PdfResumePreview.jsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(viewer, /<PdfResumePreview source={pdfBlobUrl} \/>/);
+  assert.doesNotMatch(viewer, /<iframe/);
+  assert.match(pdfPreview, /getDocument\(source\)/);
+  assert.match(pdfPreview, /className="cv-wrapper pdf-resume-page/);
+});

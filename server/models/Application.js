@@ -33,6 +33,13 @@ const ApplicationSchema = new mongoose.Schema({
     enum: ['Pending', 'Reviewing', 'Interview', 'Offered', 'Rejected', 'Accepted'],
     default: 'Pending',
   },
+  jobSnapshot: {
+    title: { type: String, default: "" },
+    company: { type: String, default: "" },
+    location: { type: String, default: "" },
+    type: { type: String, default: "" },
+    salary: { type: String, default: "" },
+  },
 }, { timestamps: true });
 
 ApplicationSchema.index({ jobId: 1, candidateId: 1 }, { unique: true });

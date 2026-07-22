@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Header from "../Components/Header";
+import PdfResumePreview from "../Components/PdfResumePreview";
 import ResumePreview from "../Components/ResumePreview";
 import useCvZoom from "../hooks/useCvZoom";
+import { useAuth } from "../context/AuthContext.jsx";
 import { SAMPLE_CVS } from "../data/sampleCV";
 import { ArrowLeftIcon, PrinterIcon, ChatBubbleLeftEllipsisIcon } from "@heroicons/react/24/outline";
 
 export default function ViewResume() {
   const { resumeId } = useParams();
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const previewRef = useCvZoom();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -84,13 +87,9 @@ export default function ViewResume() {
     }
   };
 
-  const isPdf = resumeData?.fileName?.toLowerCase().endsWith(".pdf");
-
   return (
     <div className="bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] min-h-screen flex flex-col print:bg-white print:p-0 view-resume-root print:min-h-0 print:h-auto print:overflow-visible">
-      <div className="print:hidden">
-        <Header />
-      </div>
+      {currentUser?.role !== "company" && <div className="print:hidden"><Header /></div>}
 
       <div ref={previewRef} className="flex-1 overflow-y-auto py-8 px-4 flex flex-col items-center print:py-0 print:px-0 view-resume-scroll print:overflow-visible print:h-auto print:flex-none">
         <div className="w-full max-w-5xl flex items-center justify-between mb-6 print:hidden">
@@ -171,39 +170,7 @@ export default function ViewResume() {
               </p>
             </div>
 
-            {isPdf ? (
-              <div className="cv-wrapper relative aspect-[1/1.414] rounded-sm overflow-hidden shadow-lg bg-white border border-gray-100 mb-10">
-                <iframe
-                  src={pdfBlobUrl ? `${pdfBlobUrl}#page=1&toolbar=0&navpanes=0&view=FitH` : ""}
-                  className="absolute inset-0 w-full h-full border-0"
-                  title="Candidate Resume PDF"
-                  style={{ background: "white" }}
-                />
-              </div>
-            ) : (
-              <div className="w-full max-w-2xl bg-white rounded-3xl p-12 border border-gray-100 shadow-lg text-center flex flex-col items-center gap-6 mb-10 animate-fade-in">
-                <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
-                  <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-gray-800">Tài liệu Word (.doc / .docx)</h2>
-                  <p className="text-sm text-gray-500 mt-2 max-w-md">
-                    Trình duyệt không hỗ trợ xem trước trực tiếp tài liệu định dạng Word. Bạn vui lòng tải file CV về máy để xem chi tiết thông tin ứng viên.
-                  </p>
-                </div>
-                <button
-                  onClick={handleDownloadFile}
-                  className="flex items-center gap-2 bg-[#9346F5] hover:bg-[#7e39d1] text-white px-6 py-3 rounded-xl shadow-md text-sm font-bold transition-all cursor-pointer"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Tải CV về máy ({resumeData.fileName || "Tải về"})
-                </button>
-              </div>
-            )}
+            <PdfResumePreview source={pdfBlobUrl} />
           </div>
         ) : (
           <div className="w-full max-w-5xl bg-transparent flex flex-col items-center print:max-w-none view-resume-content">

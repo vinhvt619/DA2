@@ -84,7 +84,7 @@ export function SavedJobsProvider({ children }) {
         credentials: "include",
       });
       if (!res.ok) throw new Error("API error");
-    } catch (err) {
+    } catch {
       // Rollback
       if (wasSaved) {
         setSavedSet((prev) => new Set([jobId, ...prev]));

@@ -27,6 +27,18 @@ const JobSchema = new mongoose.Schema({
     type: String,
     required: true, // e.g. "12-18 triệu"
   },
+  experience: {
+    type: String,
+    default: 'Không yêu cầu',
+  },
+  education: {
+    type: String,
+    default: 'Không yêu cầu',
+  },
+  workModel: {
+    type: String,
+    default: 'Tại văn phòng',
+  },
   description: {
     type: String,
     required: true,
@@ -45,9 +57,11 @@ const JobSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Draft', 'Active', 'Expired'],
+    enum: ['Draft', 'Active', 'Expired', 'Deleted'],
     default: 'Active',
   },
+  deletedAt: { type: Date, default: null },
+  isAdminHidden: { type: Boolean, default: false },
   expiryDate: {
     type: Date,
   },

@@ -10,10 +10,11 @@ import {
 } from "@heroicons/react/24/outline";
 import Terms from "./TermOfUse";
 import { useAuth } from "../context/AuthContext";
+import { getProfileCompletion } from "../utils/profileCompletion.js";
 
 const navItems = [
-  { icon: BriefcaseIcon, label: "Tìm công việc", href: "/MainMenu" },
-  { icon: DocumentTextIcon, label: "Công việc của tôi", href: "/AllJobs" },
+  { icon: BriefcaseIcon, label: "Tìm công việc", href: "/Jobs" },
+  { icon: DocumentTextIcon, label: "Công việc của tôi", href: "/my-applications" },
   { icon: BookmarkIcon, label: "Đã lưu", href: "/saved-jobs" },
   { icon: Cog6ToothIcon, label: "Cài đặt", href: "/SettingAndPrivate" },
 ];
@@ -30,16 +31,7 @@ export default function StickyProfile() {
     .join("")
     .toUpperCase();
 
-  const fields = [
-    currentUser?.fullName,
-    currentUser?.experiences?.[0]?.position,
-    currentUser?.address || currentUser?.hometown,
-    currentUser?.phoneNumber,
-    currentUser?.educations?.length > 0,
-    currentUser?.experiences?.length > 0,
-  ];
-
-  const progress = Math.round((fields.filter(Boolean).length / fields.length) * 100);
+  const progress = getProfileCompletion(currentUser);
 
   return (
     <aside className="w-full shrink-0">
@@ -55,7 +47,7 @@ export default function StickyProfile() {
               </div>
               <div className="mt-0.5 truncate text-[10px] font-medium text-violet-700">
                 {currentUser?.experiences?.[0]?.position || (
-                  <Link to="/Profile" className="text-violet-500 hover:text-violet-700">
+                  <Link to="/PersonalInformation" className="text-violet-500 hover:text-violet-700">
                     + Thêm vị trí
                   </Link>
                 )}
@@ -68,7 +60,7 @@ export default function StickyProfile() {
                 <MapPinIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500" />
                 <span className="line-clamp-2">
                 {currentUser?.address || currentUser?.hometown || (
-                  <Link to="/Profile" className="text-violet-500 hover:text-violet-700">
+                  <Link to="/PersonalInformation" className="text-violet-500 hover:text-violet-700">
                     + Thêm địa chỉ
                   </Link>
                 )}
@@ -78,7 +70,7 @@ export default function StickyProfile() {
                 <AcademicCapIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500" />
                 <span className="line-clamp-2">
                 {currentUser?.educations?.[0]?.school || (
-                  <Link to="/Profile" className="text-violet-500 hover:text-violet-700">
+                  <Link to="/PersonalInformation" className="text-violet-500 hover:text-violet-700">
                     + Thêm học vấn
                   </Link>
                 )}
@@ -100,7 +92,7 @@ export default function StickyProfile() {
           </div>
 
           <Link
-            to="/Profile"
+            to="/PersonalInformation"
             className="mt-3 inline-flex items-center text-[11px] font-semibold text-violet-700 transition hover:text-violet-900 focus:outline-none"
           >
             Xem hồ sơ →

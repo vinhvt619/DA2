@@ -1,40 +1,42 @@
 import "../App.css";
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ToastProvider } from "../Components/Toast";
 import { SavedJobsProvider } from "../context/SavedJobsContext";
 import { AuthProvider } from "../context/AuthContext.jsx";
 import { SocketProvider } from "../context/SocketContext.jsx";
 import ScrollToTop from "../Components/ScrollToTop.jsx";
-import Login from "./Login.jsx";
-import WelcomePage from "./Welcome_Page.jsx";
-import Register from "./Register.jsx";
-import MainMenu from "./MainMenu.jsx";
-import TopPage from "./TopPage.jsx";
-import WelcomePageCustomer from "./Welcome_Page_Customer.jsx";
-import Profile from "./Profile.jsx";
-import Messenger from "./Message.jsx";
-import Accessibility from "./Accessibily.jsx";
-import SettingAndPrivate from "./SettingAndPrivate.jsx";
-import CreateResume from "./Resume.jsx";
-import ResumeSelection from "./ResumeSelection.jsx";
-import UserDashboard from "./UserDashboard.jsx";
-import AdminLayout from "./AdminLayout.jsx";
-import AdminDashboard from "./AdminDashboard.jsx";
-import AdminUsers from "./AdminUsers.jsx";
-import AdminJobs from "./AdminJobs.jsx";
-import AdminReports from "./AdminReports.jsx";
-import AdminReviews from "./AdminReviews.jsx";
-import AdminSystemLogs from "./AdminSystemLogs.jsx";
-import CompanyDashboard from "./CompanyDashboard.jsx";
-import ViewResume from "./ViewResume.jsx";
-import UserProfile from "./UserProfile.jsx";
-import News from "./News.jsx";
-import NewsDetail from "./NewsDetail.jsx";
-import JobDetail from "./JobDetail.jsx";
-import AllJobs from "./AllJobs.jsx";
-import SavedJobs from "./SavedJobs.jsx";
-import NotificationsPage from "./NotificationsPage.jsx";
+import { CompanyAwarePage } from "./CompanyPortalShell.jsx";
+const Login = lazy(() => import("./Login.jsx"));
+const WelcomePage = lazy(() => import("./WelcomePage.jsx"));
+const Register = lazy(() => import("./Register.jsx"));
+const MainMenu = lazy(() => import("./MainMenu.jsx"));
+const Jobs = lazy(() => import("./Jobs.jsx"));
+const TopPage = lazy(() => import("./TopPage.jsx"));
+const PersonalInformation = lazy(() => import("./PersonalInformation.jsx"));
+const Messenger = lazy(() => import("./Message.jsx"));
+const Accessibility = lazy(() => import("./Accessibility.jsx"));
+const SettingAndPrivate = lazy(() => import("./SettingAndPrivate.jsx"));
+const CreateResume = lazy(() => import("./Resume.jsx"));
+const ResumeSelection = lazy(() => import("./ResumeSelection.jsx"));
+const UserDashboard = lazy(() => import("./UserDashboard.jsx"));
+const AdminLayout = lazy(() => import("./AdminLayout.jsx"));
+const AdminDashboard = lazy(() => import("./AdminDashboard.jsx"));
+const AdminUsers = lazy(() => import("./AdminUsers.jsx"));
+const AdminJobs = lazy(() => import("./AdminJobs.jsx"));
+const AdminReports = lazy(() => import("./AdminReports.jsx"));
+const AdminCompanies = lazy(() => import("./AdminCompanies.jsx"));
+const AdminSystemLogs = lazy(() => import("./AdminSystemLogs.jsx"));
+const CompanyDashboard = lazy(() => import("./CompanyDashboard.jsx"));
+const ViewResume = lazy(() => import("./ViewResume.jsx"));
+const PublicProfile = lazy(() => import("./PublicProfile.jsx"));
+const News = lazy(() => import("./News.jsx"));
+const NewsDetail = lazy(() => import("./NewsDetail.jsx"));
+const JobDetail = lazy(() => import("./JobDetail.jsx"));
+const AllJobs = lazy(() => import("./AllJobs.jsx"));
+const MyApplications = lazy(() => import("./MyApplications.jsx"));
+const SavedJobs = lazy(() => import("./SavedJobs.jsx"));
+const NotificationsPage = lazy(() => import("./NotificationsPage.jsx"));
 
 
 function App() {
@@ -45,19 +47,19 @@ function App() {
           <SavedJobsProvider>
             <BrowserRouter>
               <ScrollToTop />
+              <Suspense fallback={<div className="min-h-screen grid place-items-center text-sm font-semibold text-slate-500">Đang tải...</div>}>
               <Routes>
                 <Route path="/" element={<WelcomePage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/MainMenu" element={<MainMenu />} />
+              <Route path="/Jobs" element={<Jobs />} />
               <Route path="/TopPage" element={<TopPage />} />
-              <Route
-                path="/WelcomePageCustomer"
-                element={<WelcomePageCustomer />}
-              />
+              <Route path="/WelcomePageCustomer" element={<Navigate to="/MainMenu" replace />} />
               <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/Profile" element={<Profile />} />
-              <Route path="/Message" element={<Messenger />} />
+              <Route path="/PersonalInformation" element={<PersonalInformation />} />
+              <Route path="/Profile" element={<Navigate to="/PersonalInformation" replace />} />
+              <Route path="/Message" element={<CompanyAwarePage activeItem="messages"><Messenger /></CompanyAwarePage>} />
               <Route path="/Accessibility" element={<Accessibility />} />
               <Route path="/SettingAndPrivate" element={<SettingAndPrivate />} />
               <Route path="/resume" element={<CreateResume />} />
@@ -69,19 +71,23 @@ function App() {
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/jobs" element={<AdminJobs />} />
                 <Route path="/admin/reports" element={<AdminReports />} />
-                <Route path="/admin/reviews" element={<AdminReviews />} />
+                <Route path="/admin/companies" element={<AdminCompanies />} />
+                <Route path="/admin/reviews" element={<Navigate to="/admin/companies" replace />} />
                 <Route path="/admin/system-logs" element={<AdminSystemLogs />} />
               </Route>
               <Route path="/AdminDashboard" element={<Navigate to="/admin" replace />} />
               <Route path="/CompanyDashboard" element={<CompanyDashboard />} />
-              <Route path="/resume/view/:resumeId" element={<ViewResume />} />
-              <Route path="/user-profile/:userId" element={<UserProfile />} />
+              <Route path="/resume/view/:resumeId" element={<CompanyAwarePage activeItem="applications"><ViewResume /></CompanyAwarePage>} />
+              <Route path="/profile/:userId" element={<CompanyAwarePage activeItem="applications"><PublicProfile /></CompanyAwarePage>} />
+              <Route path="/user-profile/:userId" element={<CompanyAwarePage activeItem="applications"><PublicProfile /></CompanyAwarePage>} />
               <Route path="/News" element={<News />} />
               <Route path="/News/:slug" element={<NewsDetail />} />
               <Route path="/jobs/:jobId" element={<JobDetail />} />
               <Route path="/AllJobs" element={<AllJobs />} />
+              <Route path="/my-applications" element={<MyApplications />} />
               <Route path="/saved-jobs" element={<SavedJobs />} />
-            </Routes>
+              </Routes>
+              </Suspense>
           </BrowserRouter>
         </SavedJobsProvider>
       </ToastProvider>

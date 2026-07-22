@@ -3,12 +3,13 @@ import { useAuth } from '../context/AuthContext';
 
 export default function useNotifications() {
   const { currentUser } = useAuth();
+  const currentUserId = currentUser?._id;
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const fetchUnreadCount = useCallback(async () => {
-    if (!currentUser) return;
+    if (!currentUserId) return;
     try {
       const res = await fetch('/api/notifications/unread-count', {
         credentials: 'include'
@@ -20,10 +21,10 @@ export default function useNotifications() {
     } catch (error) {
       console.error('Lỗi khi fetch unread count:', error);
     }
-  }, [currentUser?._id]);
+  }, [currentUserId]);
 
   const fetchNotifications = useCallback(async (page = 1, limit = 20) => {
-    if (!currentUser?._id) return;
+    if (!currentUserId) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/notifications?page=${page}&limit=${limit}`, {
@@ -38,10 +39,10 @@ export default function useNotifications() {
     } finally {
       setLoading(false);
     }
-  }, [currentUser?._id]);
+  }, [currentUserId]);
 
   const markAsRead = async (id) => {
-    if (!currentUser) return;
+    if (!currentUserId) return;
     
     // Cập nhật Optimistic UI (UI mượt mà, phản hồi tức thì)
     setUnreadCount((prev) => Math.max(0, prev - 1));
@@ -66,9 +67,29 @@ export default function useNotifications() {
     }
   };
 
+  const markAllAsRead = useCallback(async () => {
+    if (!currentUserId) return;
+
+    setUnreadCount(0);
+    setNotifications((prev) => prev.map((notification) => ({ ...notification, isRead: true })));
+
+    try {
+      const response = await fetch('/api/notifications/mark-all-read', {
+        method: 'PUT',
+        credentials: 'include',
+        keepalive: true,
+      });
+      if (!response.ok) throw new Error('Không thể đánh dấu thông báo đã đọc');
+    } catch (error) {
+      console.error('Lỗi khi đánh dấu tất cả thông báo đã đọc:', error);
+      fetchUnreadCount();
+      fetchNotifications();
+    }
+  }, [currentUserId, fetchNotifications, fetchUnreadCount]);
+
   useEffect(() => {
     // Không làm gì nếu chưa login
-    if (!currentUser) return;
+    if (!currentUserId) return;
 
     // Lần đầu tiên gọi ngay lập tức để user không phải đợi 30s
     fetchUnreadCount();
@@ -78,13 +99,14 @@ export default function useNotifications() {
 
     // Dọn dẹp an toàn khi component unmount
     return () => clearInterval(interval);
-  }, [currentUser?._id, fetchUnreadCount]);
+  }, [currentUserId, fetchUnreadCount]);
 
   return {
     unreadCount,
     notifications,
     loading,
     fetchNotifications,
-    markAsRead
+    markAsRead,
+    markAllAsRead,
   };
 }

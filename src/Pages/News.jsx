@@ -1,58 +1,91 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import Header from "../Components/Header.jsx";
 import {
   ArrowRightIcon,
+  ArrowUpRightIcon,
   CalendarDaysIcon,
+  ClockIcon,
   MagnifyingGlassIcon,
-  NewspaperIcon,
   SparklesIcon,
-  TagIcon,
 } from "@heroicons/react/24/outline";
-import { featuredArticle, getCategoryImg, newsArticles, newsCategories } from "../data/newsArticles.js";
+import Header from "../Components/Header.jsx";
+import {
+  featuredArticle,
+  getCategoryImg,
+  newsArticles,
+  newsCategories,
+} from "../data/newsArticles.js";
 
-const popularArticles = newsArticles.slice(1, 5);
 const allCategory = newsCategories[0];
+const secondaryFeatured = newsArticles
+  .filter((article) => article.slug !== featuredArticle.slug)
+  .slice(0, 2);
+const popularArticles = newsArticles.slice(1, 4);
 
-function ArticleCard({ article }) {
-  const imageUrl = getCategoryImg(article.slug, article.category);
+function normalizeText(value = "") {
+  return value
+    .toLocaleLowerCase("vi-VN")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/đ/g, "d");
+}
 
+function SecondaryArticle({ article }) {
   return (
     <Link
       to={`/News/${article.slug}`}
-      className="group flex flex-col rounded-xl border border-gray-200 bg-white overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all"
+      className="group grid min-h-[112px] grid-cols-[92px_minmax(0,1fr)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_2px_8px_rgba(15,23,42,0.035)] transition hover:border-violet-200 hover:shadow-md lg:grid-cols-1 lg:grid-rows-[104px_1fr]"
     >
-      <div className="h-40 bg-gray-100 relative overflow-hidden">
+      <span className="overflow-hidden bg-violet-50">
         <img
-          src={imageUrl}
+          src={getCategoryImg(article.slug, article.category)}
           alt={article.title}
-          className="w-full h-full object-cover"
           loading="lazy"
+          className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
         />
-        <div className="absolute bottom-2 left-2.5">
-          <span className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
-            <TagIcon className="w-2.5 h-2.5" />
-            {article.category}
-          </span>
-        </div>
-      </div>
-      <div className="p-4 flex flex-col flex-1 text-left">
-        <h2 className="line-clamp-2 text-sm font-semibold leading-snug text-slate-800 group-hover:text-violet-600 mb-1.5">
+      </span>
+      <span className="min-w-0 p-3">
+        <span className="block text-[10px] font-semibold text-violet-700">
+          {article.category}
+        </span>
+        <span className="mt-1 line-clamp-2 text-xs font-semibold leading-4.5 text-slate-800 transition group-hover:text-violet-700">
           {article.title}
-        </h2>
-        <p className="line-clamp-2 text-xs text-slate-400 leading-relaxed flex-1">
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+function ArticleRow({ article }) {
+  return (
+    <Link
+      to={`/News/${article.slug}`}
+      className="group grid grid-cols-[92px_minmax(0,1fr)] items-center gap-3 rounded-xl border border-slate-200 bg-white p-2.5 shadow-[0_2px_8px_rgba(15,23,42,0.03)] transition hover:border-violet-200 hover:shadow-md sm:grid-cols-[112px_minmax(0,1fr)_auto]"
+    >
+      <span className="h-[78px] overflow-hidden rounded-lg bg-violet-50">
+        <img
+          src={getCategoryImg(article.slug, article.category)}
+          alt={article.title}
+          loading="lazy"
+          className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+        />
+      </span>
+
+      <span className="min-w-0">
+        <span className="flex flex-wrap items-center gap-1.5 text-[9px] font-medium text-slate-400">
+          <span className="text-violet-700">{article.category}</span>
+          <span aria-hidden="true">•</span>
+          <span>{article.date}</span>
+        </span>
+        <span className="mt-1 line-clamp-2 text-[13px] font-semibold leading-4.5 text-slate-900 transition group-hover:text-violet-700">
+          {article.title}
+        </span>
+        <span className="mt-1 hidden line-clamp-1 text-[10px] leading-4 text-slate-500 sm:block">
           {article.summary}
-        </p>
-        <div className="mt-4 flex items-center justify-between border-t border-gray-50 pt-3">
-          <span className="flex items-center gap-1 text-[11px] text-slate-400">
-            <CalendarDaysIcon className="w-3 h-3 text-slate-400" />
-            {article.date}
-          </span>
-          <span className="text-[11px] font-medium text-violet-600 group-hover:underline">
-            Đọc tiếp →
-          </span>
-        </div>
-      </div>
+        </span>
+      </span>
+
+      <ArrowUpRightIcon className="hidden h-4 w-4 shrink-0 text-violet-400 transition group-hover:text-violet-700 sm:block" />
     </Link>
   );
 }
@@ -60,184 +93,221 @@ function ArticleCard({ article }) {
 export default function News() {
   const [activeCategory, setActiveCategory] = useState(allCategory);
   const [keyword, setKeyword] = useState("");
+  const [sortMode, setSortMode] = useState("newest");
 
   const filteredArticles = useMemo(() => {
-    const q = keyword.trim().toLowerCase();
-    return newsArticles.filter((a) => {
-      if (a.slug === featuredArticle.slug) return false;
-      const matchCat = activeCategory === allCategory || a.category === activeCategory;
-      const matchKey =
-        !q || [a.title, a.summary, a.category].join(" ").toLowerCase().includes(q);
-      return matchCat && matchKey;
+    const query = normalizeText(keyword.trim());
+    const filtered = newsArticles.filter((article) => {
+      if (article.slug === featuredArticle.slug) return false;
+      const matchesCategory =
+        activeCategory === allCategory || article.category === activeCategory;
+      const searchableText = normalizeText(
+        [article.title, article.summary, article.category].filter(Boolean).join(" "),
+      );
+      return matchesCategory && (!query || searchableText.includes(query));
     });
-  }, [activeCategory, keyword]);
+
+    if (sortMode === "popular") {
+      return [...filtered].sort((a, b) => b.summary.length - a.summary.length);
+    }
+    return filtered;
+  }, [activeCategory, keyword, sortMode]);
+
+  const resetFilters = () => {
+    setKeyword("");
+    setActiveCategory(allCategory);
+    setSortMode("newest");
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F8F4FC] to-[#EDE5F7] page-transition">
+    <div className="min-h-screen bg-[var(--page-background)] font-sans text-slate-900 antialiased page-transition">
       <Header />
 
-      <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 pb-16">
-        <div className="flex flex-col items-center text-center py-6 sm:py-8 mb-6">
-          <div className="inline-flex items-center gap-1.5 rounded-md bg-white border border-gray-200 text-slate-600 px-3 py-1 text-[11px] font-semibold mb-4">
-            <NewspaperIcon className="h-3.5 w-3.5" />
-            RabbitCV · Tin tức
+      <main className="mx-auto w-full max-w-[1120px] px-3 py-5 sm:px-5 lg:px-6">
+        <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-xl font-bold tracking-[-0.02em] text-slate-950 sm:text-2xl">
+              Tin tức &amp; Cẩm nang nghề nghiệp
+            </h1>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Kiến thức thực tế giúp bạn tự tin hơn trên hành trình tìm việc.
+            </p>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3 max-w-2xl">
-            Nghề nghiệp & Thị trường việc làm
-          </h1>
-          <p className="text-gray-500 text-sm max-w-xl leading-relaxed mb-6">
-            Cập nhật xu hướng tuyển dụng, kỹ năng nghề nghiệp và góc nhìn thực tế
-            giúp bạn chuẩn bị tốt hơn cho hành trình tìm việc.
-          </p>
 
-          <label className="flex h-10 w-full max-w-md items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 shadow-xs">
-            <MagnifyingGlassIcon className="h-4 w-4 shrink-0 text-gray-400" />
+          <label className="relative w-full sm:w-72">
+            <span className="sr-only">Tìm bài viết</span>
+            <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
+              type="search"
               value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              className="h-full w-full bg-transparent text-sm outline-none placeholder:text-gray-450"
-              placeholder="Tìm bài viết theo từ khóa..."
+              onChange={(event) => setKeyword(event.target.value)}
+              placeholder="Tìm bài viết..."
+              className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-xs text-slate-800 shadow-[0_1px_3px_rgba(15,23,42,0.03)] outline-none placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
             />
           </label>
-        </div>
+        </section>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_17rem] xl:grid-cols-[1fr_19rem]">
-          <div className="space-y-5">
-            <Link
-              to={`/News/${featuredArticle.slug}`}
-              className="group flex flex-col md:flex-row rounded-xl overflow-hidden border border-gray-200 bg-white hover:shadow-md hover:-translate-y-0.5 transition-all"
-            >
-              <div className="w-full md:w-[40%] h-48 md:h-auto bg-gray-100 relative overflow-hidden">
-                <img
-                  src={getCategoryImg(featuredArticle.slug, featuredArticle.category)}
-                  alt={featuredArticle.title}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              </div>
-              
-              <div className="w-full md:w-[60%] p-6 flex flex-col justify-between text-left">
-                <div>
-                  <span className="inline-flex items-center gap-1 rounded-md bg-violet-50 text-violet-700 border border-violet-100 px-2.5 py-0.5 text-[11px] font-semibold mb-3">
-                    <SparklesIcon className="h-3 w-3 text-violet-600" />
-                    Bài viết nổi bật
-                  </span>
-                  <h2 className="text-lg font-bold leading-snug text-slate-800 group-hover:text-violet-600">
-                    {featuredArticle.title}
-                  </h2>
-                  <p className="mt-2 line-clamp-2 text-xs sm:text-sm text-slate-400 leading-relaxed">
-                    {featuredArticle.summary}
-                  </p>
-                </div>
-                
-                <div className="mt-5 flex flex-wrap items-center gap-3 pt-4 border-t border-gray-50">
-                  <span className="rounded-md border border-violet-100 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-600">
-                    {featuredArticle.category}
-                  </span>
-                  <span className="flex items-center gap-1 text-[11px] text-slate-400">
-                    <CalendarDaysIcon className="h-3.5 w-3.5 text-slate-400" />
-                    {featuredArticle.date}
-                  </span>
-                  <span className="ml-auto text-xs font-semibold text-violet-600 group-hover:underline">
-                    Đọc bài viết →
-                  </span>
-                </div>
-              </div>
-            </Link>
+        <nav
+          aria-label="Danh mục bài viết"
+          className="mt-4 flex gap-5 overflow-x-auto border-b border-slate-200 no-scrollbar"
+        >
+          {newsCategories.map((category) => {
+            const active = activeCategory === category;
+            return (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setActiveCategory(category)}
+                aria-pressed={active}
+                className={`relative shrink-0 pb-2.5 text-[11px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+                  active ? "text-violet-700" : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                {category}
+                {active && (
+                  <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-violet-600" />
+                )}
+              </button>
+            );
+          })}
+        </nav>
 
-            <div className="rounded-xl border border-gray-200 bg-white p-2.5 shadow-sm">
-              <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
-                {newsCategories.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setActiveCategory(cat)}
-                    className={`shrink-0 rounded-md px-3.5 py-1.5 text-xs font-medium transition-colors ${
-                      activeCategory === cat
-                        ? "bg-violet-600 text-white"
-                        : "bg-white text-gray-500 border border-gray-200 hover:text-violet-600"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
+        <section className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(220px,0.75fr)]">
+          <Link
+            to={`/News/${featuredArticle.slug}`}
+            className="group grid overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_2px_8px_rgba(15,23,42,0.035)] transition hover:border-violet-200 hover:shadow-md sm:grid-cols-[43%_57%]"
+          >
+            <span className="relative h-48 overflow-hidden bg-violet-50 sm:h-auto sm:min-h-[260px]">
+              <img
+                src={getCategoryImg(featuredArticle.slug, featuredArticle.category)}
+                alt={featuredArticle.title}
+                className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025]"
+              />
+              <span className="absolute left-3 top-3 rounded-full border border-violet-100 bg-white/95 px-2.5 py-1 text-[9px] font-bold text-violet-700 shadow-sm">
+                Tiêu điểm
+              </span>
+            </span>
+
+            <span className="flex min-w-0 flex-col justify-center p-4 sm:p-5">
+              <span className="flex flex-wrap items-center gap-1.5 text-[10px] font-medium text-slate-400">
+                <span className="text-violet-700">{featuredArticle.category}</span>
+                <span aria-hidden="true">•</span>
+                <span>{featuredArticle.date}</span>
+              </span>
+              <span className="mt-2 text-base font-bold leading-5.5 text-slate-900 transition group-hover:text-violet-700 sm:text-lg">
+                {featuredArticle.title}
+              </span>
+              <span className="mt-2 line-clamp-3 text-xs leading-5 text-slate-500">
+                {featuredArticle.summary}
+              </span>
+              <span className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+                <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
+                  <ClockIcon className="h-3.5 w-3.5" />6 phút đọc
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-700">
+                  Đọc bài viết
+                  <ArrowRightIcon className="h-3.5 w-3.5" />
+                </span>
+              </span>
+            </span>
+          </Link>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            {secondaryFeatured.map((article) => (
+              <SecondaryArticle key={article.slug} article={article} />
+            ))}
+          </div>
+        </section>
+
+        <div className="mt-5 grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_240px]">
+          <section aria-labelledby="latest-news-title">
+            <div className="mb-2.5 flex items-end justify-between gap-3">
+              <div>
+                <h2 id="latest-news-title" className="text-base font-bold text-slate-900">
+                  Bài viết mới nhất
+                </h2>
+                <p className="mt-0.5 text-[10px] text-slate-400">
+                  {filteredArticles.length} bài viết
+                </p>
               </div>
+              <label>
+                <span className="sr-only">Sắp xếp bài viết</span>
+                <select
+                  value={sortMode}
+                  onChange={(event) => setSortMode(event.target.value)}
+                  className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-[10px] font-medium text-slate-600 outline-none focus:border-violet-400"
+                >
+                  <option value="newest">Mới nhất</option>
+                  <option value="popular">Đọc nhiều nhất</option>
+                </select>
+              </label>
             </div>
 
             {filteredArticles.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2.5">
                 {filteredArticles.map((article) => (
-                  <ArticleCard key={article.slug} article={article} />
+                  <ArticleRow key={article.slug} article={article} />
                 ))}
               </div>
             ) : (
-              <div className="rounded-xl border border-gray-200 bg-white py-14 text-center shadow-sm">
-                <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-gray-105 text-gray-400">
+              <div className="rounded-xl border border-slate-200 bg-white px-5 py-12 text-center shadow-[0_2px_8px_rgba(15,23,42,0.03)]">
+                <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 text-violet-500">
                   <MagnifyingGlassIcon className="h-5 w-5" />
-                </div>
-                <p className="text-sm font-semibold text-gray-700">Không tìm thấy bài viết phù hợp</p>
-                <p className="mt-1 text-xs text-gray-400">Thử đổi từ khóa hoặc chọn danh mục khác</p>
+                </span>
+                <p className="mt-3 text-sm font-semibold text-slate-800">
+                  Không tìm thấy bài viết phù hợp
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Thử đổi từ khóa hoặc chọn danh mục khác.
+                </p>
                 <button
-                  onClick={() => {
-                    setKeyword("");
-                    setActiveCategory(allCategory);
-                  }}
-                  className="mt-3 text-xs font-medium text-violet-600 hover:underline"
+                  type="button"
+                  onClick={resetFilters}
+                  className="mt-3 text-xs font-semibold text-violet-700 hover:text-violet-900"
                 >
                   Xóa bộ lọc
                 </button>
               </div>
             )}
-          </div>
+          </section>
 
-          <aside className="lg:sticky lg:top-6 lg:self-start space-y-4">
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
-                <span className="h-3 w-1 rounded-sm bg-violet-600" />
-                Bài viết phổ biến
-              </h3>
-              <div className="space-y-1">
-                {popularArticles.map((article, i) => (
+          <aside className="space-y-3 lg:sticky lg:top-20">
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,0.035)]">
+              <h2 className="text-sm font-bold text-slate-900">Đọc nhiều nhất</h2>
+              <div className="mt-2">
+                {popularArticles.map((article, index) => (
                   <Link
                     key={article.slug}
                     to={`/News/${article.slug}`}
-                    className="group flex gap-3 items-start rounded-lg p-2 -mx-1 hover:bg-gray-50"
+                    className="group grid grid-cols-[26px_minmax(0,1fr)] gap-2.5 border-b border-slate-100 py-3 first:pt-1 last:border-0 last:pb-0"
                   >
-                    <span
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${
-                        i === 0
-                          ? "bg-violet-600 text-white"
-                          : "bg-gray-100 text-gray-500"
-                      }`}
-                    >
-                      {i + 1}
+                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-violet-50 text-[10px] font-bold text-violet-700">
+                      {index + 1}
                     </span>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-medium text-violet-600 mb-0.5">
-                        {article.category}
-                      </p>
-                      <p className="text-xs font-medium leading-relaxed text-gray-800 group-hover:text-violet-600 line-clamp-2">
-                        {article.title}
-                      </p>
-                    </div>
+                    <span className="line-clamp-2 text-[11px] font-medium leading-4.5 text-slate-700 transition group-hover:text-violet-700">
+                      {article.title}
+                    </span>
                   </Link>
                 ))}
               </div>
-            </div>
+            </section>
 
-            <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-5 shadow-sm">
-              <p className="text-xs font-semibold text-slate-800 mb-1">Mẹo nhỏ</p>
-              <p className="text-xs leading-relaxed text-gray-500">
-                Đọc tin tức thường xuyên giúp bạn nắm bắt xu hướng tuyển dụng và chuẩn bị CV
-                phù hợp hơn.
+            <section className="rounded-xl border border-violet-200 bg-violet-50/60 p-4">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-violet-700 shadow-sm">
+                <SparklesIcon className="h-4 w-4" />
+              </span>
+              <h2 className="mt-3 text-sm font-bold text-slate-900">Tạo CV chuyên nghiệp</h2>
+              <p className="mt-1.5 text-[10px] leading-4 text-slate-500">
+                Ứng dụng kiến thức vừa đọc vào CV của riêng bạn.
               </p>
               <Link
                 to="/ResumeSelection"
-                className="mt-3.5 inline-flex items-center gap-1 text-xs font-medium text-violet-600 hover:underline"
+                className="mt-3 flex h-9 w-full items-center justify-center gap-1 rounded-lg bg-violet-600 text-[11px] font-bold text-white transition hover:bg-violet-700"
               >
-                Tạo CV ngay
-                <ArrowRightIcon className="h-3 w-3" />
+                Bắt đầu tạo CV
+                <ArrowRightIcon className="h-3.5 w-3.5" />
               </Link>
-            </div>
+            </section>
           </aside>
         </div>
       </main>

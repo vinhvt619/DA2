@@ -1,181 +1,135 @@
 import {
-  BellIcon,
-  BellSlashIcon,
-  ChevronDownIcon,
-  DocumentTextIcon,
-  FlagIcon,
-  InboxArrowDownIcon,
-  MinusCircleIcon,
-  PhotoIcon,
-  ShieldCheckIcon,
-  UserCircleIcon,
+  AcademicCapIcon,
+  BriefcaseIcon,
+  BuildingOffice2Icon,
+  EnvelopeIcon,
+  GlobeAltIcon,
+  MapPinIcon,
   TrashIcon,
+  UserCircleIcon,
+  UsersIcon,
 } from "@heroicons/react/24/outline";
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export default function ProfileChatBox({ activeRoom = "general", partner, onHideChat }) {
-  const navigate = useNavigate();
-  const [showChatInfo, setShowChatInfo] = useState(false);
-  const [showFile, setShowFile] = useState(false);
-  const [showSupport, setShowSupport] = useState(false);
+const getPartnerId = (partner) => partner?.id || partner?._id || "";
 
-  const isGeneral = activeRoom === "general";
-  const name = isGeneral ? "Phòng nhóm chung" : (partner?.name || "Đang tải...");
-  const roleText = isGeneral
-    ? "Phòng chung công khai"
-    : partner?.role === "company"
-      ? "Doanh nghiệp"
-      : "Ứng viên";
+export default function ProfileChatBox({ partner, onHideChat }) {
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState(partner || null);
+  const initialPartnerId = getPartnerId(partner);
+  const initialPartnerName = partner?.name || partner?.fullName || partner?.username || "";
+  const initialPartnerRole = partner?.role || "";
+
+  useEffect(() => {
+    if (!initialPartnerId) return undefined;
+
+    setProfile((currentProfile) => (
+      getPartnerId(currentProfile) === initialPartnerId
+        ? currentProfile
+        : {
+            id: initialPartnerId,
+            name: initialPartnerName,
+            role: initialPartnerRole,
+          }
+    ));
+
+    let cancelled = false;
+    fetch(`/api/user/profile/${initialPartnerId}`, { credentials: "include" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setProfile(data.user || data);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialPartnerId, initialPartnerName, initialPartnerRole]);
+
+  const name = profile?.fullName || profile?.name || profile?.username || "Đang tải...";
+  const isCompany = profile?.role === "company";
+  const initials = useMemo(
+    () => name.split(" ").filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase(),
+    [name],
+  );
+  const education = profile?.educations?.[0];
+  const partnerId = getPartnerId(profile) || initialPartnerId;
+
+  const details = isCompany
+    ? [
+        { icon: BuildingOffice2Icon, text: profile?.companyIndustry || "Chưa cập nhật ngành nghề" },
+        { icon: MapPinIcon, text: profile?.address || profile?.country || "Chưa cập nhật địa chỉ" },
+        { icon: UsersIcon, text: profile?.companySize || "Chưa cập nhật quy mô" },
+        { icon: GlobeAltIcon, text: profile?.companyWebsite || "Chưa cập nhật website" },
+      ]
+    : [
+        { icon: MapPinIcon, text: profile?.address || profile?.country || "Chưa cập nhật địa chỉ" },
+        { icon: EnvelopeIcon, text: profile?.email || "Chưa cập nhật email" },
+        { icon: AcademicCapIcon, text: education?.school || education?.schoolName || "Chưa cập nhật học vấn" },
+        { icon: BriefcaseIcon, text: profile?.experiences?.length ? `${profile.experiences.length} kinh nghiệm đã cập nhật` : "Chưa cập nhật kinh nghiệm" },
+      ];
 
   return (
-    <div className="h-full w-full bg-white flex flex-col items-center py-6 px-4 border-l border-gray-150">
-      <div className="relative">
-        <div className="h-16 w-16 rounded-full bg-violet-50 flex items-center justify-center font-bold text-violet-600 text-xl border border-violet-100">
-          {name.substring(0, 2).toUpperCase()}
+    <aside className="flex min-h-full w-full flex-col bg-white px-5 py-6">
+      <div className="relative mx-auto">
+        <div className="grid h-16 w-16 place-items-center rounded-full bg-violet-600 text-lg font-bold text-white">
+          {initials || "TK"}
         </div>
-        <div className="absolute bottom-0 right-0 h-3.5 w-3.5 bg-green-500 rounded-full border-2 border-white"></div>
+        <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white bg-emerald-500" />
       </div>
 
-      <h2 className="text-sm font-bold text-gray-900 mt-3 text-center">
-        {name}
-      </h2>
-      <div className="text-[9px] font-bold text-gray-400 mt-0.5 uppercase tracking-wide">
-        {roleText}
-      </div>
+      <h2 className="mt-3 text-center text-sm font-bold text-slate-900">{name}</h2>
+      <p className="mt-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+        {isCompany ? "Doanh nghiệp" : "Ứng viên"}
+      </p>
 
-      <div className="flex gap-3 mt-5 w-full justify-center">
+      <button
+        type="button"
+        onClick={() => partnerId && navigate(`/profile/${partnerId}`)}
+        disabled={!partnerId}
+        className="mx-auto mt-4 flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <UserCircleIcon className="size-4" />
+        Xem hồ sơ
+      </button>
+
+      <section className="mt-6 border-t border-slate-200 pt-4">
+        <h3 className="text-xs font-bold text-slate-800">
+          {isCompany ? "Thông tin doanh nghiệp" : "Thông tin ứng viên"}
+        </h3>
+        <div className="mt-2 space-y-1">
+          {details.map(({ icon: Icon, text }) => (
+            <div key={text} className="flex items-start gap-2.5 py-2 text-xs leading-relaxed text-slate-500">
+              <Icon className="mt-0.5 size-4 shrink-0 text-violet-500" />
+              <span className="break-words">{text}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-3 border-t border-slate-200 pt-4">
+        <div className="rounded-xl bg-violet-50 p-3">
+          <p className="text-[10px] font-medium text-slate-400">Cuộc trò chuyện</p>
+          <p className="mt-1 text-xs font-semibold text-slate-700">Trao đổi tuyển dụng trực tiếp</p>
+          <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
+            Tin nhắn và tệp đính kèm được lưu trong cuộc trò chuyện này.
+          </p>
+        </div>
+      </section>
+
+      {onHideChat && (
         <button
+          type="button"
           onClick={() => {
-            if (!isGeneral && partner?.id) {
-              navigate(`/user-profile/${partner.id}`);
-            } else {
-              navigate("/Profile");
-            }
+            if (window.confirm("Bạn có chắc chắn muốn xóa/ẩn đoạn chat này không?")) onHideChat();
           }}
-          className="flex items-center justify-center gap-1 px-3 py-1.5 rounded-md bg-gray-50 border border-gray-200 text-gray-600 text-xs font-semibold hover:bg-gray-100 cursor-pointer"
+          className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-100"
         >
-          <UserCircleIcon className="size-4 text-gray-400" />
-          Cá nhân
+          <TrashIcon className="size-4" />
+          Xóa đoạn chat
         </button>
-        <button className="flex items-center justify-center gap-1 px-3 py-1.5 rounded-md bg-gray-50 border border-gray-200 text-gray-600 text-xs font-semibold hover:bg-gray-100">
-          <BellIcon className="size-4 text-gray-400" />
-          Thông báo
-        </button>
-      </div>
-
-      <div className="w-full mt-6 space-y-2">
-        <div className="flex flex-col items-center w-full">
-          <button
-            className="w-full font-semibold text-xs text-gray-700 bg-gray-50 border border-gray-200 p-2.5 px-3 rounded-lg flex justify-between items-center hover:bg-gray-100 cursor-pointer"
-            onClick={() => setShowChatInfo((prev) => !prev)}
-          >
-            <span>Thông tin về đoạn chat</span>
-            <ChevronDownIcon
-              className={`size-3.5 text-gray-400 transition-transform ${showChatInfo ? "rotate-180" : ""}`}
-            />
-          </button>
-
-          {showChatInfo && (
-            <div className="w-[95%] border-x border-b border-gray-200 p-2.5 px-3 rounded-b-lg bg-gray-50/30 flex items-center gap-2">
-              <InboxArrowDownIcon className="size-4 text-violet-600" />
-              <span className="text-xs text-gray-600 font-medium">
-                Tin nhắn đã ghim
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-col items-center w-full">
-          <button
-            className="w-full font-semibold text-xs text-gray-700 bg-gray-50 border border-gray-200 p-2.5 px-3 rounded-lg flex justify-between items-center hover:bg-gray-100 cursor-pointer"
-            onClick={() => setShowFile((prev) => !prev)}
-          >
-            <span>File phương tiện & file</span>
-            <ChevronDownIcon
-              className={`size-3.5 text-gray-400 transition-transform ${showFile ? "rotate-180" : ""}`}
-            />
-          </button>
-
-          {showFile && (
-            <div className="w-[95%] flex flex-col border-x border-b border-gray-200 rounded-b-lg overflow-hidden">
-              <div className="p-2.5 px-3 bg-gray-50/30 hover:bg-gray-100/50 cursor-pointer flex items-center gap-2 border-b border-gray-100">
-                <PhotoIcon className="size-4 text-gray-500" />
-                <span className="text-xs text-gray-600 font-medium">
-                  File phương tiện
-                </span>
-              </div>
-              <div className="p-2.5 px-3 bg-gray-50/30 hover:bg-gray-100/50 cursor-pointer flex items-center gap-2">
-                <DocumentTextIcon className="size-4 text-gray-500" />
-                <span className="text-xs text-gray-600 font-medium">
-                  File
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-col items-center w-full">
-          <button
-            className="w-full font-semibold text-xs text-gray-700 bg-gray-50 border border-gray-200 p-2.5 px-3 rounded-lg flex justify-between items-center hover:bg-gray-100 cursor-pointer"
-            onClick={() => setShowSupport((prev) => !prev)}
-          >
-            <span>Quyền riêng tư và hỗ trợ</span>
-            <ChevronDownIcon
-              className={`size-3.5 text-gray-400 transition-transform ${showSupport ? "rotate-180" : ""}`}
-            />
-          </button>
-
-          {showSupport && (
-            <div className="w-[95%] flex flex-col border-x border-b border-gray-200 rounded-b-lg overflow-hidden">
-              <div className="p-2.5 px-3 bg-gray-50/30 hover:bg-gray-100/50 cursor-pointer flex items-center gap-2 border-b border-gray-100">
-                <BellSlashIcon className="size-4 text-gray-500" />
-                <span className="text-xs text-gray-600 font-medium">
-                  Tắt thông báo
-                </span>
-              </div>
-              <div className="p-2.5 px-3 bg-gray-50/30 hover:bg-gray-100/50 cursor-pointer flex items-center gap-2 border-b border-gray-100">
-                <ShieldCheckIcon className="size-4 text-gray-500" />
-                <span className="text-xs text-gray-600 font-medium">
-                  Quyền nhắn tin
-                </span>
-              </div>
-              <div className="p-2.5 px-3 bg-gray-50/30 hover:bg-gray-100/50 cursor-pointer flex items-center gap-2 border-b border-gray-100">
-                <MinusCircleIcon className="size-4 text-gray-500" />
-                <span className="text-xs text-gray-600 font-medium">
-                  Hạn chế
-                </span>
-              </div>
-              <div className="p-2.5 px-3 bg-gray-50/30 hover:bg-gray-100/50 cursor-pointer flex items-start gap-2">
-                <FlagIcon className="size-4 text-gray-500 mt-0.5 shrink-0" />
-                <div className="flex flex-col">
-                  <span className="text-xs text-gray-650 font-medium">
-                    Báo cáo
-                  </span>
-                  <span className="text-[9px] text-gray-400 font-medium mt-0.5">
-                    Đóng góp ý kiến & báo cáo
-                  </span>
-                </div>
-              </div>
-              {!isGeneral && onHideChat && (
-                <div 
-                  className="p-2.5 px-3 bg-red-50/30 hover:bg-red-100/50 cursor-pointer flex items-center gap-2 border-t border-gray-100 transition-colors"
-                  onClick={() => {
-                    if (window.confirm("Bạn có chắc chắn muốn xóa/ẩn đoạn chat này không?")) {
-                      onHideChat();
-                    }
-                  }}
-                >
-                  <TrashIcon className="size-4 text-red-500" />
-                  <span className="text-xs text-red-600 font-medium">
-                    Xóa đoạn chat
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+      )}
+    </aside>
   );
 }

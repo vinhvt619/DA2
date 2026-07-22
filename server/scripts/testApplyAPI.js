@@ -42,7 +42,7 @@ async function runTest() {
     } else {
         throw new Error('No cookie');
     }
-  } catch (e) {
+  } catch {
     // If password fails, let's just generate a token
     const jwt = await import('jsonwebtoken');
     const token = jwt.default.sign(
@@ -64,7 +64,7 @@ async function runTest() {
       },
       body: JSON.stringify({
         jobId: job._id.toString(),
-        fileData: "dummy_base64_data",
+        fileData: "data:application/pdf;base64,JVBERi0xLjQKJSVFT0YK",
         fileName: "test_cv.pdf"
       })
     });

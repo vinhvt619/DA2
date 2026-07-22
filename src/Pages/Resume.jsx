@@ -18,6 +18,7 @@ import {
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
   CloudArrowUpIcon,
+  DocumentArrowDownIcon,
   EyeIcon,
 } from "@heroicons/react/24/outline";
 
@@ -317,6 +318,23 @@ export default function CreateResume() {
     navigate("/ResumeSelection");
   };
 
+  const handleDownloadPdf = () => {
+    const previousTitle = document.title;
+    const safeTitle = (title.trim() || "CV-cua-toi")
+      .replace(/[\\/:*?"<>|]+/g, "-")
+      .replace(/\s+/g, " ");
+
+    document.title = safeTitle;
+    window.addEventListener(
+      "afterprint",
+      () => {
+        document.title = previousTitle;
+      },
+      { once: true },
+    );
+    window.print();
+  };
+
   const toggleForm = () => {
     setShowForm((visible) => !visible);
     if (window.innerWidth < 1024) setShowTemplates(false);
@@ -348,8 +366,8 @@ export default function CreateResume() {
   const saveDisabled = isSaving || isLoadingResume || Boolean(loadError);
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[var(--page-background)] font-sans page-transition">
-      <div className="z-30 flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-3 py-2 sm:px-4">
+    <div className="resume-editor-root flex h-screen flex-col overflow-hidden bg-[var(--page-background)] font-sans page-transition">
+      <div className="resume-editor-toolbar z-30 flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-3 py-2 sm:px-4">
         <div className="flex min-w-0 w-full items-center gap-2 sm:w-auto sm:flex-1">
           <button
             type="button"
@@ -428,6 +446,17 @@ export default function CreateResume() {
 
           <button
             type="button"
+            onClick={handleDownloadPdf}
+            disabled={isLoadingResume || Boolean(loadError)}
+            title="Mở hộp thoại lưu CV dưới dạng PDF"
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-3 text-xs font-bold text-violet-700 transition hover:border-violet-300 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <DocumentArrowDownIcon className="h-3.5 w-3.5" />
+            Tải PDF
+          </button>
+
+          <button
+            type="button"
             onClick={handleSave}
             disabled={saveDisabled}
             className={`flex h-8 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-bold text-white shadow-sm transition ${
@@ -463,6 +492,7 @@ export default function CreateResume() {
         )}
 
         <aside
+          data-resume-editor-panel
           className={`absolute inset-y-0 left-0 z-20 flex w-[min(420px,100%)] shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white transition-[width,transform] duration-200 lg:relative lg:z-auto ${
             showForm
               ? "translate-x-0 lg:w-[420px] xl:w-[460px]"
@@ -501,7 +531,7 @@ export default function CreateResume() {
 
         <main
           ref={previewRef}
-          className="flex min-w-0 flex-1 flex-col items-center gap-4 overflow-y-auto bg-slate-100 px-2 py-5 sm:px-4 sm:py-7 no-scrollbar"
+          className="resume-editor-preview flex min-w-0 flex-1 flex-col items-center gap-4 overflow-y-auto bg-slate-100 px-2 py-5 sm:px-4 sm:py-7 no-scrollbar"
         >
           {isLoadingResume ? (
             <div className="mt-20 flex flex-col items-center text-slate-500">
@@ -535,7 +565,7 @@ export default function CreateResume() {
             </div>
           ) : (
             <>
-              <div className="flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm">
+              <div className="resume-editor-preview-label flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm">
                 <div className="h-2 w-2 rounded-full bg-violet-500" />
                 {TEMPLATE_NAMES[selectedTemplate]}
               </div>
@@ -562,6 +592,7 @@ export default function CreateResume() {
         </main>
 
         <aside
+          data-resume-editor-panel
           className={`absolute inset-y-0 right-0 z-20 w-[min(280px,100%)] shrink-0 overflow-hidden border-l border-slate-200 bg-white transition-[width,transform] duration-200 2xl:relative 2xl:z-auto ${
             showTemplates
               ? "translate-x-0 2xl:w-[280px]"
