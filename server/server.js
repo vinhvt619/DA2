@@ -8,7 +8,6 @@ import cookieParser from "cookie-parser";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
-import sanitizeHtml from "sanitize-html";
 import Resume from "./models/Resume.js";
 import User from "./models/User.js";
 import Message from "./models/Message.js";
@@ -20,6 +19,7 @@ import ChatReadState from "./models/ChatReadState.js";
 import { createNotification, createNotificationsBulk } from "./utils/notificationService.js";
 import { validatePdfUpload } from "./utils/pdfValidation.js";
 import { isJobDeleted, isJobUnavailable } from "./utils/jobAvailability.js";
+import { sanitizeRichText } from "./utils/richTextSanitizer.js";
 import "./cron/jobExpiryCron.js";
 
 dotenv.config();
@@ -252,33 +252,8 @@ const RESUME_TEMPLATES = new Set([
   "compact",
 ]);
 
-const richTextOptions = {
-  allowedTags: [
-    "p",
-    "br",
-    "strong",
-    "b",
-    "em",
-    "i",
-    "u",
-    "s",
-    "strike",
-    "ul",
-    "ol",
-    "li",
-    "blockquote",
-    "code",
-    "pre",
-    "h1",
-    "h2",
-    "h3",
-    "hr",
-  ],
-  allowedAttributes: {},
-};
-
 const cleanRichText = (value) =>
-  typeof value === "string" ? sanitizeHtml(value, richTextOptions) : "";
+  sanitizeRichText(value);
 
 const cleanExternalUrl = (value) => {
   if (typeof value !== "string" || !value.trim()) return "";
