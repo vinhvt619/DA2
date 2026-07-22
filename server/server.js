@@ -28,7 +28,10 @@ mongoose.set("bufferCommands", false);
 const app = express();
 const PORT = process.env.PORT || 5000;
 const DEFAULT_DB_NAME = process.env.MONGO_DB_NAME || "RabbitCV";
-const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+// Allow a manually managed URI to override the value provisioned by an
+// integration. This keeps local development on MONGODB_URI while giving
+// deployments a safe fallback when an integration credential becomes stale.
+const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
 const jwtSecret = process.env.JWT_SECRET || "rabbitcv_secret_key_12345";
 const usingDefaultJwtSecret = !process.env.JWT_SECRET;
 const allowedOrigins = [
