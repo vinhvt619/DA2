@@ -21,7 +21,12 @@ function Editor({ content = "", onChange, className = "" }) {
   });
 
   useEffect(() => {
-    if (!editor) return;
+    // React StrictMode mounts and destroys effects twice in development.
+    // Ignore the short-lived Tiptap instance after it has been destroyed.
+    if (!editor || editor.isDestroyed || !editor.state?.doc?.type?.schema) {
+      return;
+    }
+
     const nextContent = content || "";
     const currentHTML = editor.getHTML();
     if (nextContent !== currentHTML) {

@@ -72,6 +72,7 @@ export default function CreateResume() {
   const initialResumeId = routeResumeId || location.state?.cvId || null;
   const previewRef = useCvZoom();
   const toastTimerRef = useRef(null);
+  const titleInputRef = useRef(null);
 
   const [showForm, setShowForm] = useState(
     () => typeof window === "undefined" || window.innerWidth >= 1024,
@@ -84,7 +85,12 @@ export default function CreateResume() {
   const [selectedTemplate, setSelectedTemplate] = useState(
     normalizeTemplate(location.state?.template),
   );
-  const [toast, setToast] = useState({ message: "", type: "success" });
+  const [toast, setToast] = useState({
+    message: "",
+    type: "success",
+    visible: false,
+  });
+  const [titleError, setTitleError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingResume, setIsLoadingResume] = useState(Boolean(initialResumeId));
   const [loadError, setLoadError] = useState("");
@@ -150,9 +156,9 @@ export default function CreateResume() {
 
   const showToast = useCallback((message, type = "success") => {
     window.clearTimeout(toastTimerRef.current);
-    setToast({ message, type });
+    setToast({ message, type, visible: true });
     toastTimerRef.current = window.setTimeout(
-      () => setToast({ message: "", type }),
+      () => setToast((current) => ({ ...current, visible: false })),
       3000,
     );
   }, []);
@@ -267,12 +273,16 @@ export default function CreateResume() {
   const handleSave = async () => {
     const cleanTitle = title.trim();
     if (!cleanTitle) {
-      showToast("Vui lòng nhập tên CV.", "error");
+      const message = "Vui lòng nhập tên CV.";
+      setTitleError(message);
+      showToast(message, "error");
+      titleInputRef.current?.focus();
       return;
     }
 
     if (isLoadingResume || loadError) return;
 
+    setTitleError("");
     setIsSaving(true);
     try {
       const payload = { ...resumeData, title: cleanTitle };
@@ -287,7 +297,9 @@ export default function CreateResume() {
       const responseData = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(responseData.message || "Lỗi khi lưu CV.");
+        const error = new Error(responseData.message || "Lỗi khi lưu CV.");
+        error.code = responseData.code;
+        throw error;
       }
 
       const savedResume = applyResume(responseData.resume || payload);
@@ -302,7 +314,23 @@ export default function CreateResume() {
 
       showToast("Lưu CV thành công!", "success");
     } catch (error) {
-      showToast(error.message || "Không thể kết nối đến server!", "error");
+      const isDuplicateTitle =
+        error.code === "DUPLICATE_RESUME_TITLE" ||
+        error.message?.toLowerCase().includes("tên cv này đã tồn tại") ||
+        error.message?.toLowerCase().includes("ten cv nay da ton tai");
+      const message = isDuplicateTitle
+        ? "Tên CV này đã tồn tại. Hãy đổi sang tên khác hoặc mở CV cũ để chỉnh sửa."
+        : error.message || "Không thể kết nối đến server!";
+
+      if (isDuplicateTitle) {
+        setTitleError(message);
+        window.requestAnimationFrame(() => {
+          titleInputRef.current?.focus();
+          titleInputRef.current?.select();
+        });
+      }
+
+      showToast(message, "error");
     } finally {
       setIsSaving(false);
     }
@@ -380,13 +408,34 @@ export default function CreateResume() {
 
           <div className="h-5 w-px shrink-0 bg-slate-200" />
 
-          <input
-            type="text"
-            aria-label="Tên CV"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            className="min-w-0 max-w-[260px] flex-1 border-b border-transparent bg-transparent px-1 py-0.5 text-sm font-semibold text-slate-800 outline-none transition hover:border-slate-300 focus:border-violet-500"
-          />
+          <div className="min-w-0 max-w-[300px] flex-1">
+            <input
+              ref={titleInputRef}
+              type="text"
+              aria-label="Tên CV"
+              aria-invalid={Boolean(titleError)}
+              aria-describedby={titleError ? "resume-title-error" : undefined}
+              value={title}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                if (titleError) setTitleError("");
+              }}
+              className={`w-full border-b bg-transparent px-1 py-0.5 text-sm font-semibold text-slate-800 outline-none transition ${
+                titleError
+                  ? "border-red-500 focus:border-red-600"
+                  : "border-transparent hover:border-slate-300 focus:border-violet-500"
+              }`}
+            />
+            {titleError && (
+              <p
+                id="resume-title-error"
+                role="alert"
+                className="mt-1 text-[10px] font-semibold leading-4 text-red-600"
+              >
+                {titleError}
+              </p>
+            )}
+          </div>
 
           {isDirty ? (
             <span className="hidden shrink-0 text-[10px] font-medium text-amber-600 md:inline">
@@ -471,7 +520,7 @@ export default function CreateResume() {
         </div>
       </div>
 
-      <Toast message={toast.message} type={toast.type} />
+      <Toast toast={toast} />
 
       <div className="relative flex flex-1 overflow-hidden">
         {showForm && (

@@ -45,7 +45,7 @@ export default function MainMenu() {
   const completion = getProfileCompletion(currentUser);
 
   return (
-    <div className="min-h-screen bg-[#f4f6fb] font-sans text-slate-950 page-transition">
+    <div className="min-h-screen bg-[var(--page-background)] font-sans text-slate-950 page-transition">
       <Header />
 
       <main className="mx-auto max-w-[990px] px-4 pb-10 pt-5 sm:px-[18px] lg:px-5">

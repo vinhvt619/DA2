@@ -10,7 +10,9 @@
   --surface-2: #f1f3f7;
   --surface-3: #f1f5f9;
   --border-color: rgba(148, 163, 184, 0.35);
-  --page-background: #f5f4f7;
+  /* A quiet violet tint derived from the RabbitCV primary color (#9346F5). */
+  --page-background: #f6f3fa;
+  --header-background: rgba(246, 243, 250, 0.96);
 }
 
 html,

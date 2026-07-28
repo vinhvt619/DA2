@@ -1,0 +1,62 @@
+ NGUYỄN VĂN A
+ FRONTEND DEVELOPER
+ vinhvt619@gmail.com      0123 456 789   Tp. Hồ Chí Minh   https://portfolio-a.dev   https://github.com/vinhvt619   https://fa.git.edu.vn
+ https://linkedin.com/in/nguyenvana   https://gitlab.com
+
+
+ TÓM TẮT NGHỀ NGHIỆP
+ Lập trình viên Backend với 2 năm kinh nghiệm trong việc xây dựng REST API và tối ưu hệ thống. Có kinh nghiệm với Node.js, PostgreSQL và Docker.
+ Luôn tập trung vào hiệu suất và khả năng mở rộng.
+
+ KINH NGHIỆM LÀM VIỆC
+
+ Frontend Developer                                                                                                                               11/2011 – 02/2022
+ Company A • Location A
+ Phát triển giao diện web
+
+ Backend Developer                                                                                                                                     23/05/2025
+ Công ty ABC • Hà Nội
+ Xây dựng API xử lý 10k+ request/ngày
+ Tối ưu query giúp giảm 40% thời gian response
+ Triển khai hệ thống bằng Docker + CI/CD
+6:48
+ Thực tập                                                                                                                                       03/2025 – 06/2025
+ VNG • Hồ Chí Minh
+
+ HỌC VẤN
+
+ Cử nhân                                                                                                                                    07/02/2020 – 11/11/2026
+ Đại học Bách Khoa TP.HCM • Hồ Chí Minh
+
+ KỸ NĂNG
+ ReactJS — Tốt
+ Node.JS — Tốt
+ MongoDB — Tạm được
+ Nắm kiến thức cơ bản về MongoDB: thiết kế collection/document, thực hiện CRUD
+ Làm việc nhóm — Tạm được
+ Làm nhóm Trưởng — Xuất sắc
+ Lãnh đạo, quản lý đồng bạn tốt, hoàn thành deadline được giao
+
+ DỰ ÁN
+ E-commerce Website
+ https://github.com/nguyenvana/ecommerce
+ Xây dựng web bán hàng với React + Node.js
+ Tích hợp thanh toán Stripe
+
+ CHỨNG CHỈ
+ AWS Cloud Practitioner                                                                                                                                01/03/2022
+ Amazon
+ Chứng chỉ cơ bản
+
+ GIẢI THƯỞNG
+ Top 3 Hackathon XYZ 2023                                                                                                                              23/02/2024
+ Trường đại học Khoa học tự nhiên
+ Sinh viên xuất sắc khoa CNTT                                                                                                                            11/11/2026
+ Trường đại học Bách Khoa
+
+ NGOẠI NGỮ
+ Tiếng Anh (TOEIC 650) • Tiếng Nhật (JLPT N3) • Tiếng Trung (HSK 3)
+
+ SỞ THÍCH
+ Đọc sách • Nghe nhạc • Nấu ăn • Xem phim
+

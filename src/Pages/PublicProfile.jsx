@@ -9,6 +9,7 @@ import {
   BriefcaseIcon,
   BuildingOffice2Icon,
   CalendarDaysIcon,
+  CheckBadgeIcon,
   CodeBracketIcon,
   ChatBubbleLeftRightIcon,
   EnvelopeIcon,
@@ -22,7 +23,6 @@ import {
 } from "@heroicons/react/24/outline";
 
 const fallbackCandidateSkills = ["React.js", "JavaScript", "Node.js", "MongoDB"];
-const fallbackCompanyTech = ["React", "JavaScript", "Node.js", "MongoDB", "Cloud"];
 
 function getInitials(user) {
   return (user?.fullName || user?.username || "RC")
@@ -127,8 +127,10 @@ function InfoRow({ icon: Icon, label, value, href }) {
   );
 
   if (href) {
+    const opensNewTab = /^https?:\/\//i.test(href);
+
     return (
-      <a href={href} target="_blank" rel="noreferrer" className="flex gap-2.5 transition hover:text-violet-700">
+      <a href={href} target={opensNewTab ? "_blank" : undefined} rel={opensNewTab ? "noreferrer" : undefined} className="flex gap-2.5 transition hover:text-violet-700">
         {inner}
       </a>
     );
@@ -311,129 +313,126 @@ function CandidateProfile({ user, locationText }) {
   );
 }
 
-function CompanyProfile({ user, companyJobs, locationText }) {
+function CompanyProfile({ user, companyJobs, locationText, isOwnProfile }) {
+  const navigate = useNavigate();
   const website = safeWebsiteUrl(user.companyWebsite);
-  const techStack = user.companyTech?.length ? user.companyTech : fallbackCompanyTech;
+  const isVerified = user.companyVerificationStatus === "verified";
   const description =
     user.companyDescription ||
     "Doanh nghiệp đang hoàn thiện phần giới thiệu. Các thông tin bên dưới được tổng hợp từ hồ sơ công ty trên RabbitCV.";
 
   return (
-    <main className="mx-auto w-full max-w-[1040px] px-5 py-5">
-      <section className="overflow-hidden rounded-xl border border-violet-100 bg-white shadow-sm">
-        <div className="relative h-[210px] bg-gradient-to-br from-[#ede3ff] via-[#f7efff] to-[#fff7fb]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(126,34,206,0.22),transparent_28%),radial-gradient(circle_at_80%_10%,rgba(168,85,247,0.2),transparent_25%),linear-gradient(135deg,rgba(30,20,42,0.18),rgba(30,20,42,0.02))]" />
-          <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white to-transparent" />
+    <main className="mx-auto w-full max-w-[1120px] px-4 py-6 sm:px-6">
+      <section className="overflow-hidden rounded-xl border border-violet-100 bg-white shadow-[0_4px_18px_rgba(76,29,149,0.06)]">
+        <div className="relative h-32 overflow-hidden bg-[#eee8f7] sm:h-36">
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(124,58,237,0.055)_1px,transparent_1px),linear-gradient(rgba(124,58,237,0.055)_1px,transparent_1px)] bg-size-[32px_32px]" />
+          <div className="absolute -right-12 -top-20 h-56 w-56 rounded-full border-[32px] border-white/30" />
         </div>
 
-        <div className="relative flex flex-col gap-4 px-6 pb-6 sm:flex-row sm:items-end sm:justify-between">
-          <div className="-mt-14 flex flex-col gap-4 sm:flex-row sm:items-end">
-            <div className="flex h-24 w-24 items-center justify-center rounded-xl border-4 border-white bg-white text-3xl font-black text-violet-700 shadow-lg">
-              {getInitials(user)}
-            </div>
-            <div className="pb-1">
-              <h1 className="text-2xl font-black tracking-[-0.05em] text-[#292332]">{getDisplayName(user)}</h1>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <Pill>{user.companyIndustry || "Đang cập nhật lĩnh vực"}</Pill>
-                <Pill tone="slate">{user.companySize || "Đang cập nhật quy mô"}</Pill>
+        <div className="relative px-5 pb-5 sm:px-6">
+          <div className="-mt-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border-4 border-white bg-violet-50 text-2xl font-black text-violet-700 shadow-sm sm:h-24 sm:w-24 sm:text-3xl">
+                {getInitials(user)}
               </div>
+
+              <div className="min-w-0 pb-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-xl font-bold tracking-[-0.035em] text-slate-950 sm:text-2xl">{getDisplayName(user)}</h1>
+                  {isVerified && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                      <CheckBadgeIcon className="h-3.5 w-3.5" />
+                      Đã xác minh
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-xs font-medium text-slate-500">{user.companyIndustry || "Lĩnh vực đang cập nhật"}</p>
+                {locationText && (
+                  <p className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-500">
+                    <MapPinIcon className="h-3.5 w-3.5" />
+                    {locationText}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              {website && (
+                <a
+                  href={website}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 transition hover:border-violet-300 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+                >
+                  <GlobeAltIcon className="h-4 w-4" />
+                  Website
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => navigate(isOwnProfile ? "/CompanyDashboard" : `/Message?partnerId=${user._id}`)}
+                className="inline-flex h-10 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-violet-700 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+              >
+                {isOwnProfile ? <BuildingOffice2Icon className="h-4 w-4" /> : <ChatBubbleLeftRightIcon className="h-4 w-4" />}
+                {isOwnProfile ? "Quản lý hồ sơ" : "Nhắn tin"}
+              </button>
             </div>
           </div>
 
-          <button
-            type="button"
-            className="inline-flex h-10 items-center justify-center rounded-lg bg-violet-700 px-6 text-xs font-bold text-white shadow-md shadow-violet-100 transition hover:bg-violet-800"
-          >
-            + Theo dõi
-          </button>
+          <dl className="mt-5 grid grid-cols-1 divide-y divide-slate-100 border-t border-slate-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            <div className="py-3 sm:px-4 sm:first:pl-0">
+              <dt className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Vị trí đang mở</dt>
+              <dd className="mt-1 text-sm font-bold text-slate-800">{companyJobs.length}</dd>
+            </div>
+            <div className="py-3 sm:px-4">
+              <dt className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Quy mô</dt>
+              <dd className="mt-1 text-sm font-bold text-slate-800">{user.companySize || "Chưa cập nhật"}</dd>
+            </div>
+            <div className="py-3 sm:px-4">
+              <dt className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Năm thành lập</dt>
+              <dd className="mt-1 text-sm font-bold text-slate-800">{user.companyFoundedYear || "Chưa cập nhật"}</dd>
+            </div>
+          </dl>
         </div>
       </section>
 
-      <div className="mt-7 grid gap-5 lg:grid-cols-[310px_minmax(0,1fr)]">
-        <aside>
-          <Card className="p-5">
-            <h2 className="text-lg font-extrabold tracking-[-0.03em] text-[#292332]">Thông tin công ty</h2>
-            <div className="mt-5 space-y-4">
-              <InfoRow icon={UsersIcon} label="Quy mô" value={user.companySize} />
-              <InfoRow icon={BuildingOffice2Icon} label="Trụ sở chính" value={locationText} />
-              <InfoRow icon={CalendarDaysIcon} label="Thành lập" value={user.companyFoundedYear} />
-              <InfoRow icon={LinkIcon} label="Trang web" value={user.companyWebsite} href={website} />
-              <InfoRow icon={PhoneIcon} label="Điện thoại" value={user.phoneNumber} />
-              <InfoRow icon={EnvelopeIcon} label="Email" value={user.email} />
-            </div>
-            <div className="mt-5 border-t border-violet-100 pt-4">
-              <div className="flex gap-3">
-                {website && (
-                  <a href={website} target="_blank" rel="noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 text-violet-700 transition hover:bg-violet-100">
-                    <GlobeAltIcon className="h-5 w-5" />
-                  </a>
-                )}
-                {user.email && (
-                  <a href={`mailto:${user.email}`} className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 text-violet-700 transition hover:bg-violet-100">
-                    <EnvelopeIcon className="h-5 w-5" />
-                  </a>
-                )}
+      <div className="mt-5 grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="min-w-0 space-y-5">
+          <Card className="p-5 sm:p-6">
+            <SectionTitle icon={BuildingOffice2Icon}>Về công ty</SectionTitle>
+            <p className="mt-3 whitespace-pre-line text-[13px] leading-6 text-slate-600">{description}</p>
+          </Card>
+
+          <section id="company-jobs" className="scroll-mt-24">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h2 className="text-base font-bold tracking-[-0.025em] text-slate-900">Việc làm đang tuyển</h2>
+                <p className="mt-1 text-[11px] text-slate-500">Các vị trí hiện có tại {getDisplayName(user)}.</p>
               </div>
+              <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-semibold text-violet-700">
+                {companyJobs.length} vị trí
+              </span>
             </div>
-          </Card>
-        </aside>
 
-        <div className="space-y-6">
-          <Card className="p-6">
-            <SectionTitle icon={BuildingOffice2Icon}>Về chúng tôi</SectionTitle>
-            <p className="mt-4 text-sm leading-7 text-[#665d70]">{description}</p>
-          </Card>
-
-          <section>
-            <h2 className="text-lg font-extrabold tracking-[-0.03em] text-[#292332]">Văn hóa kỹ thuật</h2>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <Card className="bg-violet-50/50 p-5">
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
-                  <BuildingOffice2Icon className="h-5 w-5" />
-                </span>
-                <h3 className="mt-4 text-sm font-extrabold text-[#292332]">Linh hoạt không gian</h3>
-                <p className="mt-2 text-sm leading-6 text-[#665d70]">Môi trường làm việc linh hoạt, phù hợp với đội ngũ công nghệ và dự án hiện đại.</p>
-              </Card>
-              <Card className="bg-violet-50/50 p-5">
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
-                  <CodeBracketIcon className="h-5 w-5" />
-                </span>
-                <h3 className="mt-4 text-sm font-extrabold text-[#292332]">Quy trình linh hoạt và CI/CD</h3>
-                <p className="mt-2 text-sm leading-6 text-[#665d70]">Ưu tiên quy trình rõ ràng, phản hồi nhanh và cải tiến liên tục trong sản phẩm.</p>
-              </Card>
-            </div>
-          </section>
-
-          <Card className="p-6">
-            <SectionTitle icon={CodeBracketIcon}>Công nghệ chúng tôi sử dụng</SectionTitle>
-            <div className="mt-4 flex flex-wrap gap-2.5">
-              {techStack.map((tech) => (
-                <Pill key={tech}>{tech}</Pill>
-              ))}
-            </div>
-          </Card>
-
-          <section>
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="text-lg font-extrabold tracking-[-0.03em] text-[#292332]">Vị trí đang tuyển nổi bật</h2>
-              <Link to="/Jobs" className="text-sm font-bold text-violet-700 hover:text-violet-800">
-                Xem tất cả {companyJobs.length} vị trí →
-              </Link>
-            </div>
-            <div className="mt-4 space-y-3">
+            <div className="mt-3 space-y-2.5">
               {companyJobs.length > 0 ? (
                 companyJobs.map((job) => (
-                  <Link key={job._id} to={`/jobs/${job._id}`} className="flex flex-col gap-3 rounded-xl border border-violet-100 bg-white p-4 shadow-sm transition hover:border-violet-200 hover:bg-violet-50/30 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <h3 className="text-base font-extrabold tracking-[-0.03em] text-[#292332]">{job.title}</h3>
-                      <div className="mt-1.5 flex flex-wrap gap-3 text-[11px] font-semibold text-[#756b7f]">
-                        <span className="inline-flex items-center gap-1"><MapPinIcon className="h-4 w-4" />{job.location}</span>
-                        <span>• {getJobTypeLabel(job.type)}</span>
-                        <span className="text-emerald-600">{job.salary}</span>
+                  <Link
+                    key={job._id}
+                    to={`/jobs/${job._id}`}
+                    className="group flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 transition hover:border-violet-200 hover:shadow-[0_5px_16px_rgba(76,29,149,0.07)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-bold text-slate-900 transition group-hover:text-violet-700">{job.title}</h3>
+                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                        {job.location && <span className="inline-flex items-center gap-1"><MapPinIcon className="h-3.5 w-3.5" />{job.location}</span>}
+                        {job.type && <span className="inline-flex items-center gap-1"><BriefcaseIcon className="h-3.5 w-3.5" />{getJobTypeLabel(job.type)}</span>}
+                        {job.salary && <span className="font-semibold text-emerald-700">{job.salary}</span>}
                       </div>
                     </div>
-                    <span className="inline-flex h-9 items-center justify-center rounded-lg border border-[#b9afc2] px-5 text-xs font-bold text-[#292332]">
-                      Ứng tuyển
+                    <span className="inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border border-violet-200 px-3 text-[11px] font-semibold text-violet-700 transition group-hover:bg-violet-50">
+                      Xem công việc
+                      <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
                     </span>
                   </Link>
                 ))
@@ -443,6 +442,40 @@ function CompanyProfile({ user, companyJobs, locationText }) {
             </div>
           </section>
         </div>
+
+        <aside className="space-y-4 lg:sticky lg:top-20">
+          <Card className="p-5">
+            <h2 className="text-sm font-bold text-slate-900">Thông tin công ty</h2>
+            <div className="mt-4 space-y-4">
+              <InfoRow icon={BuildingOffice2Icon} label="Trụ sở" value={locationText} />
+              <InfoRow icon={UsersIcon} label="Quy mô" value={user.companySize} />
+              <InfoRow icon={CalendarDaysIcon} label="Thành lập" value={user.companyFoundedYear} />
+              <InfoRow icon={LinkIcon} label="Website" value={user.companyWebsite} href={website} />
+              <InfoRow icon={PhoneIcon} label="Điện thoại" value={user.phoneNumber} />
+              <InfoRow icon={EnvelopeIcon} label="Email" value={user.email} href={user.email ? `mailto:${user.email}` : ""} />
+            </div>
+          </Card>
+
+          <Card className="p-5">
+            <h2 className="text-sm font-bold text-slate-900">{isOwnProfile ? "Hồ sơ doanh nghiệp" : "Bạn quan tâm công ty này?"}</h2>
+            <p className="mt-2 text-[11px] leading-5 text-slate-500">
+              {isOwnProfile ? "Cập nhật thông tin để ứng viên hiểu rõ hơn về doanh nghiệp." : "Trao đổi trực tiếp với nhà tuyển dụng hoặc xem các vị trí đang mở."}
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate(isOwnProfile ? "/CompanyDashboard" : `/Message?partnerId=${user._id}`)}
+              className="mt-4 inline-flex h-10 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-violet-700 text-xs font-semibold text-white transition hover:bg-violet-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+            >
+              {isOwnProfile ? <BuildingOffice2Icon className="h-4 w-4" /> : <ChatBubbleLeftRightIcon className="h-4 w-4" />}
+              {isOwnProfile ? "Cập nhật hồ sơ" : "Liên hệ nhà tuyển dụng"}
+            </button>
+            {companyJobs.length > 0 && (
+              <a href="#company-jobs" className="mt-2 inline-flex h-9 w-full items-center justify-center text-[11px] font-semibold text-violet-700 hover:text-violet-800">
+                Xem {companyJobs.length} vị trí đang tuyển
+              </a>
+            )}
+          </Card>
+        </aside>
       </div>
     </main>
   );
@@ -497,7 +530,7 @@ export default function PublicProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#fff6fd] font-sans text-[#292332]">
+      <div className="min-h-screen bg-[var(--page-background)] font-sans text-[#292332]">
         {currentUser?.role !== "company" && <Header />}
         <main className="grid min-h-[70vh] place-items-center px-5">
           <Card className="px-9 py-8 text-center">
@@ -511,7 +544,7 @@ export default function PublicProfile() {
 
   if (error || !userData) {
     return (
-      <div className="min-h-screen bg-[#fff6fd] font-sans text-[#292332]">
+      <div className="min-h-screen bg-[var(--page-background)] font-sans text-[#292332]">
         {currentUser?.role !== "company" && <Header />}
         <main className="grid min-h-[70vh] place-items-center px-5">
           <Card className="max-w-md px-9 py-8 text-center">
@@ -528,10 +561,15 @@ export default function PublicProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fff6fd] font-sans text-[#292332]">
+    <div className="min-h-screen bg-[var(--page-background)] font-sans text-[#292332]">
       {currentUser?.role !== "company" && <Header />}
       {isCompany ? (
-        <CompanyProfile user={userData} companyJobs={companyJobs} locationText={locationText} />
+        <CompanyProfile
+          user={userData}
+          companyJobs={companyJobs}
+          locationText={locationText}
+          isOwnProfile={String(currentUser?._id) === String(userData._id)}
+        />
       ) : (
         <CandidateProfile user={userData} locationText={locationText} />
       )}

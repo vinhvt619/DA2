@@ -38,6 +38,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:4000",
   "http://127.0.0.1:4000",
+  "http://127.0.0.2:4000",
   "http://[::1]:4000",
   "http://localhost:3000",
   "https://rabbitcv.vercel.app",
@@ -382,6 +383,7 @@ app.post("/api/resume", authMiddleware, async (req, res) => {
       (!requestedId || titleCheck._id.toString() !== requestedId.toString())
     ) {
       return res.status(400).json({
+        code: "DUPLICATE_RESUME_TITLE",
         message: "Ten CV nay da ton tai. Vui long chon ten khac.",
       });
     }

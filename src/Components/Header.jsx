@@ -131,7 +131,7 @@ export default function Header() {
   };
 
   if (!isAuthChecked) {
-    return <header className="h-16 bg-white shadow-sm" />; // Placeholder while checking
+    return <header className="h-16 bg-[var(--header-background)] shadow-sm" />; // Placeholder while checking
   }
 
   if (!currentUser) {
@@ -141,7 +141,7 @@ export default function Header() {
   return (
     <header
       ref={headerRef}
-      className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-sm"
+      className="sticky top-0 z-50 border-b border-violet-200/70 bg-[var(--header-background)] shadow-[0_1px_8px_rgba(76,29,149,0.05)] backdrop-blur-sm"
     >
       <nav className="mx-auto flex min-h-16 max-w-[1536px] items-center px-4 sm:px-5 lg:px-6">
         <div className="flex shrink-0">
@@ -274,7 +274,7 @@ export default function Header() {
       </nav>
 
       {mobileMenuOpen && (
-        <div className="border-t border-slate-100 bg-white px-4 py-3 lg:hidden">
+        <div className="border-t border-violet-100 bg-[var(--header-background)] px-4 py-3 lg:hidden">
           {getNavLinks().map((item) => (
             <Link
               key={item.to}

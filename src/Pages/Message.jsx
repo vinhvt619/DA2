@@ -256,7 +256,7 @@ function Messenger() {
 
   if (!isAuthChecked) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#F8F4FC] to-[#EDE5F7] flex flex-col items-center justify-center font-sans">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[var(--page-background)] font-sans">
         <div className="animate-spin rounded-full h-8 w-8 border-4 border-[#9346F5] border-t-transparent mb-4"></div>
         <p className="text-xs text-slate-500 font-medium">Đang xác thực thông tin...</p>
       </div>
@@ -283,7 +283,7 @@ function Messenger() {
   };
 
   return (
-    <div className="bg-gradient-to-br from-[#F8F4FC] to-[#EDE5F7] h-screen flex flex-col font-sans overflow-hidden text-slate-900 text-sm page-transition">
+    <div className="flex h-screen flex-col overflow-hidden bg-[var(--page-background)] font-sans text-sm text-slate-900 page-transition">
       {currentUser?.role !== "company" && <Header />}
 
       <div className={`mx-auto flex w-full max-w-[1600px] flex-1 items-start gap-3 overflow-hidden p-4 ${currentUser?.role === "company" ? "h-screen" : "h-[calc(100vh-80px)]"}`}>

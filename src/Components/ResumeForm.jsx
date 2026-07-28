@@ -8,6 +8,29 @@ import React, { useState } from "react";
 import Editor from "./RichText/Editor";
 import Toast, { useToast } from "./Toast";
 import ConfirmPopUp from "./ConfirmPopUp";
+import {
+  formatMonthDisplayValue,
+  isCurrentDateValue,
+  normalizeMonthInputValue,
+  normalizeResumeDateValue,
+  parseMonthDisplayValue,
+} from "../utils/dateInput.js";
+
+function ResumeMonthInput({ value, onChange, disabled = false }) {
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      maxLength={7}
+      placeholder="MM/YYYY"
+      value={formatMonthDisplayValue(value)}
+      disabled={disabled}
+      onChange={(event) => onChange(parseMonthDisplayValue(event.target.value))}
+      onBlur={() => onChange(normalizeMonthInputValue(value))}
+      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none transition-all placeholder:text-gray-400 focus:border-[#9346F5] focus:ring-2 focus:ring-[#9346F5]/10 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+    />
+  );
+}
 
 export default function ResumeForm({
   image,
@@ -51,6 +74,7 @@ export default function ResumeForm({
   const [isModalAwardOpen, setIsModalAwardOpen] = useState(false);
   const [isModalHobbyOpen, setIsModalHobbyOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [isCurrentExperience, setIsCurrentExperience] = useState(false);
   const [newProfile, setNewProfile] = useState({
     networkName: "",
     username: "",
@@ -140,8 +164,8 @@ export default function ResumeForm({
       location: item.location || "",
       major: item.major || "",
       score: item.score || "",
-      startDate: item.startDate || "",
-      endDate: item.endDate || "",
+      startDate: normalizeMonthInputValue(item.startDate),
+      endDate: normalizeMonthInputValue(item.endDate),
       description: item.description || "",
     });
     setIsModalEducationOpen(true);
@@ -199,10 +223,10 @@ export default function ResumeForm({
   const handleEditCertificate = (item) => {
     setEditingId(item.id);
     setNewCertificate({
-      title: item.title,
-      description: item.description,
-      date: item.date,
-      publisher: item.publisher,
+      title: item.title || "",
+      description: item.description || "",
+      date: normalizeResumeDateValue(item.date),
+      publisher: item.publisher || "",
     });
     setIsModalCertificateOpen(true);
   };
@@ -220,14 +244,14 @@ export default function ResumeForm({
   const handleEditProject = (item) => {
     setEditingId(item.id);
     setNewProject({
-      title: item.title,
-      company: item.company,
-      location: item.location,
-      startDate: item.startDate,
-      endDate: item.endDate,
-      date: item.date,
+      title: item.title || "",
+      company: item.company || "",
+      location: item.location || "",
+      startDate: normalizeMonthInputValue(item.startDate),
+      endDate: normalizeMonthInputValue(item.endDate),
+      date: normalizeResumeDateValue(item.date),
       link: item.link || "",
-      description: item.description,
+      description: item.description || "",
     });
     setIsModalProjectOpen(true);
   };
@@ -245,10 +269,10 @@ export default function ResumeForm({
   const handleEditAward = (item) => {
     setEditingId(item.id);
     setNewAward({
-      title: item.title,
-      awarder: item.awarder,
-      date: item.date,
-      description: item.description,
+      title: item.title || "",
+      awarder: item.awarder || "",
+      date: normalizeResumeDateValue(item.date),
+      description: item.description || "",
     });
     setIsModalAwardOpen(true);
   };
@@ -305,13 +329,14 @@ export default function ResumeForm({
   };
   const handleEditExperience = (item) => {
     setEditingId(item.id);
+    setIsCurrentExperience(isCurrentDateValue(item.endDate));
     setNewExperience({
-      title: item.title,
-      company: item.company,
-      location: item.location,
-      startDate: item.startDate,
-      endDate: item.endDate,
-      description: item.description,
+      title: item.title || "",
+      company: item.company || "",
+      location: item.location || "",
+      startDate: normalizeMonthInputValue(item.startDate),
+      endDate: normalizeMonthInputValue(item.endDate),
+      description: item.description || "",
     });
     setIsModalExperienceOpen(true);
   };
@@ -628,6 +653,7 @@ export default function ResumeForm({
         className="mt-3 w-full flex items-center justify-center gap-1.5 border border-dashed border-gray-200 hover:border-[#9346F5] text-gray-400 hover:text-[#9346F5] py-2 cursor-pointer rounded-xl text-xs font-semibold hover:bg-violet-50/30 transition-all"
         onClick={() => {
           setEditingId(null);
+          setIsCurrentExperience(false);
           setNewExperience({
             title: "",
             company: "",
@@ -699,14 +725,12 @@ export default function ResumeForm({
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
                     Thời gian bắt đầu
                   </label>
-                  <input
-                    type="date"
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#9346F5] focus:ring-2 focus:ring-[#9346F5]/10 outline-none transition-all"
+                  <ResumeMonthInput
                     value={newExperience.startDate}
-                    onChange={(e) =>
+                    onChange={(value) =>
                       setNewExperience({
                         ...newExperience,
-                        startDate: e.target.value,
+                        startDate: value,
                       })
                     }
                   />
@@ -715,17 +739,34 @@ export default function ResumeForm({
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
                     Thời gian kết thúc
                   </label>
-                  <input
-                    type="date"
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#9346F5] focus:ring-2 focus:ring-[#9346F5]/10 outline-none transition-all"
+                  <ResumeMonthInput
                     value={newExperience.endDate}
-                    onChange={(e) =>
+                    disabled={isCurrentExperience}
+                    onChange={(value) =>
                       setNewExperience({
                         ...newExperience,
-                        endDate: e.target.value,
+                        endDate: value,
                       })
                     }
                   />
+                  <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={isCurrentExperience}
+                      onChange={(e) => {
+                        const isCurrent = e.target.checked;
+                        setIsCurrentExperience(isCurrent);
+                        if (isCurrent) {
+                          setNewExperience({
+                            ...newExperience,
+                            endDate: "",
+                          });
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-gray-300 text-[#9346F5] focus:ring-[#9346F5]"
+                    />
+                    Đang làm việc tại đây
+                  </label>
                 </div>
               </div>
               <div>
@@ -774,18 +815,25 @@ export default function ResumeForm({
                     return;
                   }
 
+                  const experienceData = {
+                    ...newExperience,
+                    endDate: isCurrentExperience
+                      ? "Hiện tại"
+                      : newExperience.endDate,
+                  };
+
                   if (editingId) {
                     setExperience(
                       experience.map((item) =>
                         item.id === editingId
-                          ? { ...newExperience, id: editingId }
+                          ? { ...experienceData, id: editingId }
                           : item,
                       ),
                     );
                   } else {
                     setExperience([
                       ...experience,
-                      { ...newExperience, id: Date.now() },
+                      { ...experienceData, id: Date.now() },
                     ]);
                   }
 
@@ -958,14 +1006,12 @@ export default function ResumeForm({
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
                     Thời gian bắt đầu
                   </label>
-                  <input
-                    type="date"
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#9346F5] focus:ring-2 focus:ring-[#9346F5]/10 outline-none transition-all"
+                  <ResumeMonthInput
                     value={newEducation.startDate}
-                    onChange={(e) =>
+                    onChange={(value) =>
                       setNewEducation({
                         ...newEducation,
-                        startDate: e.target.value,
+                        startDate: value,
                       })
                     }
                   />
@@ -974,14 +1020,12 @@ export default function ResumeForm({
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
                     Thời gian kết thúc
                   </label>
-                  <input
-                    type="date"
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#9346F5] focus:ring-2 focus:ring-[#9346F5]/10 outline-none transition-all"
+                  <ResumeMonthInput
                     value={newEducation.endDate}
-                    onChange={(e) =>
+                    onChange={(value) =>
                       setNewEducation({
                         ...newEducation,
-                        endDate: e.target.value,
+                        endDate: value,
                       })
                     }
                   />
@@ -1497,7 +1541,10 @@ export default function ResumeForm({
                     Thời gian
                   </label>
                   <input
-                    type="date"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={7}
+                    placeholder="Ví dụ: 2023 hoặc 2023-10"
                     className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#9346F5] focus:ring-2 focus:ring-[#9346F5]/10 outline-none transition-all"
                     value={newCertificate.date}
                     onChange={(e) =>
@@ -1538,18 +1585,23 @@ export default function ResumeForm({
                     return;
                   }
 
+                  const certificateData = {
+                    ...newCertificate,
+                    date: normalizeResumeDateValue(newCertificate.date),
+                  };
+
                   if (editingId) {
                     setCertificate(
                       certificate.map((item) =>
                         item.id === editingId
-                          ? { ...newCertificate, id: editingId }
+                          ? { ...certificateData, id: editingId }
                           : item,
                       ),
                     );
                   } else {
                     setCertificate([
                       ...certificate,
-                      { ...newCertificate, id: Date.now() },
+                      { ...certificateData, id: Date.now() },
                     ]);
                   }
 
@@ -1654,7 +1706,10 @@ export default function ResumeForm({
                     Thời gian (Tùy chọn)
                   </label>
                   <input
-                    type="date"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={7}
+                    placeholder="Ví dụ: 2023 hoặc 2023-10"
                     className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#9346F5] focus:ring-2 focus:ring-[#9346F5]/10 outline-none transition-all"
                     value={newProject.date}
                     onChange={(e) =>
@@ -1714,18 +1769,23 @@ export default function ResumeForm({
                     return;
                   }
 
+                  const projectData = {
+                    ...newProject,
+                    date: normalizeResumeDateValue(newProject.date),
+                  };
+
                   if (editingId) {
                     setProject(
                       project.map((item) =>
                         item.id === editingId
-                          ? { ...newProject, id: editingId }
+                          ? { ...projectData, id: editingId }
                           : item,
                       ),
                     );
                   } else {
                     setProject([
                       ...project,
-                      { ...newProject, id: Date.now() },
+                      { ...projectData, id: Date.now() },
                     ]);
                   }
 
@@ -1850,7 +1910,10 @@ export default function ResumeForm({
                     Thời gian
                   </label>
                   <input
-                    type="date"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={7}
+                    placeholder="Ví dụ: 2023 hoặc 2023-10"
                     className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#9346F5] focus:ring-2 focus:ring-[#9346F5]/10 outline-none transition-all"
                     value={newAward.date}
                     onChange={(e) =>
@@ -1891,16 +1954,21 @@ export default function ResumeForm({
                     return;
                   }
 
+                  const awardData = {
+                    ...newAward,
+                    date: normalizeResumeDateValue(newAward.date),
+                  };
+
                   if (editingId) {
                     setAward(
                       award.map((item) =>
                         item.id === editingId
-                          ? { ...newAward, id: editingId }
+                          ? { ...awardData, id: editingId }
                           : item,
                       ),
                     );
                   } else {
-                    setAward([...award, { ...newAward, id: Date.now() }]);
+                    setAward([...award, { ...awardData, id: Date.now() }]);
                   }
 
                   setIsModalAwardOpen(false);

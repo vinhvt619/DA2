@@ -88,7 +88,7 @@ export default function ViewResume() {
   };
 
   return (
-    <div className="bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] min-h-screen flex flex-col print:bg-white print:p-0 view-resume-root print:min-h-0 print:h-auto print:overflow-visible">
+    <div className="view-resume-root flex min-h-screen flex-col bg-[var(--page-background)] print:h-auto print:min-h-0 print:overflow-visible print:bg-white print:p-0">
       {currentUser?.role !== "company" && <div className="print:hidden"><Header /></div>}
 
       <div ref={previewRef} className="flex-1 overflow-y-auto py-8 px-4 flex flex-col items-center print:py-0 print:px-0 view-resume-scroll print:overflow-visible print:h-auto print:flex-none">

@@ -87,7 +87,7 @@ function Login() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-linear-to-br from-[#F8F4FC] to-[#E8DCFA] flex flex-col page-transition">
+    <div className="flex min-h-screen w-full flex-col bg-[var(--page-background)] page-transition">
       <Header />
 
       <div className="flex-1 flex flex-col items-center justify-center">

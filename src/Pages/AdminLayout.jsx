@@ -127,7 +127,7 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="bg-slate-50/50 min-h-screen text-[13px] text-slate-700 font-sans flex overflow-hidden h-screen antialiased">
+    <div className="flex h-screen min-h-screen overflow-hidden bg-[var(--page-background)] font-sans text-[13px] text-slate-700 antialiased">
       
       {/* LEFT SIDEBAR (220px) */}
       <aside className="w-[250px] bg-[#F4F0FA] border-r-[0.5px] border-[rgba(196,180,240,0.4)] flex flex-col justify-between py-5 shrink-0 relative z-20">
@@ -218,9 +218,9 @@ export default function AdminLayout() {
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden bg-[#EDE8F7]/40">
+      <main className="flex h-screen flex-1 flex-col overflow-hidden bg-[var(--page-background)]">
         {/* Header section */}
-        <header className="sticky top-0 bg-[#F4F0FA] border-b-[0.5px] border-[rgba(196,180,240,0.4)] z-10 px-8 py-4.5 flex justify-between items-center shrink-0">
+        <header className="sticky top-0 z-10 flex shrink-0 items-center justify-between border-b-[0.5px] border-[rgba(196,180,240,0.4)] bg-[var(--header-background)] px-8 py-4.5">
           <div>
             <h1 className="text-[17px] font-bold text-slate-900 tracking-tight">
               {title}

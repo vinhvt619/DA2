@@ -42,7 +42,7 @@ export function CompanyPortalShell({ children, activeItem = "overview" }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#fff7fd] font-sans text-[#24192d]">
+    <div className="min-h-screen bg-[var(--page-background)] font-sans text-[#24192d]">
       <aside className="fixed inset-y-0 left-0 z-50 hidden w-[212px] flex-col border-r border-violet-100 bg-[#f6eafa] px-3 py-5 lg:flex">
         <button type="button" onClick={() => openDashboardTab("overview")} className="flex items-center gap-3 px-1 text-left">
           <img src="/RabbitCV.png" alt="RabbitCV" className="h-9 w-9 rounded-[9px] bg-white object-contain p-1 shadow-sm" />
@@ -92,7 +92,7 @@ export function CompanyAwarePage({ children, activeItem }) {
   const location = useLocation();
 
   if (!isAuthChecked) {
-    return <div className="grid min-h-screen place-items-center bg-[#fff7fd]"><div className="h-7 w-7 animate-spin rounded-full border-4 border-violet-700 border-t-transparent" /></div>;
+    return <div className="grid min-h-screen place-items-center bg-[var(--page-background)]"><div className="h-7 w-7 animate-spin rounded-full border-4 border-violet-700 border-t-transparent" /></div>;
   }
 
   if (currentUser?.role !== "company") return children;

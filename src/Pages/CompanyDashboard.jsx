@@ -592,7 +592,7 @@ export default function CompanyDashboard() {
 
   if (!isAuthChecked) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[#fff7fd]">
+      <div className="grid min-h-screen place-items-center bg-[var(--page-background)]">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-700 border-t-transparent" />
       </div>
     );
@@ -607,7 +607,7 @@ export default function CompanyDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#fff7fd] font-sans text-[#24192d]">
+    <div className="min-h-screen bg-[var(--page-background)] font-sans text-[#24192d]">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[212px] flex-col border-r border-violet-100 bg-[#f6eafa] px-3 py-5 lg:flex">
         <div className="flex items-center gap-3 px-1">
           <img src="/RabbitCV.png" alt="RabbitCV" className="h-9 w-9 rounded-[9px] bg-white object-contain p-1 shadow-sm" />

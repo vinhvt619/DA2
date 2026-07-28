@@ -6,7 +6,21 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  resolve: {
+    // Tiptap uses React hooks internally. Dedupe these packages so Vite never
+    // serves Tiptap with a second React instance during local development.
+    dedupe: ["react", "react-dom"],
+  },
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom/client",
+      "@tiptap/react",
+      "@tiptap/react/menus",
+    ],
+  },
   server: {
+    host: "0.0.0.0",
     port: 4000,
     strictPort: true,
     proxy: {

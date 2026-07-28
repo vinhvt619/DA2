@@ -85,6 +85,14 @@ const PREVIEW_PLACEHOLDER = {
   website: "minhanh.dev",
 };
 
+const preparePreviewItems = (items, limit) =>
+  Array.isArray(items)
+    ? items.slice(0, limit).map((item, index) => ({
+        ...item,
+        id: item?.id || item?._id || `preview-${index}`,
+      }))
+    : [];
+
 function getPreviewData(cv) {
   const source = cv || SAMPLE_CVS[0];
 
@@ -92,15 +100,15 @@ function getPreviewData(cv) {
     image: source.image || null,
     personalInfo: { ...PREVIEW_PLACEHOLDER, ...(source.personalInfo || {}) },
     bio: source.bio || "",
-    profile: source.profile?.slice(0, 2) || [],
-    experience: source.experience?.slice(0, 2) || [],
-    education: source.education?.slice(0, 1) || [],
-    skill: source.skill?.slice(0, 4) || [],
-    project: source.project?.slice(0, 1) || [],
-    award: source.award?.slice(0, 1) || [],
-    hobby: source.hobby?.slice(0, 3) || [],
-    language: source.language?.slice(0, 2) || [],
-    certificate: source.certificate?.slice(0, 1) || [],
+    profile: preparePreviewItems(source.profile, 2),
+    experience: preparePreviewItems(source.experience, 2),
+    education: preparePreviewItems(source.education, 1),
+    skill: preparePreviewItems(source.skill, 4),
+    project: preparePreviewItems(source.project, 1),
+    award: preparePreviewItems(source.award, 1),
+    hobby: preparePreviewItems(source.hobby, 3),
+    language: preparePreviewItems(source.language, 2),
+    certificate: preparePreviewItems(source.certificate, 1),
   };
 }
 

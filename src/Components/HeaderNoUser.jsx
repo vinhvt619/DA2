@@ -24,7 +24,7 @@ export default function HeaderNoUser() {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-sm">
+    <header className="sticky top-0 z-50 border-b border-violet-200/70 bg-[var(--header-background)] shadow-[0_1px_8px_rgba(76,29,149,0.05)] backdrop-blur-sm">
       <nav className="mx-auto flex min-h-16 max-w-[1536px] items-center px-4 sm:px-5 lg:px-6">
         <Link to="/" className="text-[22px] font-black tracking-[-1px] text-[#7c00e8] hover:text-[#962fea]">
           RabbitCV
@@ -73,7 +73,7 @@ export default function HeaderNoUser() {
       </nav>
 
       {menuOpen && (
-        <div className="border-t border-slate-100 bg-white px-4 py-3 lg:hidden">
+        <div className="border-t border-violet-100 bg-[var(--header-background)] px-4 py-3 lg:hidden">
           {navLinks.map((item) => (
             <button key={item.to} type="button" onClick={() => openLink(item)} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-violet-50">
               {item.label}

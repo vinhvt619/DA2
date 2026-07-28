@@ -365,7 +365,7 @@ function Jobs() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f3f0f7] font-sans text-slate-900 antialiased page-transition">
+    <div className="min-h-screen bg-[var(--page-background)] font-sans text-slate-900 antialiased page-transition">
       <Header />
 
       <div className="mx-auto w-full max-w-[1360px] px-3 py-4 sm:px-5 lg:px-6">
