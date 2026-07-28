@@ -41,6 +41,8 @@ Sao chép `.env.example` thành `.env` và cập nhật:
 - `MONGO_DB_NAME`: tên database, mặc định `RabbitCV`.
 - `JWT_SECRET`: chuỗi bí mật dùng ký token.
 - `CLIENT_URL`: địa chỉ frontend.
+- `VITE_SOCKET_URL`: tùy chọn ghi đè Socket.IO endpoint; để trống để local tự
+  dùng port `5000` và production dùng cùng domain.
 - `PORT`: cổng backend.
 
 ## CV và ứng tuyển

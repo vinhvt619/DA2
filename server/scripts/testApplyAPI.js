@@ -26,7 +26,7 @@ async function runTest() {
 
   // Login as candidate to get cookie
   console.log("Logging in as:", candidate.email);
-  let cookie = '';
+  let cookie;
   try {
     const loginRes = await fetch('http://localhost:5000/api/login', {
       method: 'POST',

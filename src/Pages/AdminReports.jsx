@@ -11,7 +11,6 @@ export default function AdminReports() {
   const [searchParams] = useSearchParams();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   // Filters state
   const [searchTerm, setSearchTerm] = useState("");
@@ -72,7 +71,6 @@ export default function AdminReports() {
   const fetchReports = async () => {
     try {
       setLoading(true);
-      setError(null);
       // Fetch report data from API
       const res = await fetch("/api/admin/reports", { credentials: "include" });
       if (res.ok) {

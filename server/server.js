@@ -5,6 +5,8 @@ import { parseCookie } from "cookie";
 import mongoose from "mongoose";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
@@ -26,6 +28,11 @@ dotenv.config();
 mongoose.set("bufferCommands", false);
 
 const app = express();
+app.disable("x-powered-by");
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 const PORT = process.env.PORT || 5000;
 const DEFAULT_DB_NAME = process.env.MONGO_DB_NAME || "RabbitCV";
 // Allow a manually managed URI to override the value provisioned by an
@@ -84,6 +91,63 @@ const cookieOptions = {
   sameSite: "lax",
 };
 
+const contentSecurityPolicy = {
+  useDefaults: false,
+  directives: {
+    defaultSrc: ["'self'"],
+    baseUri: ["'self'"],
+    connectSrc: [
+      "'self'",
+      "https://rabbitcv.vercel.app",
+      "wss://rabbitcv.vercel.app",
+      "http://localhost:5000",
+      "ws://localhost:5000",
+    ],
+    fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+    formAction: ["'self'"],
+    frameAncestors: ["'none'"],
+    imgSrc: ["'self'", "data:", "blob:", "https:"],
+    objectSrc: ["'none'"],
+    scriptSrc: ["'self'", "https://cdn.jsdelivr.net"],
+    scriptSrcAttr: ["'none'"],
+    styleSrc: [
+      "'self'",
+      "'unsafe-inline'",
+      "https://fonts.googleapis.com",
+      "https://cdn.jsdelivr.net",
+    ],
+  },
+};
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "Qua nhieu yeu cau. Vui long thu lai sau." },
+});
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: {
+    message: "Qua nhieu lan dang nhap that bai. Vui long thu lai sau 15 phut.",
+  },
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    message: "Qua nhieu yeu cau dang ky. Vui long thu lai sau.",
+  },
+});
+
 const mongoCache = globalThis.mongoCache || {
   conn: null,
   promise: null,
@@ -105,10 +169,19 @@ const resolveMongoUri = (uri) => {
   }
 };
 
+app.use(
+  helmet({
+    contentSecurityPolicy,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    frameguard: { action: "deny" },
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  }),
+);
 app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
+app.use("/api", apiLimiter);
 
 const seedAdmin = async () => {
   try {
@@ -187,34 +260,19 @@ const getPublicErrorMessage = (err, fallbackMessage) => {
 };
 
 app.get("/api/health", async (req, res) => {
-  let dbError = null;
+  let healthy = missingEnv.length === 0;
 
-  if (!missingEnv.includes("MONGODB_URI")) {
+  if (healthy) {
     try {
       await connectDB();
     } catch (err) {
-      dbError = err.message;
+      healthy = false;
+      console.error("Health check database error:", err.message);
     }
   }
 
-  const dbConnected = mongoose.connection.readyState === 1;
-
-  res.status(missingEnv.length || dbError || !dbConnected ? 500 : 200).json({
-    ok: missingEnv.length === 0 && dbConnected,
-    env: process.env.NODE_ENV || "development",
-    missingEnv,
-    auth: {
-      jwtConfigured: Boolean(jwtSecret),
-      usingDefaultJwtSecret,
-    },
-    database: {
-      readyState: mongoose.connection.readyState,
-      connected: dbConnected,
-      name: mongoose.connection.name || null,
-      host: mongoose.connection.host || null,
-      error: dbError,
-    },
-  });
+  healthy = healthy && mongoose.connection.readyState === 1;
+  return res.status(healthy ? 200 : 503).json({ ok: healthy });
 });
 
 app.use("/api", async (req, res, next) => {
@@ -246,6 +304,113 @@ const authMiddleware = (req, res, next) => {
     res.status(401).json({ message: "Phien dang nhap het han" });
   }
 };
+
+const SELF_USER_FIELDS = [
+  "_id",
+  "username",
+  "email",
+  "fullName",
+  "address",
+  "country",
+  "hometown",
+  "age",
+  "birthDate",
+  "phoneNumber",
+  "companyIndustry",
+  "companySize",
+  "companyWebsite",
+  "companyDescription",
+  "companyFoundedYear",
+  "companyTaxCode",
+  "educations",
+  "experiences",
+  "activities",
+  "savedJobs",
+  "role",
+  "status",
+  "companyVerificationStatus",
+  "isBanned",
+  "createdAt",
+  "updatedAt",
+].join(" ");
+
+const PUBLIC_USER_FIELDS = [
+  "_id",
+  "username",
+  "email",
+  "fullName",
+  "address",
+  "country",
+  "hometown",
+  "phoneNumber",
+  "companyIndustry",
+  "companySize",
+  "companyWebsite",
+  "companyDescription",
+  "companyFoundedYear",
+  "educations",
+  "experiences",
+  "activities",
+  "role",
+  "status",
+  "companyVerificationStatus",
+].join(" ");
+
+const ADMIN_USER_FIELDS = [
+  "_id",
+  "username",
+  "email",
+  "fullName",
+  "role",
+  "status",
+  "isBanned",
+  "companyIndustry",
+  "companySize",
+  "companyVerificationStatus",
+  "createdAt",
+  "updatedAt",
+].join(" ");
+
+const toSafeUser = (user) => {
+  const value = typeof user?.toObject === "function" ? user.toObject() : user;
+  if (!value) {
+    return value;
+  }
+
+  const { password: _password, pin: _pin, ...safeUser } = value;
+  return safeUser;
+};
+
+app.get("/api/admin/health/details", authMiddleware, async (req, res) => {
+  try {
+    const requester = await User.findById(req.user.id).select("role");
+    if (!requester || requester.role !== "admin") {
+      return res
+        .status(403)
+        .json({ message: "Quyen truy cap chi danh cho Admin" });
+    }
+
+    return res.status(200).json({
+      ok: mongoose.connection.readyState === 1,
+      environment: process.env.NODE_ENV || "development",
+      missingEnv,
+      auth: {
+        jwtConfigured: Boolean(process.env.JWT_SECRET),
+        usingDefaultJwtSecret,
+      },
+      database: {
+        readyState: mongoose.connection.readyState,
+        connected: mongoose.connection.readyState === 1,
+        name: mongoose.connection.name || null,
+        host: mongoose.connection.host || null,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: getPublicErrorMessage(error, "Khong the doc trang thai he thong"),
+    });
+  }
+});
 
 const RESUME_TEMPLATES = new Set([
   "classic",
@@ -434,7 +599,7 @@ app.delete("/api/resume/:id", authMiddleware, async (req, res) => {
   }
 });
 
-app.post("/api/register", async (req, res) => {
+app.post("/api/register", registerLimiter, async (req, res) => {
   try {
     const { username, email, password, role } = req.body;
 
@@ -473,7 +638,7 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-app.post("/api/login", async (req, res) => {
+app.post("/api/login", loginLimiter, async (req, res) => {
   try {
     const { username, password, rememberMe } = req.body;
 
@@ -483,7 +648,7 @@ app.post("/api/login", async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ username }).select("+password");
     if (!user) {
       return res.status(400).json({ message: "Tai khoan khong ton tai" });
     }
@@ -513,10 +678,10 @@ app.post("/api/login", async (req, res) => {
       maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000,
     });
 
-    const safeUser = user.toObject();
-    delete safeUser.password;
-
-    res.status(200).json({ message: "Dang nhap thanh cong", user: safeUser });
+    res.status(200).json({
+      message: "Dang nhap thanh cong",
+      user: toSafeUser(user),
+    });
   } catch (err) {
     res.status(500).json({
       message: getPublicErrorMessage(err, "Co loi xay ra khi dang nhap"),
@@ -527,7 +692,7 @@ app.post("/api/login", async (req, res) => {
 
 app.get("/api/me", authMiddleware, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const user = await User.findById(req.user.id).select(SELF_USER_FIELDS);
     res.status(200).json({ user });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -552,7 +717,9 @@ app.get("/api/users/search", authMiddleware, async (req, res) => {
         { companyIndustry: pattern },
       ],
     })
-      .select("fullName username email role status address country hometown companyIndustry companyWebsite")
+      .select(
+        "_id fullName username email role status companyIndustry companyWebsite",
+      )
       .limit(12)
       .lean();
 
@@ -564,7 +731,9 @@ app.get("/api/users/search", authMiddleware, async (req, res) => {
 
 app.get("/api/user/profile/:userId", authMiddleware, async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId).select("-password").lean();
+    const user = await User.findById(req.params.userId)
+      .select(PUBLIC_USER_FIELDS)
+      .lean();
     if (!user) {
       return res.status(404).json({ message: "Không tìm thấy người dùng" });
     }
@@ -634,7 +803,7 @@ app.put("/api/user/profile", authMiddleware, async (req, res) => {
         activities,
       },
       { new: true, runValidators: true },
-    ).select("-password");
+    ).select(SELF_USER_FIELDS);
 
     res.status(200).json({
       message: "Cap nhat ho so thanh cong",
@@ -686,7 +855,7 @@ app.put("/api/user/security", authMiddleware, async (req, res) => {
       req.user.id,
       updateData,
       { new: true, runValidators: true },
-    ).select("-password");
+    ).select(SELF_USER_FIELDS);
 
     res.status(200).json({
       message: "Cap nhat bao mat thanh cong",
@@ -700,7 +869,7 @@ app.put("/api/user/security", authMiddleware, async (req, res) => {
 app.put("/api/user/password", authMiddleware, async (req, res) => {
   try {
     const { oldPassword, newPassword } = req.body;
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).select("+password");
     if (!user) {
       return res.status(404).json({ message: "Nguoi dung khong ton tai" });
     }
@@ -1767,7 +1936,7 @@ app.get("/api/admin/stats", authMiddleware, async (req, res) => {
     const totalApplications = await Application.countDocuments({});
 
     const allUsers = await User.find({})
-      .select("-password")
+      .select(ADMIN_USER_FIELDS)
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -1889,7 +2058,10 @@ app.get("/api/admin/companies", authMiddleware, async (req, res) => {
       return res.status(403).json({ message: "Quyen truy cap chi danh cho Admin" });
     }
 
-    const companies = await User.find({ role: "company" }).select("-password").sort({ createdAt: -1 }).lean();
+    const companies = await User.find({ role: "company" })
+      .select(ADMIN_USER_FIELDS)
+      .sort({ createdAt: -1 })
+      .lean();
     const jobCounts = await Job.aggregate([
       { $match: { status: { $ne: "Deleted" }, deletedAt: null } },
       { $group: { _id: "$companyId", count: { $sum: 1 } } },
@@ -1931,7 +2103,7 @@ app.put("/api/admin/companies/:id/verification", authMiddleware, async (req, res
       { _id: req.params.id, role: "company" },
       updates,
       { new: true },
-    ).select("-password");
+    ).select(ADMIN_USER_FIELDS);
     if (!company) return res.status(404).json({ message: "Khong tim thay doanh nghiep" });
 
     res.status(200).json({ message: "Da cap nhat doanh nghiep", company });
@@ -1954,7 +2126,7 @@ app.put("/api/admin/users/:id/ban", authMiddleware, async (req, res) => {
       req.params.id,
       { isBanned: true },
       { new: true },
-    ).select("-password");
+    ).select(ADMIN_USER_FIELDS);
     if (!user) return res.status(404).json({ message: "Khong tim thay nguoi dung" });
     res.status(200).json({ message: "Da khoa tai khoan", user });
   } catch (error) {
@@ -2020,5 +2192,5 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
-export { io };
-export default app;
+export { app, io, server };
+export default server;

@@ -4,6 +4,18 @@ import { useAuth } from "./AuthContext";
 
 const SocketContext = createContext();
 
+const getSocketUrl = () => {
+  if (import.meta.env.VITE_SOCKET_URL) {
+    return import.meta.env.VITE_SOCKET_URL;
+  }
+
+  if (import.meta.env.DEV) {
+    return `${window.location.protocol}//${window.location.hostname}:5000`;
+  }
+
+  return undefined;
+};
+
 export const useSocket = () => {
   return useContext(SocketContext);
 };
@@ -71,8 +83,13 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     if (currentUser) {
-      const newSocket = io({
+      const newSocket = io(getSocketUrl(), {
+        path: "/socket.io",
         withCredentials: true,
+        transports: import.meta.env.PROD
+          ? ["websocket"]
+          : ["polling", "websocket"],
+        reconnection: true,
       });
 
       newSocket.on("newMessage", () => setHasNewMessage(true));

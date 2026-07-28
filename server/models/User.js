@@ -15,6 +15,7 @@ const UserSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
+      select: false,
     },
     // Profile Information
     fullName: { type: String, default: "" },
@@ -32,7 +33,7 @@ const UserSchema = new mongoose.Schema(
 
     // Security Information
     phoneNumber: { type: String, default: "" },
-    pin: { type: String, default: "" },
+    pin: { type: String, default: "", select: false },
 
     // Array Fields for Profile additions
     educations: { type: Array, default: [] },
