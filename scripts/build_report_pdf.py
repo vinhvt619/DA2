@@ -15,6 +15,7 @@ from reportlab.platypus import (
     BaseDocTemplate,
     Frame,
     HRFlowable,
+    Image as ReportImage,
     KeepTogether,
     NextPageTemplate,
     PageBreak,
@@ -31,6 +32,7 @@ from reportlab.platypus.tableofcontents import TableOfContents
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "docs" / "bao-cao-do-an-rabbitcv.md"
 OUTPUT = ROOT / "output" / "pdf" / "Bao_cao_do_an_tot_nghiep_RabbitCV.pdf"
+DIAGRAM_DIR = ROOT / "docs" / "diagrams"
 
 VIOLET = colors.HexColor("#7C3AED")
 VIOLET_DARK = colors.HexColor("#5B21B6")
@@ -309,6 +311,7 @@ def parse_markdown(text: str, styles):
     lines = text.replace("\r\n", "\n").split("\n")
     story = []
     paragraph_buffer = []
+    mermaid_index = 0
     i = 0
 
     def flush_paragraph():
@@ -349,11 +352,29 @@ def parse_markdown(text: str, styles):
             while i < len(lines) and not lines[i].strip().startswith("```"):
                 code.append(lines[i].rstrip())
                 i += 1
-            label = "Sơ đồ Mermaid" if language == "mermaid" else "Đoạn mã"
-            story.append(Paragraph(f"<b>{label}</b>", styles["Caption"]))
-            chunks = [code[j:j + 35] for j in range(0, len(code), 35)] or [[]]
-            for chunk in chunks:
-                story.append(Preformatted("\n".join(chunk), styles["Code"], maxLineLength=100))
+            if language == "mermaid":
+                mermaid_index += 1
+                diagram_path = DIAGRAM_DIR / f"report-{mermaid_index:02d}.png"
+                if diagram_path.exists():
+                    diagram = ReportImage(str(diagram_path))
+                    scale = min(
+                        (16.2 * cm) / diagram.imageWidth,
+                        (14.0 * cm) / diagram.imageHeight,
+                    )
+                    diagram.drawWidth = diagram.imageWidth * scale
+                    diagram.drawHeight = diagram.imageHeight * scale
+                    diagram.hAlign = "CENTER"
+                    story.extend([Spacer(1, 0.15 * cm), diagram, Spacer(1, 0.1 * cm)])
+                else:
+                    story.append(Paragraph("<b>Sơ đồ Mermaid</b>", styles["Caption"]))
+                    chunks = [code[j:j + 35] for j in range(0, len(code), 35)] or [[]]
+                    for chunk in chunks:
+                        story.append(Preformatted("\n".join(chunk), styles["Code"], maxLineLength=100))
+            else:
+                story.append(Paragraph("<b>Đoạn mã</b>", styles["Caption"]))
+                chunks = [code[j:j + 35] for j in range(0, len(code), 35)] or [[]]
+                for chunk in chunks:
+                    story.append(Preformatted("\n".join(chunk), styles["Code"], maxLineLength=100))
             i += 1
             continue
         if line.startswith("|") and line.endswith("|"):

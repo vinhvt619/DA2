@@ -10,6 +10,7 @@ nộp và cập nhật trạng thái hồ sơ. Hệ thống cũng có dashboard 
 - Backend: Node.js, Express, MongoDB/Mongoose.
 - Realtime: Socket.IO.
 - Xác thực: JWT trong HTTP-only cookie.
+- AI: Groq Free với model OpenAI GPT-OSS và Structured Outputs.
 
 ## Cài đặt
 
@@ -18,13 +19,7 @@ Yêu cầu Node.js 20 trở lên và một MongoDB database dành cho local/demo
 ```bash
 npm ci
 copy .env.example .env
-npm run start
-```
-
-Mở terminal thứ hai để chạy frontend:
-
-```bash
-npm run dev
+npm run start:all
 ```
 
 - Frontend: `http://localhost:4000`
@@ -43,7 +38,38 @@ Sao chép `.env.example` thành `.env` và cập nhật:
 - `CLIENT_URL`: địa chỉ frontend.
 - `VITE_SOCKET_URL`: tùy chọn ghi đè Socket.IO endpoint; để trống để local tự
   dùng port `5000` và production dùng cùng domain.
+- `GROQ_API_KEY`: khóa Groq, chỉ cấu hình ở backend hoặc Vercel Environment
+  Variables. Không đặt khóa này trong biến bắt đầu bằng `VITE_`.
+- `GROQ_MODEL`: model AI, mặc định `openai/gpt-oss-120b`.
+- `AI_ENABLED`: đặt `false` để tắt toàn bộ tính năng AI.
+- `AI_DAILY_LIMIT`: số lượt AI tối đa cho mỗi tài khoản mỗi ngày, mặc định `100`.
+- `AI_REQUEST_TIMEOUT_MS`: thời gian chờ Groq tối đa, mặc định `20000`.
+- `CRON_SECRET`: chuỗi bí mật bảo vệ endpoint cập nhật tin hết hạn trên môi
+  trường production.
 - `PORT`: cổng backend.
+
+## Tính năng AI
+
+AI chỉ được gọi từ Express backend. Frontend không nhận và không lưu
+`GROQ_API_KEY`.
+
+- Viết mới, cải thiện hoặc rút gọn phần tiểu sử CV nhưng không tự động ghi đè
+  nội dung đang có.
+- Điền các mục CV còn thiếu dựa trên thông tin hồ sơ và nội dung người dùng đã
+  nhập; kết quả vẫn cần được người dùng xem lại trước khi lưu.
+- Review toàn bộ CV, nêu điểm tốt, vấn đề và cách cải thiện theo mức ưu tiên.
+- Chấm mức độ phù hợp giữa CV đã lưu và tin tuyển dụng.
+- Phỏng vấn thử theo vị trí, cấp độ và loại phỏng vấn; AI hỏi từng câu, chấm câu
+  trả lời và tổng kết buổi luyện tập.
+
+Mỗi tài khoản có quota theo ngày và rate limit riêng cho nhóm API `/api/ai`.
+Nội dung đầu vào được làm sạch, loại thông tin liên hệ khỏi CV trước khi gửi
+Groq qua HTTPS. Database chỉ lưu thống kê token, độ trễ, trạng thái và hash đầu
+vào, không lưu prompt hoặc nội dung CV.
+
+Khi deploy Vercel, thêm `GROQ_API_KEY`, `CRON_SECRET` và các biến cần thiết cho
+từng môi trường, sau đó redeploy. Nếu chưa có khóa AI, website vẫn chạy bình
+thường và API AI trả thông báo chưa được cấu hình.
 
 ## CV và ứng tuyển
 
@@ -80,6 +106,8 @@ Test hiện có kiểm tra:
 - Từ chối DOC/DOCX và nội dung giả PDF.
 - Giới hạn PDF 5 MB.
 - CSS preview và print khai báo đúng khổ A4.
+- Làm sạch dữ liệu trước khi gửi AI và loại thông tin liên hệ khỏi CV.
+- Khóa Groq không xuất hiện trong mã nguồn frontend.
 
 ## Checklist demo
 

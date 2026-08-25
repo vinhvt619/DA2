@@ -28,6 +28,11 @@ const ApplicationSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
+  coverLetter: {
+    type: String,
+    default: "",
+    maxlength: 5000,
+  },
   status: {
     type: String,
     enum: ['Pending', 'Reviewing', 'Interview', 'Offered', 'Rejected', 'Accepted'],

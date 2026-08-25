@@ -9,7 +9,7 @@ import {
 } from "@heroicons/react/24/outline";
 import InputPassword from "../Components/InputPassword.jsx";
 import StyledSelect from "../Components/StyledSelect.jsx";
-import { useToastContext } from "../Components/Toast.jsx";
+import { showToast } from "../utils/toast.js";
 import SettingsPageLayout, {
   SettingsCard,
   SettingsPageHeader,
@@ -62,7 +62,6 @@ function PrivacyRow({ icon: Icon, title, description, danger = false, children }
 }
 
 export default function SettingAndPrivate() {
-  const showToast = useToastContext();
   const [profileVisibility, setProfileVisibility] = useState("recruiters");
   const [jobAlerts, setJobAlerts] = useState(true);
   const [updatingPassword, setUpdatingPassword] = useState(false);

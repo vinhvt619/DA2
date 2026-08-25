@@ -1,120 +1,119 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { useToastContext } from "../Components/Toast";
+import {
+  useMutation,
+  useMutationState,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import React, { createContext, useCallback, useContext, useMemo } from "react";
+import { fetchJson } from "../utils/http.js";
+import { showToast } from "../utils/toast.js";
 import { useAuth } from "./AuthContext";
 
 const SavedJobsContext = createContext(null);
+const savedJobsKey = (userId) => ["saved-jobs", userId];
 
 export function SavedJobsProvider({ children }) {
   const { currentUser, isAuthChecked } = useAuth();
-  const currentUserId = isAuthChecked ? (currentUser?._id ?? null) : undefined;
-  const [savedSet, setSavedSet] = useState(new Set());
-  const [savedJobIdList, setSavedJobIdList] = useState([]);
-  const [isLoadingSavedIds, setIsLoadingSavedIds] = useState(true);
-  const [pendingIds, setPendingIds] = useState(new Set());
-  const showToast = useToastContext();
+  const currentUserId = currentUser?._id;
+  const queryClient = useQueryClient();
+  const isLoggedIn = Boolean(isAuthChecked && currentUserId);
 
-  // Fetch saved jobs when auth state changes
-  useEffect(() => {
-    if (currentUserId === undefined) return; // Still checking auth
+  const savedJobsQuery = useQuery({
+    queryKey: savedJobsKey(currentUserId),
+    queryFn: async () => {
+      const savedJobs = await fetchJson("/api/saved-jobs");
+      return savedJobs.map((item) => item.jobId);
+    },
+    enabled: isLoggedIn,
+  });
 
-    if (currentUserId === null) {
-      setSavedSet(new Set());
-      setSavedJobIdList([]);
-      setIsLoadingSavedIds(false);
-      return;
-    }
-
-    const fetchSavedJobs = async () => {
-      setIsLoadingSavedIds(true);
-      try {
-        const res = await fetch("/api/saved-jobs", { credentials: "include" });
-        if (res.ok) {
-          const data = await res.json();
-          const ids = data.map((item) => item.jobId);
-          setSavedJobIdList(ids);
-          setSavedSet(new Set(ids));
-        } else {
-          setSavedSet(new Set());
-          setSavedJobIdList([]);
-        }
-      } catch (err) {
-        console.error("Lỗi khi tải danh sách công việc đã lưu:", err);
-      } finally {
-        setIsLoadingSavedIds(false);
-      }
-    };
-
-    fetchSavedJobs();
-  }, [currentUserId]);
-
-  const isLoggedIn = currentUserId !== null && currentUserId !== undefined;
-
-  const isSaved = useCallback((jobId) => {
-    return savedSet.has(jobId);
-  }, [savedSet]);
-
-  const toggleSave = async (jobId) => {
-    if (!isLoggedIn) {
-      showToast("Vui lòng đăng nhập để lưu công việc.", "error");
-      return;
-    }
-    
-    if (pendingIds.has(jobId)) return;
-
-    const wasSaved = savedSet.has(jobId);
-    setPendingIds((prev) => new Set([...prev, jobId]));
-
-    // Optimistic update
-    if (wasSaved) {
-      setSavedSet((prev) => {
-        const next = new Set(prev);
-        next.delete(jobId);
-        return next;
-      });
-      setSavedJobIdList((prev) => prev.filter((id) => id !== jobId));
-    } else {
-      setSavedSet((prev) => new Set([jobId, ...prev]));
-      setSavedJobIdList((prev) => [jobId, ...prev]);
-    }
-
-    try {
-      const method = wasSaved ? "DELETE" : "POST";
-      const res = await fetch(`/api/saved-jobs/${jobId}`, {
-        method,
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("API error");
-    } catch {
-      // Rollback
-      if (wasSaved) {
-        setSavedSet((prev) => new Set([jobId, ...prev]));
-        setSavedJobIdList((prev) => [jobId, ...prev]);
-      } else {
-        setSavedSet((prev) => {
-          const next = new Set(prev);
-          next.delete(jobId);
-          return next;
-        });
-        setSavedJobIdList((prev) => prev.filter((id) => id !== jobId));
-      }
+  const toggleMutation = useMutation({
+    mutationKey: ["saved-jobs", "toggle", currentUserId],
+    mutationFn: ({ jobId, wasSaved }) =>
+      fetchJson(`/api/saved-jobs/${jobId}`, {
+        method: wasSaved ? "DELETE" : "POST",
+      }),
+    onMutate: async ({ jobId, wasSaved }) => {
+      const queryKey = savedJobsKey(currentUserId);
+      await queryClient.cancelQueries({ queryKey });
+      const previousIds = queryClient.getQueryData(queryKey) || [];
+      queryClient.setQueryData(queryKey, (ids = []) =>
+        wasSaved
+          ? ids.filter((id) => id !== jobId)
+          : [jobId, ...ids.filter((id) => id !== jobId)],
+      );
+      return { previousIds };
+    },
+    onError: (error, variables, context) => {
+      queryClient.setQueryData(
+        savedJobsKey(currentUserId),
+        context?.previousIds || [],
+      );
       showToast("Có lỗi xảy ra, vui lòng thử lại.", "error");
-    } finally {
-      setPendingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(jobId);
-        return next;
-      });
-    }
-  };
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: savedJobsKey(currentUserId) });
+    },
+  });
 
-  const value = {
-    isLoggedIn,
-    isSaved,
-    savedJobIdList,
-    isLoadingSavedIds,
-    toggleSave,
-    pendingIds,
-  };
+  const pendingJobIds = useMutationState({
+    filters: {
+      mutationKey: ["saved-jobs", "toggle", currentUserId],
+      status: "pending",
+    },
+    select: (mutation) => mutation.state.variables?.jobId,
+  });
+
+  const savedJobIdList = useMemo(
+    () => (isLoggedIn ? (savedJobsQuery.data || []) : []),
+    [isLoggedIn, savedJobsQuery.data],
+  );
+  const savedSet = useMemo(() => new Set(savedJobIdList), [savedJobIdList]);
+  const pendingIds = useMemo(
+    () => new Set(pendingJobIds.filter(Boolean)),
+    [pendingJobIds],
+  );
+  const isSaved = useCallback((jobId) => savedSet.has(jobId), [savedSet]);
+
+  const toggleSave = useCallback(
+    async (jobId) => {
+      if (!isLoggedIn) {
+        showToast("Vui lòng đăng nhập để lưu công việc.", "error");
+        return;
+      }
+      if (pendingIds.has(jobId)) return;
+
+      try {
+        await toggleMutation.mutateAsync({
+          jobId,
+          wasSaved: savedSet.has(jobId),
+        });
+      } catch {
+        // The mutation already restores the cache and shows user feedback.
+      }
+    },
+    [isLoggedIn, pendingIds, savedSet, toggleMutation],
+  );
+
+  const value = useMemo(
+    () => ({
+      isLoggedIn,
+      isSaved,
+      savedJobIdList,
+      isLoadingSavedIds: !isAuthChecked || savedJobsQuery.isLoading,
+      toggleSave,
+      pendingIds,
+    }),
+    [
+      isAuthChecked,
+      isLoggedIn,
+      isSaved,
+      pendingIds,
+      savedJobIdList,
+      savedJobsQuery.isLoading,
+      toggleSave,
+    ],
+  );
 
   return (
     <SavedJobsContext.Provider value={value}>

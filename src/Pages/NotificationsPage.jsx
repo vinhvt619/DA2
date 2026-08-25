@@ -6,29 +6,22 @@ import SettingsPageLayout, {
   SettingsPageHeader,
 } from '../Components/SettingsLayout.jsx';
 import useNotifications from '../hooks/useNotifications.js';
+import { formatRelativeTime } from '../utils/dateTime.js';
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
-  const { notifications, markAsRead, fetchNotifications } = useNotifications();
+  const {
+    notifications,
+    hasMoreNotifications,
+    markAsRead,
+    fetchNotifications,
+  } = useNotifications();
   const [page, setPage] = useState(1);
   const LIMIT = 20;
 
   useEffect(() => {
     fetchNotifications(page, LIMIT);
   }, [page, fetchNotifications]);
-
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = Math.floor((now - date) / 1000);
-    
-    if (diff < 60) return 'Vừa xong';
-    if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
-    if (diff < 604800) return `${Math.floor(diff / 86400)} ngày trước`;
-    
-    return date.toLocaleDateString('vi-VN');
-  };
 
   const handleNotificationClick = async (notif) => {
     if (!notif.isRead) {
@@ -90,7 +83,7 @@ export default function NotificationsPage() {
                   
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-gray-400 font-medium">
-                      {formatTime(notif.createdAt)}
+                      {formatRelativeTime(notif.createdAt)}
                     </span>
                   </div>
                 </div>
@@ -98,7 +91,7 @@ export default function NotificationsPage() {
             )}
           </div>
           
-          {notifications.length === LIMIT && (
+          {hasMoreNotifications && (
             <div className="border-t border-violet-100/50 bg-violet-50/5 text-center">
               <button
                 type="button"

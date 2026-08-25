@@ -6,6 +6,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import useNotifications from "../hooks/useNotifications";
 import { useAuth } from "../context/AuthContext";
+import { formatDateTime } from "../utils/dateTime.js";
 
 export default function NotificationBell({ isOpen, onToggle, onClose }) {
   const { unreadCount, notifications, loading, fetchNotifications, markAsRead, markAllAsRead } = useNotifications();
@@ -34,17 +35,6 @@ export default function NotificationBell({ isOpen, onToggle, onClose }) {
     } else {
       navigate("/UserDashboard");
     }
-  };
-
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    if (Number.isNaN(date.getTime())) return "";
-    return new Intl.DateTimeFormat("vi-VN", {
-      hour: "2-digit",
-      minute: "2-digit",
-      day: "2-digit",
-      month: "2-digit",
-    }).format(date);
   };
 
   return (
@@ -115,7 +105,7 @@ export default function NotificationBell({ isOpen, onToggle, onClose }) {
                       {!notification.isRead && <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-600" />}
                     </span>
                     <span className="mt-0.5 line-clamp-2 text-xs leading-5 text-slate-500">{notification.message}</span>
-                    <span className="mt-1 block text-[10px] font-medium text-violet-600">{formatTime(notification.createdAt)}</span>
+                    <span className="mt-1 block text-[10px] font-medium text-violet-600">{formatDateTime(notification.createdAt, "HH:mm dd/MM")}</span>
                   </span>
                 </button>
               ))

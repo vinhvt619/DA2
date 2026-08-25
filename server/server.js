@@ -22,7 +22,9 @@ import { createNotification, createNotificationsBulk } from "./utils/notificatio
 import { validatePdfUpload } from "./utils/pdfValidation.js";
 import { isJobDeleted, isJobUnavailable } from "./utils/jobAvailability.js";
 import { sanitizeRichText } from "./utils/richTextSanitizer.js";
-import "./cron/jobExpiryCron.js";
+import { cleanAiText } from "./utils/aiDataSanitizer.js";
+import aiRoutes from "./routes/aiRoutes.js";
+import { runJobExpiryCheck } from "./cron/jobExpiryCron.js";
 
 dotenv.config();
 mongoose.set("bufferCommands", false);
@@ -411,6 +413,28 @@ app.get("/api/admin/health/details", authMiddleware, async (req, res) => {
     });
   }
 });
+
+app.get("/api/cron/job-expiry", async (req, res) => {
+  const expectedToken = process.env.CRON_SECRET;
+  const isLocal = process.env.NODE_ENV !== "production";
+  const isAuthorized =
+    isLocal ||
+    (expectedToken && req.headers.authorization === `Bearer ${expectedToken}`);
+
+  if (!isAuthorized) {
+    return res.status(401).json({ message: "Cron token khong hop le" });
+  }
+
+  try {
+    const summary = await runJobExpiryCheck();
+    return res.status(200).json({ ok: true, ...summary });
+  } catch (error) {
+    console.error("Job expiry cron failed:", error.message);
+    return res.status(500).json({ ok: false });
+  }
+});
+
+app.use("/api/ai", authMiddleware, aiRoutes);
 
 const RESUME_TEMPLATES = new Set([
   "classic",
@@ -1351,7 +1375,7 @@ app.post("/api/jobs", authMiddleware, async (req, res) => {
 // Submit a CV application
 app.post("/api/jobs/apply", authMiddleware, async (req, res) => {
   try {
-    const { jobId, resumeId } = req.body;
+    const { jobId, resumeId, coverLetter } = req.body;
     if (!jobId || !resumeId) {
       return res.status(400).json({ message: "Thieu thong tin ung tuyen" });
     }
@@ -1395,6 +1419,7 @@ app.post("/api/jobs/apply", authMiddleware, async (req, res) => {
       fullName: resume.personalInfo?.fullName || user.fullName || user.username,
       email: resume.personalInfo?.email || user.email,
       phone: resume.personalInfo?.phone || user.phoneNumber || "",
+      coverLetter: cleanAiText(coverLetter, 5000),
       status: "Pending",
       jobSnapshot: {
         title: job.title,
@@ -1440,7 +1465,7 @@ app.post("/api/jobs/apply", authMiddleware, async (req, res) => {
 // Submit application with local PDF upload
 app.post("/api/jobs/apply-file", authMiddleware, async (req, res) => {
   try {
-    const { jobId, fileData, fileName } = req.body;
+    const { jobId, fileData, fileName, coverLetter } = req.body;
     if (!jobId || !fileData || !fileName) {
       return res.status(400).json({ message: "Thieu thong tin ung tuyen" });
     }
@@ -1496,6 +1521,7 @@ app.post("/api/jobs/apply-file", authMiddleware, async (req, res) => {
       fullName: user.fullName || user.username,
       email: user.email,
       phone: user.phoneNumber || "",
+      coverLetter: cleanAiText(coverLetter, 5000),
       status: "Pending",
       jobSnapshot: {
         title: job.title,

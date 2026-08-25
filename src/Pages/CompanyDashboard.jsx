@@ -23,7 +23,9 @@ import {
 } from "@heroicons/react/24/outline";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { useToastContext } from "../Components/Toast.jsx";
+import { useConfirmDialog } from "../context/ConfirmDialogContext.jsx";
+import { showToast } from "../utils/toast.js";
+import { formatDate } from "../utils/dateTime.js";
 import NotificationBell from "../Components/NotificationBell.jsx";
 
 function PortalCard({ children, className = "" }) {
@@ -129,7 +131,7 @@ function ApplicationStatusSelect({ value = "Pending", onChange }) {
   );
 }
 
-function CompanyOverview({ currentUser, stats, jobs, applications, getJobStatus, getAppCountForJob, setActiveTab, navigate }) {
+function CompanyOverview({ currentUser, stats, jobs, applications, getJobStatus, getAppCountForJob, setActiveTab, navigate, onViewCoverLetter }) {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const pipelineSummary = useMemo(() => {
     const groups = [
@@ -220,7 +222,13 @@ function CompanyOverview({ currentUser, stats, jobs, applications, getJobStatus,
                     </td>
                     <td className="px-3 py-2.5 text-[11px] font-medium text-slate-600">{app.jobId?.title || "Tin đã xóa"}</td>
                     <td className="px-3 py-2.5"><AppStatusBadge status={app.status} /></td>
-                    <td className="px-4 py-2.5 text-right"><div className="flex justify-end gap-1.5"><button type="button" onClick={() => app.resumeId && navigate(`/resume/view/${app.resumeId}`)} disabled={!app.resumeId} className="rounded-[7px] bg-violet-100 px-2 py-1 text-[10px] font-bold text-violet-700 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:opacity-40">Xem CV</button><button type="button" onClick={() => (app.candidateId?._id || app.candidateId) && navigate(`/profile/${app.candidateId?._id || app.candidateId}`)} disabled={!(app.candidateId?._id || app.candidateId)} className="rounded-[7px] border border-slate-200 px-2 py-1 text-[10px] font-bold text-slate-600 transition hover:border-violet-200 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40">Trang cá nhân</button></div></td>
+                    <td className="px-4 py-2.5 text-right">
+                      <div className="flex justify-end gap-1.5">
+                        <button type="button" onClick={() => app.resumeId && navigate(`/resume/view/${app.resumeId}`)} disabled={!app.resumeId} className="rounded-[7px] bg-violet-100 px-2 py-1 text-[10px] font-bold text-violet-700 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:opacity-40">Xem CV</button>
+                        {app.coverLetter && <button type="button" onClick={() => onViewCoverLetter(app)} className="rounded-[7px] border border-sky-200 px-2 py-1 text-[10px] font-bold text-sky-700 transition hover:bg-sky-50">Thư ứng tuyển</button>}
+                        <button type="button" onClick={() => (app.candidateId?._id || app.candidateId) && navigate(`/profile/${app.candidateId?._id || app.candidateId}`)} disabled={!(app.candidateId?._id || app.candidateId)} className="rounded-[7px] border border-slate-200 px-2 py-1 text-[10px] font-bold text-slate-600 transition hover:border-violet-200 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40">Trang cá nhân</button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -261,7 +269,7 @@ function CompanyOverview({ currentUser, stats, jobs, applications, getJobStatus,
                 <tr key={job._id} className="transition hover:bg-violet-50/30">
                   <td className="px-4 py-2.5"><p className="text-[11px] font-bold text-slate-800">{job.title}</p><p className="mt-0.5 text-[9px] text-slate-400">{job.type} · {job.location}</p></td>
                   <td className="px-3 py-2.5 text-[11px] font-semibold text-slate-600">{getAppCountForJob(job._id)}</td>
-                  <td className="px-3 py-2.5 text-[11px] text-slate-500">{job.createdAt ? new Date(job.createdAt).toLocaleDateString("vi-VN") : "—"}</td>
+                  <td className="px-3 py-2.5 text-[11px] text-slate-500">{formatDate(job.createdAt, "dd/MM/yyyy", "—")}</td>
                   <td className="px-3 py-2.5"><StatusBadge status={getJobStatus(job)} /></td>
                   <td className="px-4 py-2.5 text-right"><button type="button" onClick={() => setActiveTab("jobs")} className="rounded-[7px] border border-violet-200 px-2.5 py-1 text-[10px] font-bold text-violet-700 transition hover:bg-violet-50">Xem chi tiết</button></td>
                 </tr>
@@ -277,15 +285,16 @@ function CompanyOverview({ currentUser, stats, jobs, applications, getJobStatus,
 
 export default function CompanyDashboard() {
   const navigate = useNavigate();
+  const confirmDialog = useConfirmDialog();
   const location = useLocation();
   const { currentUser, isAuthChecked, logout } = useAuth();
-  const showToast = useToastContext();
 
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || "overview");
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
+  const [selectedCoverLetter, setSelectedCoverLetter] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingJobId, setEditingJobId] = useState(null);
   const [jobStatusFilter, setJobStatusFilter] = useState("All");
@@ -360,7 +369,7 @@ export default function CompanyDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, []);
 
   useEffect(() => {
     fetchDashboardData();
@@ -534,7 +543,7 @@ export default function CompanyDashboard() {
   };
 
   const handleDeleteJob = async (jobId) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa tin tuyển dụng này?")) return false;
+    if (!(await confirmDialog("Bạn có chắc chắn muốn xóa tin tuyển dụng này?"))) return false;
     try {
       const res = await fetch(`/api/jobs/${jobId}`, { method: "DELETE", credentials: "include" });
       if (res.ok) {
@@ -682,6 +691,7 @@ export default function CompanyDashboard() {
                   getAppCountForJob={getAppCountForJob}
                   setActiveTab={setActiveTab}
                   navigate={navigate}
+                  onViewCoverLetter={setSelectedCoverLetter}
                 />
               )}
 
@@ -789,7 +799,7 @@ export default function CompanyDashboard() {
                               <td className="px-3.5 py-2.5"><p className="text-[12px] font-black">{job.title}</p><p className="text-[9px] font-semibold text-[#665d70]">{getJobTypeLabel(job.type)} • {job.salary}</p></td>
                               <td><StatusBadge status={getJobStatus(job)} /></td>
                               <td className="text-[11px] font-semibold text-[#665d70]">{job.location}</td>
-                              <td className="text-[11px] font-semibold text-[#665d70]">{new Date(job.createdAt).toLocaleDateString("vi-VN")}</td>
+                              <td className="text-[11px] font-semibold text-[#665d70]">{formatDate(job.createdAt)}</td>
                               <td><button onClick={() => handleRecruitForJob(job._id)} className="text-[11px] font-black text-violet-700">{getAppCountForJob(job._id)}</button></td>
                               <td className="pr-3.5 text-right">
                                 {["Active", "Draft", "Expired"].includes(getJobStatus(job)) ? (
@@ -866,6 +876,7 @@ export default function CompanyDashboard() {
                             <div className="grid grid-cols-2 gap-2">
                               <button type="button" onClick={() => app.resumeId && navigate(`/resume/view/${app.resumeId}`)} disabled={!app.resumeId} className="rounded-[8px] bg-violet-100 px-2 py-1.5 text-[11px] font-black text-violet-700 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:opacity-40">Xem CV</button>
                               <button type="button" onClick={() => (app.candidateId?._id || app.candidateId) && navigate(`/profile/${app.candidateId?._id || app.candidateId}`)} disabled={!(app.candidateId?._id || app.candidateId)} className="rounded-[8px] border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-600 transition hover:border-violet-200 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40">Trang cá nhân</button>
+                              {app.coverLetter && <button type="button" onClick={() => setSelectedCoverLetter(app)} className="col-span-2 rounded-[8px] border border-sky-200 bg-sky-50 px-2 py-1.5 text-[11px] font-bold text-sky-700 transition hover:bg-sky-100">Xem thư ứng tuyển</button>}
                               <div className="col-span-2"><ApplicationStatusSelect value={app.status} onChange={(nextStatus) => handleUpdateStatus(app._id, nextStatus)} /></div>
                             </div>
                           </div>
@@ -982,7 +993,12 @@ export default function CompanyDashboard() {
                       </PortalCard>
 
                       <PortalCard className="overflow-hidden">
-                        <div className="border-b border-violet-100 px-5 py-4"><h2 className="text-[16px] font-bold">Nội dung tuyển dụng</h2><p className="mt-1 text-[11px] text-slate-500">Mô tả công việc, yêu cầu và quyền lợi dành cho ứng viên.</p></div>
+                        <div className="border-b border-violet-100 px-5 py-4">
+                          <div>
+                            <h2 className="text-[16px] font-bold">Nội dung tuyển dụng</h2>
+                            <p className="mt-1 text-[11px] text-slate-500">Mô tả công việc, yêu cầu và quyền lợi dành cho ứng viên.</p>
+                          </div>
+                        </div>
                         <div className="grid gap-4 p-5">
                           <label className="block text-[11px] font-semibold text-slate-600">Mô tả công việc *<textarea name="description" value={formData.description} onChange={handleInputChange} rows={5} placeholder="Trình bày nhiệm vụ chính và phạm vi công việc..." className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] font-normal leading-5 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100" /></label>
                           <div className="grid gap-4 sm:grid-cols-2">
@@ -1029,6 +1045,30 @@ export default function CompanyDashboard() {
           )}
         </div>
       </main>
+      {selectedCoverLetter && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4" role="presentation" onMouseDown={() => setSelectedCoverLetter(null)}>
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cover-letter-title"
+            onMouseDown={(event) => event.stopPropagation()}
+            className="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded-xl border border-sky-100 bg-white shadow-2xl"
+          >
+            <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2 id="cover-letter-title" className="text-base font-bold text-slate-900">Thư ứng tuyển</h2>
+                <p className="mt-1 text-xs text-slate-500">{selectedCoverLetter.fullName} · {selectedCoverLetter.jobId?.title || "Tin tuyển dụng"}</p>
+              </div>
+              <button type="button" onClick={() => setSelectedCoverLetter(null)} aria-label="Đóng thư ứng tuyển" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800">
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </header>
+            <div className="max-h-[calc(80vh-76px)] overflow-y-auto whitespace-pre-wrap px-5 py-4 text-sm leading-6 text-slate-700">
+              {selectedCoverLetter.coverLetter}
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

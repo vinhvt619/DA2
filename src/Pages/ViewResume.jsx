@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Header from "../Components/Header";
 import PdfResumePreview from "../Components/PdfResumePreview";
@@ -7,12 +7,14 @@ import useCvZoom from "../hooks/useCvZoom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { SAMPLE_CVS } from "../data/sampleCV";
 import { ArrowLeftIcon, PrinterIcon, ChatBubbleLeftEllipsisIcon } from "@heroicons/react/24/outline";
+import useResumePrint from "../hooks/useResumePrint.js";
 
 export default function ViewResume() {
   const { resumeId } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const previewRef = useCvZoom();
+  const printContentRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [resumeData, setResumeData] = useState(null);
@@ -75,9 +77,10 @@ export default function ViewResume() {
     document.body.removeChild(link);
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = useResumePrint({
+    contentRef: printContentRef,
+    title: resumeData?.title,
+  });
 
   const handleBack = () => {
     if (window.opener) {
@@ -187,7 +190,7 @@ export default function ViewResume() {
             </div>
 
             {/* Wrapper chuẩn hóa */}
-            <div className="cv-wrapper bg-white shadow-lg print:shadow-none print:w-full rounded-sm mb-10">
+            <div ref={printContentRef} className="cv-wrapper bg-white shadow-lg print:shadow-none print:w-full rounded-sm mb-10">
               <ResumePreview
                 selectedTemplate={resumeData.selectedTemplate || "modern"}
                 image={resumeData.image || ""}

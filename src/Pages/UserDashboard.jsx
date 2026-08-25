@@ -12,6 +12,7 @@ import SettingsPageLayout, {
   SettingsCard,
   SettingsPageHeader,
 } from "../Components/SettingsLayout.jsx";
+import { formatRelativeDay } from "../utils/dateTime.js";
 
 function mapStatusToClass(status) {
   switch (status) {
@@ -43,16 +44,6 @@ function mapStatusToClass(status) {
         class: "bg-gray-50 text-gray-700 border-gray-100/60",
       };
   }
-}
-
-function formatDate(dateString) {
-  if (!dateString) return "Không rõ";
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return "Hôm nay";
-  if (diffDays === 1) return "Hôm qua";
-  return `${diffDays} ngày trước`;
 }
 
 function getCompanyColor(companyName) {
@@ -134,7 +125,7 @@ export default function UserDashboard() {
               role: app.jobId ? app.jobId.title : "Vị trí không xác định",
               status: statusInfo.text,
               statusClass: statusInfo.class,
-              date: formatDate(app.createdAt),
+              date: formatRelativeDay(app.createdAt),
             };
           });
           setRecentApplications(mapped);

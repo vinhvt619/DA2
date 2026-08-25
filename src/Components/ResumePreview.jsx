@@ -5,6 +5,11 @@ import {
   MapPinIcon,
   GlobeAltIcon,
 } from "@heroicons/react/24/outline";
+import {
+  formatResumeDate,
+  formatResumeDateRange,
+} from "../utils/dateTime.js";
+import RichTextContent from "./RichTextContent.jsx";
 
 const safeExternalUrl = (value) => {
   if (typeof value !== "string" || !value.trim()) return undefined;
@@ -28,20 +33,7 @@ const safeExternalUrl = (value) => {
   }
 };
 
-const formatResumeDate = (value) => {
-  if (!value || typeof value !== "string") return "";
-
-  const dateParts = value.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/);
-  if (!dateParts) return value;
-
-  const [, year, month, day] = dateParts;
-  return day ? `${day}/${month}/${year}` : `${month}/${year}`;
-};
-
-const formatDateRange = (startDate, endDate) =>
-  [formatResumeDate(startDate), formatResumeDate(endDate)]
-    .filter(Boolean)
-    .join(" – ");
+const formatDateRange = formatResumeDateRange;
 
 const ContactItem = ({ icon: _Icon, text, link }) => {
   if (!text) return null;
@@ -160,9 +152,9 @@ const BasicTemplate = ({
                     )}
                   </div>
                   {item.description && (
-                    <div
+                    <RichTextContent
                       className="mt-1 text-gray-600"
-                      dangerouslySetInnerHTML={{ __html: item.description }}
+                      content={item.description}
                     />
                   )}
                 </div>
@@ -213,11 +205,9 @@ const BasicTemplate = ({
                     {awardItem.awarder}
                   </div>
                   {awardItem.description && (
-                    <div
+                    <RichTextContent
                       className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
-                      dangerouslySetInnerHTML={{
-                        __html: awardItem.description,
-                      }}
+                      content={awardItem.description}
                     />
                   )}
                 </div>
@@ -252,9 +242,9 @@ const BasicTemplate = ({
             <h3 className="text-xs font-bold uppercase tracking-widest border-b border-gray-300 pb-1 mb-3 text-gray-900">
               Giới thiệu
             </h3>
-            <div
+            <RichTextContent
               className="text-xs text-gray-700 leading-relaxed text-justify"
-              dangerouslySetInnerHTML={{ __html: bio }}
+              content={bio}
             />
           </section>
         )}
@@ -279,9 +269,9 @@ const BasicTemplate = ({
                     {item.company}
                     {item.location ? ` • ${item.location}` : ""}
                   </div>
-                  <div
+                  <RichTextContent
                     className="text-xs text-gray-600 leading-relaxed list-disc pl-4"
-                    dangerouslySetInnerHTML={{ __html: item.description }}
+                    content={item.description}
                   />
                 </div>
               ))}
@@ -317,9 +307,9 @@ const BasicTemplate = ({
                     </div>
                   )}
                   {edu.description && (
-                    <div
+                    <RichTextContent
                       className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
-                      dangerouslySetInnerHTML={{ __html: edu.description }}
+                      content={edu.description}
                     />
                   )}
                 </div>
@@ -352,9 +342,9 @@ const BasicTemplate = ({
                       {i.link}
                     </a>
                   )}
-                  <div
+                  <RichTextContent
                     className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
-                    dangerouslySetInnerHTML={{ __html: i.description }}
+                    content={i.description}
                   />
                 </div>
               ))}
@@ -382,9 +372,9 @@ const BasicTemplate = ({
                     {i.publisher}
                   </div>
                   {i.description && (
-                    <div
+                    <RichTextContent
                       className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
-                      dangerouslySetInnerHTML={{ __html: i.description }}
+                      content={i.description}
                     />
                   )}
                 </div>
@@ -447,9 +437,9 @@ const ModernTemplate = ({
             <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 mb-2 print:mb-1.5 border-b-2 border-gray-100 pb-1">
               Tiểu sử
             </h3>
-            <div
+            <RichTextContent
               className="text-xs text-gray-700 leading-relaxed print:leading-normal"
-              dangerouslySetInnerHTML={{ __html: bio }}
+              content={bio}
             />
           </section>
         )}
@@ -474,9 +464,9 @@ const ModernTemplate = ({
                     {exp.company}
                     {exp.location ? ` • ${exp.location}` : ""}
                   </div>
-                  <div
+                  <RichTextContent
                     className="text-xs text-gray-600 leading-relaxed print:leading-normal list-disc pl-4"
-                    dangerouslySetInnerHTML={{ __html: exp.description }}
+                    content={exp.description}
                   />
                 </div>
               ))}
@@ -512,9 +502,9 @@ const ModernTemplate = ({
                     </div>
                   )}
                   {i.description && (
-                    <div
+                    <RichTextContent
                       className="text-xs text-gray-600 leading-relaxed print:leading-normal list-disc pl-4 mt-1 print:mt-0.5"
-                      dangerouslySetInnerHTML={{ __html: i.description }}
+                      content={i.description}
                     />
                   )}
                 </div>
@@ -547,9 +537,9 @@ const ModernTemplate = ({
                       {i.link}
                     </a>
                   )}
-                  <div
+                  <RichTextContent
                     className="text-xs text-gray-600 leading-relaxed print:leading-normal list-disc pl-4"
-                    dangerouslySetInnerHTML={{ __html: i.description }}
+                    content={i.description}
                   />
                 </div>
               ))}
@@ -577,9 +567,9 @@ const ModernTemplate = ({
                     {i.publisher}
                   </div>
                   {i.description && (
-                    <div
+                    <RichTextContent
                       className="text-xs text-gray-600 leading-relaxed print:leading-normal list-disc pl-4"
-                      dangerouslySetInnerHTML={{ __html: i.description }}
+                      content={i.description}
                     />
                   )}
                 </div>
@@ -619,9 +609,9 @@ const ModernTemplate = ({
                     )}
                   </div>
                   {i.description && (
-                    <div
+                    <RichTextContent
                       className="mt-1 print:mt-0.5 text-xs text-gray-600 print:leading-normal"
-                      dangerouslySetInnerHTML={{ __html: i.description }}
+                      content={i.description}
                     />
                   )}
                 </div>
@@ -668,9 +658,9 @@ const ModernTemplate = ({
                     {formatResumeDate(i.date)}
                   </div>
                   {i.description && (
-                    <div
+                    <RichTextContent
                       className="text-xs text-gray-600 leading-relaxed print:leading-normal list-disc pl-4 mt-1 print:mt-0.5"
-                      dangerouslySetInnerHTML={{ __html: i.description }}
+                      content={i.description}
                     />
                   )}
                 </div>
@@ -809,9 +799,9 @@ const ProfessionalTemplate = ({
                   ></div>
                 </div>
                 {i.description && (
-                  <div
+                  <RichTextContent
                     className="mt-1.5 text-[10px] text-gray-400"
-                    dangerouslySetInnerHTML={{ __html: i.description }}
+                    content={i.description}
                   />
                 )}
               </div>
@@ -867,9 +857,9 @@ const ProfessionalTemplate = ({
           <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 border-b border-gray-200 pb-1 mb-3">
             Tiểu sử
           </h3>
-          <div
+          <RichTextContent
             className="text-xs text-gray-700 leading-relaxed text-justify"
-            dangerouslySetInnerHTML={{ __html: bio }}
+            content={bio}
           />
         </section>
       )}
@@ -892,9 +882,9 @@ const ProfessionalTemplate = ({
                   {i.company}
                   {i.location ? ` • ${i.location}` : ""}
                 </div>
-                <div
+                <RichTextContent
                   className="text-xs text-gray-600 leading-relaxed list-disc pl-4"
-                  dangerouslySetInnerHTML={{ __html: i.description }}
+                  content={i.description}
                 />
               </div>
             ))}
@@ -928,9 +918,9 @@ const ProfessionalTemplate = ({
                   </div>
                 )}
                 {i.description && (
-                  <div
+                  <RichTextContent
                     className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
-                    dangerouslySetInnerHTML={{ __html: i.description }}
+                    content={i.description}
                   />
                 )}
               </div>
@@ -961,9 +951,9 @@ const ProfessionalTemplate = ({
                     {i.link}
                   </a>
                 )}
-                <div
+                <RichTextContent
                   className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
-                  dangerouslySetInnerHTML={{ __html: i.description }}
+                  content={i.description}
                 />
               </div>
             ))}
@@ -989,9 +979,9 @@ const ProfessionalTemplate = ({
                   {i.publisher}
                 </div>
                 {i.description && (
-                  <div
+                  <RichTextContent
                     className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
-                    dangerouslySetInnerHTML={{ __html: i.description }}
+                    content={i.description}
                   />
                 )}
               </div>
@@ -1018,9 +1008,9 @@ const ProfessionalTemplate = ({
                   {i.awarder}
                 </div>
                 {i.description && (
-                  <div
+                  <RichTextContent
                     className="text-xs text-gray-600 leading-relaxed list-disc pl-4 mt-1"
-                    dangerouslySetInnerHTML={{ __html: i.description }}
+                    content={i.description}
                   />
                 )}
               </div>
@@ -1044,9 +1034,9 @@ const TemplateBio = ({ bio, headingClass }) => {
   return (
     <section className="break-inside-avoid">
       <TemplateSectionTitle className={headingClass}>Giới thiệu</TemplateSectionTitle>
-      <div
+      <RichTextContent
         className="text-[11px] leading-[1.75] text-slate-600"
-        dangerouslySetInnerHTML={{ __html: bio }}
+        content={bio}
       />
     </section>
   );
@@ -1073,9 +1063,9 @@ const TemplateExperience = ({ items, headingClass, dateClass = "text-slate-500" 
               </span>
             </div>
             {item.description && (
-              <div
+              <RichTextContent
                 className="mt-2 pl-3 text-[11px] leading-[1.65] text-slate-600"
-                dangerouslySetInnerHTML={{ __html: item.description }}
+                content={item.description}
               />
             )}
           </article>
@@ -1132,9 +1122,9 @@ const TemplateProjects = ({ items, headingClass, accentClass = "text-violet-700"
             </div>
             {item.link && <p className={`mt-1 truncate text-[10px] ${accentClass}`}>{item.link}</p>}
             {item.description && (
-              <div
+              <RichTextContent
                 className="mt-1.5 pl-3 text-[11px] leading-[1.65] text-slate-600"
-                dangerouslySetInnerHTML={{ __html: item.description }}
+                content={item.description}
               />
             )}
           </article>
@@ -1159,9 +1149,9 @@ const TemplateCredentials = ({ items, title, headingClass, metaKey }) => {
             </div>
             {item[metaKey] && <p className="mt-0.5 text-[10px] font-semibold text-slate-500">{item[metaKey]}</p>}
             {item.description && (
-              <div
+              <RichTextContent
                 className="mt-1 text-[10px] leading-4 text-slate-600"
-                dangerouslySetInnerHTML={{ __html: item.description }}
+                content={item.description}
               />
             )}
           </article>
@@ -1219,9 +1209,9 @@ const TemplatePlainSkills = ({
               {item.performance && <span className={`shrink-0 text-[9px] font-semibold ${secondaryClass}`}>{item.performance}</span>}
             </div>
             {item.description && (
-              <div
+              <RichTextContent
                 className={`mt-0.5 text-[9px] leading-4 ${secondaryClass}`}
-                dangerouslySetInnerHTML={{ __html: item.description }}
+                content={item.description}
               />
             )}
           </div>
@@ -1258,9 +1248,9 @@ const CompactExperience = ({ items }) => {
               </p>
             </div>
             {item.description && (
-              <div
+              <RichTextContent
                 className="mt-1 text-[10px] leading-[1.45] text-slate-600"
-                dangerouslySetInnerHTML={{ __html: item.description }}
+                content={item.description}
               />
             )}
           </article>
@@ -1310,7 +1300,7 @@ const AtsSkills = ({ items }) => {
             <span className="font-bold text-slate-900">{item.title}</span>
             {item.performance && <span> — {item.performance}</span>}
             {item.description && (
-              <div className="text-[9px] text-slate-600" dangerouslySetInnerHTML={{ __html: item.description }} />
+              <RichTextContent className="text-[9px] text-slate-600" content={item.description} />
             )}
           </div>
         ))}
@@ -1334,7 +1324,7 @@ const AtsProjects = ({ items }) => {
             </div>
             {item.link && <p className="mt-0.5 text-[9px] text-slate-600">{item.link}</p>}
             {item.description && (
-              <div className="mt-0.5 text-[9px] leading-[1.45] text-slate-600" dangerouslySetInnerHTML={{ __html: item.description }} />
+              <RichTextContent className="mt-0.5 text-[9px] leading-[1.45] text-slate-600" content={item.description} />
             )}
           </article>
         ))}
@@ -1357,7 +1347,7 @@ const AtsCredentials = ({ items, title, metaKey }) => {
               {item.date && <span className="shrink-0 font-semibold">{formatResumeDate(item.date)}</span>}
             </div>
             {item[metaKey] && <p>{item[metaKey]}</p>}
-            {item.description && <div dangerouslySetInnerHTML={{ __html: item.description }} />}
+            {item.description && <RichTextContent content={item.description} />}
           </article>
         ))}
       </div>
@@ -1517,7 +1507,7 @@ const CompactTemplate = ({
       {bio && (
         <section>
           <AtsSectionTitle>Tóm tắt nghề nghiệp</AtsSectionTitle>
-          <div className="text-[10px] leading-[1.55] text-slate-700" dangerouslySetInnerHTML={{ __html: bio }} />
+          <RichTextContent className="text-[10px] leading-[1.55] text-slate-700" content={bio} />
         </section>
       )}
       <CompactExperience items={experience} />

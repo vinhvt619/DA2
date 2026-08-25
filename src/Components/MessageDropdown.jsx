@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
 import { useNavigate } from "react-router-dom";
+import { formatDateTime } from "../utils/dateTime.js";
 
 export default function MessageDropdown({ toggleMenu, hasNewMessage }) {
   const navigate = useNavigate();
@@ -29,17 +30,6 @@ export default function MessageDropdown({ toggleMenu, hasNewMessage }) {
   const openInbox = () => {
     toggleMenu("");
     navigate("/Message");
-  };
-
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    if (Number.isNaN(date.getTime())) return "";
-    return new Intl.DateTimeFormat("vi-VN", {
-      hour: "2-digit",
-      minute: "2-digit",
-      day: "2-digit",
-      month: "2-digit",
-    }).format(date);
   };
 
   const getInitials = (name) => name
@@ -99,7 +89,7 @@ export default function MessageDropdown({ toggleMenu, hasNewMessage }) {
                   </span>
                   <span className="mt-0.5 block truncate text-xs text-slate-500">{thread.lastMessage || "Chưa có tin nhắn"}</span>
                   <span className="mt-1 block text-[10px] font-medium text-violet-600">
-                    {thread.lastMessageAt ? formatTime(thread.lastMessageAt) : ""}
+                    {thread.lastMessageAt ? formatDateTime(thread.lastMessageAt, "HH:mm dd/MM") : ""}
                   </span>
                 </span>
               </button>

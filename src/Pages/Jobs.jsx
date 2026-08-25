@@ -19,6 +19,7 @@ import { useSavedJobs } from "../context/SavedJobsContext.jsx";
 import { jobsData } from "../data/jobsData.js";
 import { newsArticles } from "../data/newsArticles.js";
 import { getProfileCompletion } from "../utils/profileCompletion.js";
+import { formatDate } from "../utils/dateTime.js";
 
 const categoryOptions = [
   { value: "", label: "Tất cả ngành nghề" },
@@ -256,7 +257,7 @@ function Jobs() {
           data.map((job) => ({
             ...job,
             id: job._id,
-            postedAt: new Date(job.createdAt).toLocaleDateString("vi-VN"),
+            postedAt: formatDate(job.createdAt),
             tags: job.tags || [],
           })),
         );

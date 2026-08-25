@@ -15,6 +15,7 @@ import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import Header from "../Components/Header.jsx";
 import { useSavedJobs } from "../context/SavedJobsContext.jsx";
 import { jobsData } from "../data/jobsData.js";
+import { formatDate } from "../utils/dateTime.js";
 
 const locationOptions = [
   { value: "", label: "Tất cả địa điểm" },
@@ -221,7 +222,7 @@ function AllJobs() {
           data.map((job) => ({
             ...job,
             id: job._id,
-            postedAt: new Date(job.createdAt).toLocaleDateString("vi-VN"),
+            postedAt: formatDate(job.createdAt),
             tags: job.tags || [],
           })),
         );

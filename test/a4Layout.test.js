@@ -14,17 +14,22 @@ test("CV wrapper and print page use A4 dimensions", async () => {
   assert.ok(Math.abs(A4_WIDTH_MM / A4_HEIGHT_MM - 1 / 1.414) < 0.001);
 });
 
-test("CV editor and library expose PDF download actions backed by print", async () => {
-  const [editor, library] = await Promise.all([
+test("CV editor and library expose PDF download actions backed by shared print hook", async () => {
+  const [editor, library, printHook] = await Promise.all([
     readFile(new URL("../src/Pages/Resume.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/Pages/ResumeSelection.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/hooks/useResumePrint.js", import.meta.url), "utf8"),
   ]);
 
   assert.match(editor, /Tải PDF/);
-  assert.match(editor, /window\.print\(\)/);
+  assert.match(editor, /useResumePrint/);
+  assert.match(editor, /ref={printContentRef}/);
   assert.match(library, /Tải PDF/);
   assert.match(library, /resume-library-print-root/);
-  assert.match(library, /window\.print\(\)/);
+  assert.match(library, /useResumePrint/);
+  assert.match(printHook, /useReactToPrint/);
+  assert.doesNotMatch(editor, /window\.print\(\)/);
+  assert.doesNotMatch(library, /window\.print\(\)/);
 });
 
 test("uploaded PDF resumes render as clean A4 pages without a native iframe viewer", async () => {

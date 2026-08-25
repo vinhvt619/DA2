@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useToastContext } from "./Toast";
+import { showToast } from "../utils/toast.js";
 import HeaderNoUser from "./HeaderNoUser.jsx";
 import NotificationBell from "./NotificationBell.jsx";
 import MessageDropdown from "./MessageDropdown.jsx";
@@ -23,7 +23,6 @@ export default function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
-  const showToast = useToastContext();
   const headerRef = useRef(null);
 
   useEffect(() => {
@@ -65,6 +64,7 @@ export default function Header() {
         "/companydashboard",
         "/saved-jobs",
         "/my-applications",
+        "/ai-interview",
       ];
       if (protectedPaths.some((p) => path.includes(p))) {
         navigate("/login");
@@ -103,6 +103,7 @@ export default function Header() {
         { to: "/ResumeSelection", label: "Tạo CV" },
         { to: "/TopPage", label: "Bảng xếp hạng" },
         { to: "/News", label: "Tin tức" },
+        { to: "/ai-interview", label: "Phỏng vấn AI" },
       ];
     }
   };

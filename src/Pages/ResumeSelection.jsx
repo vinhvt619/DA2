@@ -14,9 +14,12 @@ import {
 } from "@heroicons/react/24/outline";
 import Header from "../Components/Header.jsx";
 import ResumePreview from "../Components/ResumePreview.jsx";
-import { useToastContext } from "../Components/Toast.jsx";
+import { showToast } from "../utils/toast.js";
+import { formatDate } from "../utils/dateTime.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useConfirmDialog } from "../context/ConfirmDialogContext.jsx";
 import { SAMPLE_CVS } from "../data/sampleCV.js";
+import useResumePrint from "../hooks/useResumePrint.js";
 
 const TEMPLATES = [
   {
@@ -223,7 +226,7 @@ function SavedResumeCard({ cv, editingId, tempTitle, setEditingId, setTempTitle,
           <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-slate-900">{cv.title || "CV mới của tôi"}</h3>
         )}
         <p className="mt-1 truncate text-xs text-slate-500">{cv.personalInfo?.jobTitle || "Chưa cập nhật vị trí"}</p>
-        <p className="mt-2 flex items-center gap-1 text-[10px] text-slate-400"><ClockIcon className="h-3 w-3" />Cập nhật lần cuối: {new Date(cv.updatedAt || cv.createdAt).toLocaleDateString("vi-VN")}</p>
+        <p className="mt-2 flex items-center gap-1 text-[10px] text-slate-400"><ClockIcon className="h-3 w-3" />Cập nhật lần cuối: {formatDate(cv.updatedAt || cv.createdAt)}</p>
         <span className="mt-2 w-fit text-[10px] font-medium text-violet-600">{label}</span>
       </div>
 
@@ -254,7 +257,7 @@ function TemplateCard({ template, onSelect }) {
 
 export default function ResumeSelection() {
   const navigate = useNavigate();
-  const showToast = useToastContext();
+  const confirmDialog = useConfirmDialog();
   const { currentUser, isAuthChecked } = useAuth();
   const [savedResumes, setSavedResumes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -264,32 +267,25 @@ export default function ResumeSelection() {
   const [sortOrder, setSortOrder] = useState("newest");
   const [templateFilter, setTemplateFilter] = useState("Tất cả");
   const [resumeToPrint, setResumeToPrint] = useState(null);
+  const printContentRef = useRef(null);
+  const activePrintIdRef = useRef(null);
+  const printResume = useResumePrint({
+    contentRef: printContentRef,
+    title: resumeToPrint?.title,
+    onAfterPrint: () => {
+      activePrintIdRef.current = null;
+      setResumeToPrint(null);
+    },
+  });
 
   useEffect(() => {
     if (!resumeToPrint) return undefined;
-
-    const previousTitle = document.title;
-    const safeTitle = (resumeToPrint.title?.trim() || "CV-cua-toi")
-      .replace(/[\\/:*?"<>|]+/g, "-")
-      .replace(/\s+/g, " ");
-    let printTimer;
-
-    const finishPrinting = () => {
-      window.clearTimeout(printTimer);
-      document.title = previousTitle;
-      setResumeToPrint(null);
-    };
-
-    document.title = safeTitle;
-    window.addEventListener("afterprint", finishPrinting, { once: true });
-    printTimer = window.setTimeout(() => window.print(), 100);
-
-    return () => {
-      window.clearTimeout(printTimer);
-      window.removeEventListener("afterprint", finishPrinting);
-      document.title = previousTitle;
-    };
-  }, [resumeToPrint]);
+    const printId = resumeToPrint._id || resumeToPrint.title;
+    if (activePrintIdRef.current === printId) return undefined;
+    activePrintIdRef.current = printId;
+    void printResume();
+    return undefined;
+  }, [printResume, resumeToPrint]);
 
   useEffect(() => {
     if (!isAuthChecked) return;
@@ -335,7 +331,7 @@ export default function ResumeSelection() {
   };
 
   const handleDeleteResume = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa bản CV này không?")) return;
+    if (!(await confirmDialog("Bạn có chắc chắn muốn xóa bản CV này không?"))) return;
     try {
       const response = await fetch(`/api/resume/${id}`, { method: "DELETE", credentials: "include" });
       if (response.ok) {
@@ -393,7 +389,7 @@ export default function ResumeSelection() {
 
       {resumeToPrint && (
         <div className="resume-library-print-root" aria-hidden="true">
-          <div className="cv-wrapper bg-white">
+          <div ref={printContentRef} className="cv-wrapper bg-white">
             <ResumePreview
               selectedTemplate={resumeToPrint.selectedTemplate || "modern"}
               image={resumeToPrint.image || ""}

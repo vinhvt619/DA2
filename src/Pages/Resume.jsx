@@ -5,14 +5,22 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useConfirmDialog } from "../context/ConfirmDialogContext.jsx";
 import ResumeForm from "../Components/ResumeForm";
 import ResumePreview from "../Components/ResumePreview";
 import ResumeTemplate from "../Components/ResumeTemplate";
-import Toast from "../Components/Toast";
 import useCvZoom from "../hooks/useCvZoom";
-import { SAMPLE_CVS } from "../data/sampleCV";
+import useResumePrint from "../hooks/useResumePrint.js";
+import { requestAi } from "../utils/aiApi.js";
+import { normalizeResumeDateValue } from "../utils/dateInput.js";
+import { showToast } from "../utils/toast.js";
+import {
+  mergeAiSection,
+  mergeAiSkills,
+} from "../utils/resumeAiFill.js";
 import {
   ArrowLeftIcon,
   ChevronDoubleLeftIcon,
@@ -20,6 +28,8 @@ import {
   CloudArrowUpIcon,
   DocumentArrowDownIcon,
   EyeIcon,
+  SparklesIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 
 const DEFAULT_TITLE = "CV mới của tôi";
@@ -48,6 +58,30 @@ const mapIds = (items) =>
     ? items.map((item) => ({ ...item, id: item._id || item.id }))
     : [];
 
+const mapAccountExperience = (items) =>
+  (Array.isArray(items) ? items : []).map((item, index) => ({
+    id: item._id || `account-experience-${index}`,
+    title: item.position || "",
+    company: item.company || "",
+    location: item.location || "",
+    startDate: normalizeResumeDateValue(item.startDate),
+    endDate: normalizeResumeDateValue(item.endDate),
+    description: item.description || "",
+  }));
+
+const mapAccountEducation = (items) =>
+  (Array.isArray(items) ? items : []).map((item, index) => ({
+    id: item._id || `account-education-${index}`,
+    title: item.degree || "",
+    company: item.school || "",
+    location: item.location || "",
+    major: item.major || "",
+    score: item.score || "",
+    startDate: normalizeResumeDateValue(item.startDate),
+    endDate: normalizeResumeDateValue(item.endDate),
+    description: item.description || "",
+  }));
+
 const normalizeResume = (data = {}) => ({
   title: data.title || DEFAULT_TITLE,
   image: data.image || null,
@@ -69,9 +103,10 @@ export default function CreateResume() {
   const location = useLocation();
   const navigate = useNavigate();
   const { resumeId: routeResumeId } = useParams();
+  const confirmDialog = useConfirmDialog();
   const initialResumeId = routeResumeId || location.state?.cvId || null;
   const previewRef = useCvZoom();
-  const toastTimerRef = useRef(null);
+  const printContentRef = useRef(null);
   const titleInputRef = useRef(null);
 
   const [showForm, setShowForm] = useState(
@@ -85,11 +120,6 @@ export default function CreateResume() {
   const [selectedTemplate, setSelectedTemplate] = useState(
     normalizeTemplate(location.state?.template),
   );
-  const [toast, setToast] = useState({
-    message: "",
-    type: "success",
-    visible: false,
-  });
   const [titleError, setTitleError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingResume, setIsLoadingResume] = useState(Boolean(initialResumeId));
@@ -97,6 +127,13 @@ export default function CreateResume() {
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [lastSaved, setLastSaved] = useState(null);
   const [savedSignature, setSavedSignature] = useState(null);
+  const [isImprovingBio, setIsImprovingBio] = useState(false);
+  const [bioSuggestion, setBioSuggestion] = useState(null);
+  const [isReviewingResume, setIsReviewingResume] = useState(false);
+  const [resumeReview, setResumeReview] = useState(null);
+  const [isAiFillingResume, setIsAiFillingResume] = useState(false);
+  const [isAiFillPromptOpen, setIsAiFillPromptOpen] = useState(false);
+  const [aiTargetRole, setAiTargetRole] = useState("");
 
   const [image, setImage] = useState(null);
   const [bio, setBio] = useState("");
@@ -154,15 +191,6 @@ export default function CreateResume() {
   const isDirty =
     savedSignature !== null && currentSignature !== savedSignature;
 
-  const showToast = useCallback((message, type = "success") => {
-    window.clearTimeout(toastTimerRef.current);
-    setToast({ message, type, visible: true });
-    toastTimerRef.current = window.setTimeout(
-      () => setToast((current) => ({ ...current, visible: false })),
-      3000,
-    );
-  }, []);
-
   const applyResume = useCallback((data) => {
     const normalized = normalizeResume(data);
     setTitle(normalized.title);
@@ -181,11 +209,6 @@ export default function CreateResume() {
     setSelectedTemplate(normalized.selectedTemplate);
     return normalized;
   }, []);
-
-  useEffect(
-    () => () => window.clearTimeout(toastTimerRef.current),
-    [],
-  );
 
   useEffect(() => {
     const nextId = routeResumeId || location.state?.cvId || null;
@@ -261,13 +284,270 @@ export default function CreateResume() {
     isAuthChecked,
     loadAttempt,
     navigate,
-    showToast,
   ]);
 
-  const handleFillSample = () => {
-    const randomCV = SAMPLE_CVS[Math.floor(Math.random() * SAMPLE_CVS.length)];
-    applyResume({ ...randomCV, selectedTemplate });
-    showToast(`Đã điền ${randomCV.title}!`, "success");
+  const handleAiFillResume = async (requestedRole = "") => {
+    const requestedTargetRole =
+      typeof requestedRole === "string" ? requestedRole.trim() : "";
+    const accountExperience = mapAccountExperience(currentUser?.experiences);
+    const accountEducation = mapAccountEducation(currentUser?.educations);
+    const sourceExperience =
+      experience.length > 0 ? experience : accountExperience;
+    const sourceEducation = education.length > 0 ? education : accountEducation;
+    const accountLocation =
+      currentUser?.address ||
+      [currentUser?.hometown, currentUser?.country].filter(Boolean).join(", ");
+    const latestAccountRole =
+      sourceExperience.find((item) => item.title?.trim())?.title || "";
+    const mergedPersonalInfo = {
+      ...personalInfo,
+      fullName:
+        personalInfo.fullName ||
+        currentUser?.fullName ||
+        currentUser?.username ||
+        "",
+      email: personalInfo.email || currentUser?.email || "",
+      phone: personalInfo.phone || currentUser?.phoneNumber || "",
+      location: personalInfo.location || accountLocation || "",
+      jobTitle:
+        personalInfo.jobTitle || latestAccountRole || requestedTargetRole,
+    };
+    const hasCareerContext =
+      Boolean(mergedPersonalInfo.jobTitle?.trim()) ||
+      Boolean(bio.trim()) ||
+      sourceExperience.length > 0 ||
+      sourceEducation.length > 0 ||
+      skill.length > 0 ||
+      project.length > 0 ||
+      certificate.length > 0;
+
+    setPersonalInfo(mergedPersonalInfo);
+    if (experience.length === 0 && sourceExperience.length > 0) {
+      setExperience(sourceExperience);
+    }
+    if (education.length === 0 && sourceEducation.length > 0) {
+      setEducation(sourceEducation);
+    }
+
+    if (!hasCareerContext) {
+      setAiTargetRole("");
+      setIsAiFillPromptOpen(true);
+      return;
+    }
+
+    setIsAiFillPromptOpen(false);
+    setIsAiFillingResume(true);
+    try {
+      const data = await requestAi("/resume/fill", {
+        resumeContext: {
+          personalInfo: mergedPersonalInfo,
+          bio,
+          experience: sourceExperience,
+          education: sourceEducation,
+          skill,
+          language,
+          certificate,
+          project,
+          award,
+          hobby,
+          profile,
+        },
+      });
+      const generated = data.result || {};
+      const targetRole =
+        mergedPersonalInfo.jobTitle || generated.targetRole?.trim() || "";
+
+      setPersonalInfo({
+        ...mergedPersonalInfo,
+        jobTitle: targetRole,
+      });
+      if (!bio.trim() && generated.bio?.trim()) {
+        setBio(generated.bio.trim());
+      }
+      setSkill(mergeAiSkills(skill, generated.skills));
+      setExperience(
+        mergeAiSection(
+          sourceExperience,
+          generated.experiences,
+          [
+            "title",
+            "company",
+            "location",
+            "startDate",
+            "endDate",
+            "description",
+          ],
+          "experience",
+        ),
+      );
+      setEducation(
+        mergeAiSection(
+          sourceEducation,
+          generated.education,
+          [
+            "title",
+            "major",
+            "company",
+            "location",
+            "startDate",
+            "endDate",
+            "score",
+            "description",
+          ],
+          "education",
+        ),
+      );
+      setLanguage(
+        mergeAiSection(
+          language,
+          generated.languages,
+          ["title", "description"],
+          "language",
+        ),
+      );
+      setCertificate(
+        mergeAiSection(
+          certificate,
+          generated.certificates,
+          ["title", "date", "publisher", "description"],
+          "certificate",
+        ),
+      );
+      setProject(
+        mergeAiSection(
+          project,
+          generated.projects,
+          [
+            "title",
+            "company",
+            "location",
+            "startDate",
+            "endDate",
+            "date",
+            "link",
+            "description",
+          ],
+          "project",
+        ),
+      );
+      setAward(
+        mergeAiSection(
+          award,
+          generated.awards,
+          ["title", "awarder", "date", "description"],
+          "award",
+        ),
+      );
+      setHobby(
+        mergeAiSection(hobby, generated.hobbies, ["title"], "hobby"),
+      );
+      if (title === DEFAULT_TITLE && targetRole) {
+        setTitle(`CV ${targetRole}`);
+      }
+
+      showToast(
+        "AI đã điền các phần còn thiếu. Hãy kiểm tra nội dung trước khi lưu.",
+        "success",
+      );
+    } catch (error) {
+      showToast(error.message, "error");
+    } finally {
+      setIsAiFillingResume(false);
+    }
+  };
+
+  const handleImproveBio = async (mode = "improve") => {
+    const hasResumeContext =
+      Boolean(personalInfo.jobTitle?.trim()) ||
+      experience.length > 0 ||
+      education.length > 0 ||
+      skill.length > 0 ||
+      project.length > 0;
+
+    if (mode !== "generate" && !bio.trim()) {
+      showToast("Hãy nhập phần tiểu sử trước khi chọn chế độ này.", "error");
+      return;
+    }
+    if (mode === "generate" && !bio.trim() && !hasResumeContext) {
+      showToast(
+        "Hãy nhập vị trí mong muốn, kỹ năng hoặc kinh nghiệm trước.",
+        "error",
+      );
+      return;
+    }
+
+    setIsImprovingBio(true);
+    setBioSuggestion(null);
+    try {
+      const data = await requestAi("/resume/improve", {
+        resumeId: _id || undefined,
+        mode,
+        content: bio,
+        targetRole: personalInfo.jobTitle,
+        resumeContext: {
+          personalInfo: { jobTitle: personalInfo.jobTitle },
+          bio,
+          experience,
+          education,
+          skill,
+          project,
+          certificate,
+        },
+      });
+      setBioSuggestion({ ...data.result, mode });
+    } catch (error) {
+      showToast(error.message, "error");
+    } finally {
+      setIsImprovingBio(false);
+    }
+  };
+
+  const handleReviewResume = async () => {
+    const hasReviewableContent =
+      Boolean(personalInfo.jobTitle?.trim()) ||
+      Boolean(bio.trim()) ||
+      experience.length > 0 ||
+      education.length > 0 ||
+      skill.length > 0 ||
+      project.length > 0 ||
+      certificate.length > 0;
+
+    if (!hasReviewableContent) {
+      showToast(
+        "Hãy nhập tiểu sử, kỹ năng, kinh nghiệm hoặc học vấn trước khi review CV.",
+        "error",
+      );
+      return false;
+    }
+
+    setIsReviewingResume(true);
+    try {
+      const data = await requestAi("/resume/review", {
+        resumeId: _id || undefined,
+        resumeContext: {
+          title,
+          personalInfo,
+          bio,
+          profile,
+          experience,
+          education,
+          skill,
+          language,
+          certificate,
+          project,
+          award,
+          hobby,
+          selectedTemplate,
+        },
+      });
+      setResumeReview(data.result);
+      return true;
+    } catch (error) {
+      showToast(error.message, "error");
+      return false;
+    } finally {
+      setIsReviewingResume(false);
+    }
   };
 
   const handleSave = async () => {
@@ -336,32 +616,20 @@ export default function CreateResume() {
     }
   };
 
-  const handleBack = () => {
+  const handleBack = async () => {
     if (
       isDirty &&
-      !window.confirm("CV có thay đổi chưa lưu. Bạn vẫn muốn rời trang?")
+      !(await confirmDialog("CV có thay đổi chưa lưu. Bạn vẫn muốn rời trang?"))
     ) {
       return;
     }
     navigate("/ResumeSelection");
   };
 
-  const handleDownloadPdf = () => {
-    const previousTitle = document.title;
-    const safeTitle = (title.trim() || "CV-cua-toi")
-      .replace(/[\\/:*?"<>|]+/g, "-")
-      .replace(/\s+/g, " ");
-
-    document.title = safeTitle;
-    window.addEventListener(
-      "afterprint",
-      () => {
-        document.title = previousTitle;
-      },
-      { once: true },
-    );
-    window.print();
-  };
+  const handleDownloadPdf = useResumePrint({
+    contentRef: printContentRef,
+    title,
+  });
 
   const toggleForm = () => {
     setShowForm((visible) => !visible);
@@ -448,13 +716,13 @@ export default function CreateResume() {
           ) : null}
         </div>
 
-        <div className="flex w-full items-center gap-1.5 overflow-x-auto sm:ml-auto sm:w-auto no-scrollbar">
+        <div className="grid w-full grid-cols-5 items-center gap-1.5 sm:ml-auto sm:flex sm:w-auto">
           <button
             type="button"
             onClick={toggleForm}
             aria-pressed={showForm}
             title="Ẩn hoặc hiện phần nội dung"
-            className={`flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold transition ${
+            className={`flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border px-1 text-xs font-semibold transition sm:shrink-0 sm:px-2.5 ${
               showForm
                 ? "border-violet-200 bg-violet-50 text-violet-700"
                 : "border-slate-200 text-slate-500 hover:bg-slate-50"
@@ -473,7 +741,7 @@ export default function CreateResume() {
             onClick={toggleTemplates}
             aria-pressed={showTemplates}
             title="Ẩn hoặc hiện danh sách mẫu CV"
-            className={`flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold transition ${
+            className={`flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border px-1 text-xs font-semibold transition sm:shrink-0 sm:px-2.5 ${
               showTemplates
                 ? "border-violet-200 bg-violet-50 text-violet-700"
                 : "border-slate-200 text-slate-500 hover:bg-slate-50"
@@ -485,42 +753,132 @@ export default function CreateResume() {
 
           <button
             type="button"
-            onClick={handleFillSample}
-            className="h-8 shrink-0 rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+            onClick={() => handleAiFillResume()}
+            disabled={isAiFillingResume}
+            aria-label={isAiFillingResume ? "AI đang điền CV" : "AI điền CV"}
+            title="Dùng AI điền các phần CV còn thiếu"
+            className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-1 text-xs font-semibold text-violet-700 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60 sm:shrink-0 sm:px-2.5"
           >
-            Điền mẫu
+            <SparklesIcon
+              className={`h-3.5 w-3.5 ${isAiFillingResume ? "animate-pulse" : ""}`}
+            />
+            <span className="hidden sm:inline">
+              {isAiFillingResume ? "Đang điền..." : "AI điền CV"}
+            </span>
           </button>
 
-          <div className="h-5 w-px shrink-0 bg-slate-200" />
+          <div className="hidden h-5 w-px shrink-0 bg-slate-200 sm:block" />
 
           <button
             type="button"
             onClick={handleDownloadPdf}
             disabled={isLoadingResume || Boolean(loadError)}
+            aria-label="Tải CV dưới dạng PDF"
             title="Mở hộp thoại lưu CV dưới dạng PDF"
-            className="flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-3 text-xs font-bold text-violet-700 transition hover:border-violet-300 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-1 text-xs font-bold text-violet-700 transition hover:border-violet-300 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50 sm:shrink-0 sm:px-3"
           >
             <DocumentArrowDownIcon className="h-3.5 w-3.5" />
-            Tải PDF
+            <span className="hidden sm:inline">Tải PDF</span>
           </button>
 
           <button
             type="button"
             onClick={handleSave}
             disabled={saveDisabled}
-            className={`flex h-8 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-bold text-white shadow-sm transition ${
+            aria-label={isSaving ? "Đang lưu CV" : "Lưu CV"}
+            title={isSaving ? "Đang lưu CV" : "Lưu CV"}
+            className={`flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md px-1 text-xs font-bold text-white shadow-sm transition sm:shrink-0 sm:px-3 ${
               saveDisabled
                 ? "cursor-not-allowed bg-violet-300"
                 : "bg-violet-600 hover:bg-violet-700"
             }`}
           >
             <CloudArrowUpIcon className="h-3.5 w-3.5" />
-            {isSaving ? "Đang lưu..." : "Lưu CV"}
+            <span className="hidden sm:inline">
+              {isSaving ? "Đang lưu..." : "Lưu CV"}
+            </span>
           </button>
         </div>
       </div>
 
-      <Toast toast={toast} />
+      {isAiFillPromptOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/45 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ai-fill-dialog-title"
+          >
+            <form
+              className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-5 shadow-2xl"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (!aiTargetRole.trim()) {
+                  showToast("Hãy nhập vị trí mong muốn.", "error");
+                  return;
+                }
+                handleAiFillResume(aiTargetRole);
+              }}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2
+                    id="ai-fill-dialog-title"
+                    className="text-lg font-bold text-slate-900"
+                  >
+                    AI điền CV
+                  </h2>
+                  <p className="mt-1 text-sm leading-5 text-slate-500">
+                    Nhập vị trí bạn muốn ứng tuyển để AI viết các phần CV còn
+                    thiếu.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAiFillPromptOpen(false)}
+                  aria-label="Đóng"
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              <label
+                htmlFor="ai-target-role"
+                className="mt-5 block text-sm font-semibold text-slate-700"
+              >
+                Vị trí mong muốn
+              </label>
+              <input
+                id="ai-target-role"
+                autoFocus
+                value={aiTargetRole}
+                onChange={(event) => setAiTargetRole(event.target.value)}
+                placeholder="Ví dụ: Frontend Developer"
+                className="mt-2 h-11 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
+              />
+
+              <div className="mt-6 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAiFillPromptOpen(false)}
+                  className="h-10 rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex h-10 items-center gap-2 rounded-md bg-violet-600 px-4 text-sm font-bold text-white transition hover:bg-violet-700"
+                >
+                  <SparklesIcon className="h-4 w-4" />
+                  Bắt đầu điền
+                </button>
+              </div>
+            </form>
+          </div>,
+          document.body,
+        )}
 
       <div className="relative flex flex-1 overflow-hidden">
         {showForm && (
@@ -574,6 +932,18 @@ export default function CreateResume() {
               setAward={setAward}
               hobby={hobby}
               setHobby={setHobby}
+              onImproveBio={handleImproveBio}
+              isImprovingBio={isImprovingBio}
+              bioSuggestion={bioSuggestion}
+              onApplyBioSuggestion={() => {
+                setBio(bioSuggestion?.suggestion || bio);
+                setBioSuggestion(null);
+                showToast("Đã áp dụng bản tiểu sử. Hãy kiểm tra trước khi lưu.");
+              }}
+              onDismissBioSuggestion={() => setBioSuggestion(null)}
+              onReviewResume={handleReviewResume}
+              isReviewingResume={isReviewingResume}
+              resumeReview={resumeReview}
             />
           </div>
         </aside>
@@ -619,7 +989,7 @@ export default function CreateResume() {
                 {TEMPLATE_NAMES[selectedTemplate]}
               </div>
 
-              <div className="cv-wrapper mb-10 rounded-sm bg-white shadow-lg print:w-full print:shadow-none">
+              <div ref={printContentRef} className="cv-wrapper mb-10 rounded-sm bg-white shadow-lg print:w-full print:shadow-none">
                 <ResumePreview
                   selectedTemplate={selectedTemplate}
                   image={image}

@@ -11,11 +11,13 @@ import {
 } from "@heroicons/react/24/outline";
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useConfirmDialog } from "../context/ConfirmDialogContext.jsx";
 
 const getPartnerId = (partner) => partner?.id || partner?._id || "";
 
 export default function ProfileChatBox({ partner, onHideChat }) {
   const navigate = useNavigate();
+  const confirmDialog = useConfirmDialog();
   const [profile, setProfile] = useState(partner || null);
   const initialPartnerId = getPartnerId(partner);
   const initialPartnerName = partner?.name || partner?.fullName || partner?.username || "";
@@ -121,8 +123,8 @@ export default function ProfileChatBox({ partner, onHideChat }) {
       {onHideChat && (
         <button
           type="button"
-          onClick={() => {
-            if (window.confirm("Bạn có chắc chắn muốn xóa/ẩn đoạn chat này không?")) onHideChat();
+          onClick={async () => {
+            if (await confirmDialog("Bạn có chắc chắn muốn xóa/ẩn đoạn chat này không?")) onHideChat();
           }}
           className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-100"
         >

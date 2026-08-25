@@ -20,17 +20,19 @@ Do giới hạn về thời gian, nguồn lực và phạm vi của một đồ 
 
 # TÓM TẮT
 
-RabbitCV là nền tảng web hỗ trợ người tìm việc xây dựng hồ sơ nghề nghiệp, tạo CV theo mẫu, tải CV từ máy tính, tìm kiếm và lưu tin tuyển dụng, nộp hồ sơ, theo dõi trạng thái ứng tuyển và trao đổi với doanh nghiệp. Hệ thống đồng thời cung cấp cổng dành cho doanh nghiệp để quản lý hồ sơ công ty, đăng và điều chỉnh tin tuyển dụng, tiếp nhận ứng viên, cập nhật trạng thái xử lý và nhắn tin. Vai trò quản trị viên được bổ sung nhằm theo dõi số liệu tổng quan, quản lý người dùng, doanh nghiệp và nội dung tuyển dụng.
+RabbitCV là nền tảng web hỗ trợ người tìm việc xây dựng hồ sơ nghề nghiệp, tạo CV theo mẫu, tải CV từ máy tính, tìm kiếm và lưu tin tuyển dụng, nộp hồ sơ, theo dõi trạng thái ứng tuyển và trao đổi với doanh nghiệp. Hệ thống đồng thời cung cấp cổng dành cho doanh nghiệp để quản lý hồ sơ công ty, đăng và điều chỉnh tin tuyển dụng, tiếp nhận ứng viên, cập nhật trạng thái xử lý và nhắn tin. Vai trò quản trị viên được bổ sung nhằm theo dõi số liệu tổng quan, quản lý người dùng, doanh nghiệp và nội dung tuyển dụng. Tài khoản doanh nghiệp và quản trị viên được điều hướng trực tiếp về cổng riêng, tránh hiển thị nhầm giao diện ứng viên khi truy cập đường dẫn công khai.
 
-Giải pháp được phát triển theo kiến trúc MERN. Giao diện sử dụng React, Vite và Tailwind CSS; máy chủ sử dụng Node.js và Express; dữ liệu được lưu trong MongoDB thông qua Mongoose. REST API đảm nhiệm phần lớn hoạt động nghiệp vụ. Socket.IO được dùng cho nhắn tin thời gian thực, trong khi thông báo sử dụng cơ chế truy vấn định kỳ kết hợp tác vụ theo lịch. JWT được lưu trong cookie HTTP-only để duy trì phiên đăng nhập. Vite proxy chuyển tiếp các đường dẫn `/api` và `/socket.io` đến máy chủ phát triển tại cổng 5000.
+Giải pháp được phát triển theo kiến trúc MERN. Giao diện sử dụng React, Vite và Tailwind CSS; máy chủ sử dụng Node.js và Express; dữ liệu được lưu trong MongoDB thông qua Mongoose. TanStack Query quản lý cache dữ liệu máy chủ cho thông báo và việc đã lưu; React Hook Form kết hợp Zod kiểm tra biểu mẫu đăng nhập, đăng ký; Radix UI và Sonner chuẩn hóa các hộp thoại, menu, select và thông báo phản hồi. REST API đảm nhiệm phần lớn hoạt động nghiệp vụ. Socket.IO được dùng cho nhắn tin thời gian thực, trong khi thông báo sử dụng truy vấn định kỳ. JWT được lưu trong cookie HTTP-only để duy trì phiên đăng nhập. Tác vụ cập nhật tin hết hạn được chuyển sang Vercel Cron để phù hợp môi trường serverless.
 
-Một trọng tâm của đồ án là xử lý CV ở hai nguồn. CV tạo trên web được lưu theo cấu trúc dữ liệu và có thể in hoặc tải xuống PDF theo tỷ lệ A4. CV tải từ máy tính phải là PDF, được kiểm tra kiểu và dung lượng, lưu dưới dạng base64, sau đó hiển thị bằng PDF.js theo từng trang A4 thay vì sử dụng khung xem PDF mặc định. Cơ chế `isVirtual` giúp phân biệt hồ sơ ảo với hồ sơ thực; truy vấn danh sách loại bỏ trường `pdfData` để tránh truyền khối dữ liệu lớn không cần thiết.
+Một trọng tâm của đồ án là xử lý CV ở hai nguồn. CV tạo trên web được lưu theo cấu trúc dữ liệu; nội dung rich text được làm sạch, chuyển qua mô hình tài liệu Tiptap và kết xuất bằng static renderer. Luồng in hoặc tải PDF được dùng chung qua `react-to-print` và giữ tỷ lệ A4. CV tải từ máy tính phải là PDF, được kiểm tra kiểu và dung lượng, lưu dưới dạng base64, sau đó hiển thị bằng PDF.js theo từng trang A4 thay vì sử dụng khung xem PDF mặc định. Cơ chế `isVirtual` giúp phân biệt hồ sơ ảo với hồ sơ thực; truy vấn danh sách loại bỏ trường `pdfData` để tránh truyền khối dữ liệu lớn không cần thiết.
+
+Các chức năng AI được gọi hoàn toàn từ backend qua Groq bằng giao thức tương thích OpenAI và đầu ra JSON có schema. Ứng viên có thể viết mới, cải thiện hoặc rút gọn tiểu sử; điền các phần CV còn thiếu; review toàn bộ CV; chấm mức phù hợp giữa CV và công việc; và luyện phỏng vấn theo phiên 5, 8 hoặc 12 câu. Dữ liệu đầu vào được giới hạn, loại thông tin liên hệ không cần thiết và làm sạch trước khi gửi. Collection `AiUsage` lưu loại chức năng, model, số token, độ trễ và trạng thái để áp dụng hạn mức 100 lượt mỗi tài khoản trong ngày mà không lưu nguyên văn CV hay hội thoại vào bản ghi thống kê.
 
 Hệ thống cũng giải quyết tình huống tin tuyển dụng bị đóng hoặc xóa sau khi đã được lưu hay đã có ứng viên. Thông tin tóm tắt được giữ trong ảnh chụp dữ liệu tại thời điểm ứng tuyển, nhờ đó lịch sử ứng tuyển vẫn có ý nghĩa dù tin gốc không còn khả dụng. Đối với cuộc trò chuyện, thao tác xóa được triển khai theo hướng ẩn riêng cho từng người dùng bằng mốc `hiddenAt`, không làm mất dữ liệu của bên còn lại.
 
-Kết quả kiểm thử tự động hiện tại gồm 13 trường hợp và đều đạt. Các trường hợp tập trung vào kích thước A4, tải PDF, hiển thị PDF không dùng khung gốc, chuẩn hóa ngày tháng, xử lý trạng thái tin tuyển dụng và kiểm tra tệp CV. Kết quả cho thấy sản phẩm đáp ứng các mục tiêu chính của đồ án; tuy nhiên, lưu PDF base64 trong MongoDB, phạm vi kiểm thử tích hợp, khả năng giám sát vận hành và mức độ hoàn thiện khi triển khai quy mô lớn vẫn là các hạn chế cần tiếp tục xử lý.
+Kết quả kiểm thử tự động hiện tại gồm 41 trường hợp và đều đạt. Các trường hợp bao phủ kích thước A4, luồng in chung, tải PDF, chuẩn hóa ngày tháng, trạng thái tin tuyển dụng, trạng thái đã đọc, làm sạch rich text, dữ liệu AI, điền CV bằng AI, phỏng vấn AI, điều hướng theo vai trò và khả năng tích hợp của các giao diện chính. ESLint không còn cảnh báo và bản build production hoàn tất mà không có bundle JavaScript chính vượt ngưỡng cảnh báo 500 kB. Kết quả cho thấy sản phẩm đáp ứng các mục tiêu chính của đồ án; tuy nhiên, lưu PDF base64 trong MongoDB, phạm vi kiểm thử đầu cuối, khả năng giám sát vận hành và mức độ hoàn thiện khi triển khai quy mô lớn vẫn là các hạn chế cần tiếp tục xử lý.
 
-**Từ khóa:** CV, tuyển dụng, React, Node.js, MongoDB, Socket.IO, PDF, ứng dụng web toàn ngăn xếp.
+**Từ khóa:** CV, tuyển dụng, React, Node.js, MongoDB, Socket.IO, PDF, trí tuệ nhân tạo, Groq, ứng dụng web toàn ngăn xếp.
 
 [PAGEBREAK]
 
@@ -45,7 +47,9 @@ Kết quả kiểm thử tự động hiện tại gồm 13 trường hợp và 
 | Chữ viết tắt | Diễn giải |
 | --- | --- |
 | API | Giao diện lập trình ứng dụng |
+| AI | Trí tuệ nhân tạo |
 | ATS | Hệ thống theo dõi ứng viên |
+| CSP | Chính sách bảo mật nội dung |
 | CRUD | Tạo, đọc, cập nhật và xóa dữ liệu |
 | CSS | Ngôn ngữ định kiểu trang web |
 | CV | Hồ sơ nghề nghiệp của ứng viên |
@@ -53,6 +57,7 @@ Kết quả kiểm thử tự động hiện tại gồm 13 trường hợp và 
 | ERD | Sơ đồ quan hệ thực thể |
 | HTTP | Giao thức truyền siêu văn bản |
 | JWT | Chuẩn mã thông báo JSON dùng cho xác thực |
+| LLM | Mô hình ngôn ngữ lớn |
 | MERN | MongoDB, Express, React và Node.js |
 | PDF | Định dạng tài liệu di động |
 | REST | Kiểu kiến trúc dịch vụ dựa trên tài nguyên |
@@ -65,7 +70,7 @@ Kết quả kiểm thử tự động hiện tại gồm 13 trường hợp và 
 
 ## 1.1. Bối cảnh và lý do chọn đề tài
 
-Quá trình tìm việc ngày càng diễn ra trên môi trường số. Người tìm việc phải đồng thời chuẩn bị một CV có cấu trúc rõ ràng, theo dõi nhiều nguồn tin, lưu các vị trí quan tâm, nộp hồ sơ đúng phiên bản và cập nhật trạng thái xử lý. Với sinh viên mới tốt nghiệp, khó khăn không chỉ nằm ở việc thiếu kinh nghiệm mà còn ở cách trình bày năng lực, lựa chọn thông tin phù hợp và duy trì một quy trình ứng tuyển có tổ chức.
+Quá trình tìm việc ngày càng diễn ra trên môi trường số. Người tìm việc phải đồng thời chuẩn bị một CV có cấu trúc rõ ràng, theo dõi nhiều nguồn tin, lưu các vị trí quan tâm, nộp hồ sơ đúng phiên bản và cập nhật trạng thái xử lý. Với sinh viên mới tốt nghiệp, khó khăn không chỉ nằm ở việc thiếu kinh nghiệm mà còn ở cách trình bày năng lực, lựa chọn thông tin phù hợp, tự đánh giá điểm yếu của CV và luyện tập cách trả lời phỏng vấn. Một công cụ AI có hướng dẫn và giới hạn rõ ràng có thể hỗ trợ các bước này, nhưng kết quả phải được xem như gợi ý để người dùng kiểm tra thay vì tự động khẳng định thông tin không có thật.
 
 Từ góc độ doanh nghiệp, tiếp nhận hồ sơ qua nhiều kênh tạo ra chi phí tổng hợp và trao đổi. Một tin tuyển dụng có thể được chỉnh sửa, đóng hoặc xóa trong khi ứng viên vẫn cần xem lại lịch sử. Nếu hệ thống chỉ phụ thuộc vào dữ liệu của tin gốc, hồ sơ ứng tuyển có thể mất ngữ cảnh. Thông báo và nhắn tin cũng cần được thiết kế sao cho người dùng nhận biết cập nhật mới nhưng không bị lặp hoặc hiển thị sai số lượng chưa đọc.
 
@@ -77,7 +82,7 @@ Trên thị trường đã có nhiều cổng tuyển dụng và công cụ tạ
 
 Bài toán đặt ra là xây dựng một ứng dụng web thống nhất cho ba nhóm người dùng: ứng viên, doanh nghiệp và quản trị viên. Ứng viên cần tạo hoặc tải CV, tìm việc, lưu việc, nộp hồ sơ, theo dõi tiến độ và trò chuyện. Doanh nghiệp cần quản lý hồ sơ công ty, đăng tin, đóng hoặc mở lại trạng thái nhận hồ sơ, xem ứng viên và trao đổi. Quản trị viên cần theo dõi hoạt động chung và thực hiện các thao tác quản lý nội dung, tài khoản và doanh nghiệp.
 
-Hệ thống phải giải quyết một số tình huống không hiển nhiên. Thứ nhất, CV tạo trên web và CV tải từ máy tính có nguồn dữ liệu khác nhau nhưng khi doanh nghiệp xem phải giữ tỷ lệ A4 và trải nghiệm nhất quán. Thứ hai, tin tuyển dụng bị xóa không được tiếp tục nhận hồ sơ, nhưng các bản ghi ứng tuyển cũ phải được giữ. Thứ ba, cuộc trò chuyện bị ẩn ở một phía không được xóa dữ liệu của phía còn lại. Thứ tư, trạng thái đăng nhập phải được chia sẻ giữa các trang để tránh việc giao diện hiển thị nút đăng nhập trong khi phiên người dùng vẫn còn hiệu lực.
+Hệ thống phải giải quyết một số tình huống không hiển nhiên. Thứ nhất, CV tạo trên web và CV tải từ máy tính có nguồn dữ liệu khác nhau nhưng khi doanh nghiệp xem phải giữ tỷ lệ A4 và trải nghiệm nhất quán. Thứ hai, tin tuyển dụng bị xóa không được tiếp tục nhận hồ sơ, nhưng các bản ghi ứng tuyển cũ phải được giữ. Thứ ba, cuộc trò chuyện bị ẩn ở một phía không được xóa dữ liệu của phía còn lại. Thứ tư, trạng thái đăng nhập phải được chia sẻ giữa các trang để tránh việc giao diện hiển thị sai cổng theo vai trò. Thứ năm, đầu ra AI phải có cấu trúc ổn định, không đưa mã thực thi hoặc dữ liệu liên hệ không cần thiết vào prompt, không ghi đè CV khi người dùng chưa chấp thuận và có phản hồi rõ khi nhà cung cấp AI giới hạn yêu cầu.
 
 ## 1.3. Mục tiêu đề tài
 
@@ -89,14 +94,15 @@ Mục tiêu tổng quát là xây dựng nguyên mẫu có khả năng vận hà
 - Cung cấp chức năng tìm kiếm, lọc, xem chi tiết, lưu và nộp tin tuyển dụng.
 - Theo dõi trạng thái ứng tuyển kể cả khi tin gốc đã đóng hoặc bị xóa.
 - Cung cấp nhắn tin thời gian thực giữa các bên và thông báo chưa đọc.
+- Hỗ trợ ứng viên viết tiểu sử, điền nội dung còn thiếu, review toàn bộ CV, chấm mức phù hợp với công việc và luyện phỏng vấn bằng AI.
 - Xây dựng cổng doanh nghiệp và khu vực quản trị với các thao tác phù hợp vai trò.
 - Kiểm thử các quy tắc kỹ thuật quan trọng và ghi nhận các hạn chế còn tồn tại.
 
 ## 1.4. Phạm vi đề tài
 
-Phạm vi chức năng bao gồm quản lý tài khoản, hồ sơ, CV, tin tuyển dụng, ứng tuyển, việc đã lưu, thông báo, nhắn tin, doanh nghiệp và quản trị cơ bản. Hệ thống tập trung vào luồng tuyển dụng trực tuyến, chưa tích hợp thanh toán, ký hợp đồng điện tử, lịch phỏng vấn đồng bộ với lịch ngoài, chấm điểm CV bằng mô hình học máy, xác minh danh tính bằng dịch vụ bên thứ ba hoặc hệ thống giới thiệu việc làm dựa trên dữ liệu lớn.
+Phạm vi chức năng bao gồm quản lý tài khoản, hồ sơ, CV, AI hỗ trợ CV, phỏng vấn thử, tin tuyển dụng, ứng tuyển, việc đã lưu, thông báo, nhắn tin, doanh nghiệp và quản trị cơ bản. Hệ thống tập trung vào luồng tuyển dụng trực tuyến, chưa tích hợp thanh toán, ký hợp đồng điện tử, lịch phỏng vấn đồng bộ với lịch ngoài, xác minh danh tính bằng dịch vụ bên thứ ba hoặc hệ thống giới thiệu việc làm cá nhân hóa dựa trên dữ liệu lớn. Phiên bản hiện tại không cung cấp viết thư ứng tuyển bằng AI, không viết tin tuyển dụng bằng AI và không còn đưa chế độ tối ưu ATS thành một lựa chọn riêng trên giao diện.
 
-Phạm vi triển khai là môi trường phát triển và trình diễn. Frontend chạy qua Vite tại cổng 4000; backend Express chạy tại cổng 5000; MongoDB lưu dữ liệu. Các phương án vận hành ở quy mô lớn như cân bằng tải, phân vùng dữ liệu, kho đối tượng, hàng đợi thông điệp và giám sát phân tán chưa được triển khai đầy đủ.
+Phạm vi triển khai gồm môi trường phát triển và bản trình diễn trên Vercel. Ở local, frontend chạy qua Vite tại cổng 4000, backend Express và Socket.IO chạy tại cổng 5000, MongoDB lưu dữ liệu. Ở Vercel, frontend và serverless API dùng cùng domain; cron gọi endpoint cập nhật tin hết hạn mỗi ngày. Socket local và socket deployment được cấu hình độc lập, trong khi dữ liệu vẫn đồng bộ qua cùng cơ sở dữ liệu nếu hai môi trường dùng chung chuỗi kết nối. Các phương án vận hành ở quy mô lớn như cân bằng tải socket, phân vùng dữ liệu, kho đối tượng, hàng đợi thông điệp và giám sát phân tán chưa được triển khai đầy đủ.
 
 Về bảo mật, đồ án áp dụng các cơ chế thiết yếu gồm băm mật khẩu, JWT trong cookie HTTP-only, middleware xác thực, giới hạn quyền theo vai trò và kiểm tra chủ sở hữu ở các thao tác nhạy cảm. Do đây là đồ án cá nhân, báo cáo không tuyên bố đạt chuẩn kiểm toán hay tiêu chuẩn bảo mật doanh nghiệp; các cơ chế nâng cao được đưa vào hướng phát triển.
 
@@ -106,13 +112,13 @@ Về bảo mật, đồ án áp dụng các cơ chế thiết yếu gồm băm m
 
 ## 1.6. Phương pháp thực hiện
 
-Đồ án được triển khai theo quy trình lặp. Trước hết, yêu cầu được thu thập từ các luồng điển hình của ứng viên và nhà tuyển dụng. Sau đó, hệ thống được phân rã thành mô-đun, thiết kế mô hình dữ liệu và các API cần thiết. Giao diện được xây dựng theo từng trang, kết nối dần với backend và điều chỉnh dựa trên phản hồi trực quan. Những lỗi có tính hệ thống như trạng thái đăng nhập không đồng bộ, PDF sai tỷ lệ, tin xóa làm mất ngữ cảnh hay danh sách chat bị tải lại được xử lý ở lớp dữ liệu hoặc kiến trúc thay vì chỉ che bằng CSS.
+Đồ án được triển khai theo quy trình lặp. Trước hết, yêu cầu được thu thập từ các luồng điển hình của ứng viên và nhà tuyển dụng. Sau đó, hệ thống được phân rã thành mô-đun, thiết kế mô hình dữ liệu và các API cần thiết. Giao diện được xây dựng theo từng trang, kết nối dần với backend và điều chỉnh dựa trên phản hồi trực quan. Những lỗi có tính hệ thống như trạng thái đăng nhập không đồng bộ, PDF sai tỷ lệ, tin xóa làm mất ngữ cảnh, danh sách chat bị tải lại hoặc AI trả kết quả không đúng cấu trúc được xử lý ở lớp dữ liệu, schema và kiến trúc thay vì chỉ che bằng CSS.
 
 Phương pháp đánh giá kết hợp kiểm thử tự động bằng `node --test`, kiểm thử xây dựng bản phát hành bằng Vite và kiểm thử thủ công theo kịch bản. Đối với PDF, việc đánh giá không chỉ dựa vào phản hồi API mà còn dựa trên kích thước A4, số trang, khả năng hiển thị và bố cục in.
 
 ## 1.7. Đóng góp của đề tài
 
-Đề tài tạo ra một sản phẩm toàn ngăn xếp tích hợp nhiều bài toán thường bị tách rời: tạo CV, quản lý PDF, tuyển dụng, ứng tuyển, thông báo và trò chuyện. Đóng góp kỹ thuật đáng chú ý là mô hình hóa hai loại CV; loại bỏ dữ liệu PDF khỏi truy vấn danh sách; lưu ảnh chụp tin trong bản ghi ứng tuyển; phân biệt xóa dữ liệu và ẩn cuộc trò chuyện; kết hợp Socket.IO với polling theo đúng đặc điểm từng chức năng; và dùng một ngữ cảnh xác thực thống nhất ở frontend.
+Đề tài tạo ra một sản phẩm toàn ngăn xếp tích hợp nhiều bài toán thường bị tách rời: tạo CV, quản lý PDF, AI hỗ trợ nghề nghiệp, tuyển dụng, ứng tuyển, thông báo và trò chuyện. Đóng góp kỹ thuật đáng chú ý là mô hình hóa hai loại CV; loại bỏ dữ liệu PDF khỏi truy vấn danh sách; lưu ảnh chụp tin trong bản ghi ứng tuyển; phân biệt xóa dữ liệu và ẩn cuộc trò chuyện; kết hợp Socket.IO với polling theo đúng đặc điểm từng chức năng; dùng cache truy vấn có optimistic update; và xây dựng một cổng AI có schema đầu ra, làm sạch dữ liệu, quota theo tài khoản cùng thống kê token.
 
 ## 1.8. Cấu trúc báo cáo
 
@@ -136,7 +142,9 @@ MERN không mặc nhiên là lựa chọn tốt nhất cho mọi hệ thống. H
 
 ## 2.3. React và quản lý trạng thái
 
-React xây dựng giao diện từ các thành phần và cập nhật màn hình dựa trên trạng thái. Tài liệu React nhấn mạnh việc tổ chức trạng thái theo nguồn sự thật duy nhất để tránh dữ liệu trùng lặp [3]. Nguyên tắc này được áp dụng qua `AuthContext`: trạng thái người dùng hiện tại được tải một lần và chia sẻ cho header, route bảo vệ và các trang chức năng. Cách làm này khắc phục tình trạng mỗi thành phần tự gọi `/api/me`, gây nháy giao diện hoặc hiển thị đồng thời nút đăng nhập và biểu tượng tài khoản.
+React xây dựng giao diện từ các thành phần và cập nhật màn hình dựa trên trạng thái. Tài liệu React nhấn mạnh việc tổ chức trạng thái theo nguồn sự thật duy nhất để tránh dữ liệu trùng lặp [3]. Nguyên tắc này được áp dụng qua `AuthContext`: trạng thái người dùng hiện tại được tải một lần và chia sẻ cho header, route bảo vệ và các trang chức năng. `RoleAccessGuard` dùng trạng thái này để chuyển doanh nghiệp về `/CompanyDashboard`, quản trị viên về `/admin`, đồng thời giữ ứng viên ở khu vực công khai và cá nhân. Cách làm này khắc phục tình trạng mỗi thành phần tự gọi `/api/me` hoặc hiển thị sai cổng sau khi đăng nhập.
+
+Trạng thái dữ liệu từ server được tách khỏi trạng thái giao diện. TanStack Query quản lý cache, refetch, polling và mutation cho thông báo và việc đã lưu. SavedJobs dùng optimistic update để biểu tượng lưu phản hồi ngay rồi mới đồng bộ lại với API; danh sách thông báo giữ dữ liệu trang trước trong cache và cập nhật số chưa đọc mà không tải lại toàn bộ ứng dụng. Các form xác thực dùng React Hook Form và Zod để khai báo quy tắc một lần, hiển thị lỗi theo trường và chỉ gửi dữ liệu hợp lệ.
 
 So với Vue, React đòi hỏi nhiều quyết định kiến trúc hơn nhưng có hệ sinh thái rộng và phù hợp với cách tổ chức hiện có của dự án. So với Angular, React nhẹ hơn về khuôn khổ và thích hợp cho đồ án cá nhân; Angular có nhiều quy ước tích hợp nhưng chi phí học tập và cấu hình cao hơn. RabbitCV không lựa chọn React vì một so sánh tuyệt đối, mà vì khả năng tạo thành phần tái sử dụng, quản lý trạng thái linh hoạt và hệ sinh thái thư viện phù hợp.
 
@@ -144,17 +152,17 @@ So với Vue, React đòi hỏi nhiều quyết định kiến trúc hơn nhưng
 
 Vite cung cấp máy chủ phát triển sử dụng mô-đun ES gốc và quá trình đóng gói bản phát hành tối ưu. Tài liệu Vite giải thích mục tiêu cải thiện thời gian khởi động và cập nhật nóng so với chuỗi công cụ đóng gói truyền thống [4]. Trong RabbitCV, Vite chạy frontend tại cổng 4000 và proxy `/api`, `/socket.io` sang cổng 5000. Nhờ đó, mã frontend gọi đường dẫn tương đối, giảm sai khác giữa phát triển và triển khai.
 
-Create React App từng là lựa chọn phổ biến nhưng có cấu hình đóng và tốc độ phát triển kém linh hoạt hơn. Webpack cấu hình trực tiếp cho phép kiểm soát sâu nhưng làm tăng khối lượng thiết lập. Vite phù hợp với phạm vi đồ án vì có cấu hình ngắn, hỗ trợ React tốt và xử lý cả HTTP proxy lẫn WebSocket proxy.
+Create React App từng là lựa chọn phổ biến nhưng có cấu hình đóng và tốc độ phát triển kém linh hoạt hơn. Webpack cấu hình trực tiếp cho phép kiểm soát sâu nhưng làm tăng khối lượng thiết lập. Vite phù hợp với phạm vi đồ án vì có cấu hình ngắn, hỗ trợ React tốt và xử lý cả HTTP proxy lẫn WebSocket proxy. Các trang lớn được lazy load; cấu hình build tách nhóm React, router, query, form, UI, rich text, PDF, realtime và ngày giờ thành các chunk ổn định. Nhờ đó chunk của trang CV giảm đáng kể và bản build hiện không còn cảnh báo bundle JavaScript chính vượt 500 kB.
 
 ## 2.5. Tailwind CSS và hệ thống giao diện
 
 Tailwind CSS cung cấp các lớp tiện ích để biểu diễn trực tiếp màu sắc, khoảng cách, lưới và trạng thái tương tác. Cách tiếp cận này giúp RabbitCV điều chỉnh nhanh nhiều trang mà không tạo quá nhiều tên lớp riêng. Màu chủ đạo violet, nền lavender, bán kính bo góc, viền và khoảng cách được tái sử dụng để tạo cảm giác thống nhất.
 
-CSS thuần cho mức kiểm soát đầy đủ nhưng dễ sinh các quy tắc lặp và khó đồng bộ khi số trang tăng. Bootstrap cung cấp thành phần sẵn có nhưng dễ tạo cảm giác khuôn mẫu và cần ghi đè nhiều để đạt phong cách riêng. Tailwind được chọn như một điểm cân bằng: vẫn cho phép thiết kế đặc trưng nhưng duy trì tốc độ phát triển. Một phần CSS riêng vẫn cần thiết cho vùng in A4, trình xem CV và các tình huống mà lớp tiện ích không diễn đạt thuận tiện.
+CSS thuần cho mức kiểm soát đầy đủ nhưng dễ sinh các quy tắc lặp và khó đồng bộ khi số trang tăng. Bootstrap cung cấp thành phần sẵn có nhưng dễ tạo cảm giác khuôn mẫu và cần ghi đè nhiều để đạt phong cách riêng. Tailwind được chọn như một điểm cân bằng: vẫn cho phép thiết kế đặc trưng nhưng duy trì tốc độ phát triển. Radix UI cung cấp hành vi bàn phím, focus và lớp portal cho Alert Dialog, Select và Dropdown Menu; giao diện vẫn được định kiểu bằng Tailwind để giữ nhận diện RabbitCV. Sonner thay hệ thống toast tự viết, giúp phản hồi thành công và lỗi nhất quán. Một phần CSS riêng vẫn cần thiết cho vùng in A4, trình xem CV và các tình huống mà lớp tiện ích không diễn đạt thuận tiện.
 
 ## 2.6. Node.js và Express
 
-Node.js sử dụng mô hình I/O bất đồng bộ, phù hợp với máy chủ có nhiều thao tác chờ như truy vấn cơ sở dữ liệu, gửi phản hồi và trao đổi Socket.IO. Express cung cấp định tuyến, middleware và cách tổ chức API gọn. Các endpoint của RabbitCV được nhóm theo tài nguyên như người dùng, CV, công việc, ứng tuyển, thông báo và trò chuyện.
+Node.js sử dụng mô hình I/O bất đồng bộ, phù hợp với máy chủ có nhiều thao tác chờ như truy vấn cơ sở dữ liệu, gửi phản hồi, gọi nhà cung cấp AI và trao đổi Socket.IO. Express cung cấp định tuyến, middleware và cách tổ chức API gọn. Các endpoint của RabbitCV được nhóm theo tài nguyên như người dùng, CV, công việc, ứng tuyển, thông báo và trò chuyện. Nhóm `/api/ai` đã được tách thành router, service, schema và sanitizer riêng; tác vụ hết hạn tin cũng được tách thành hàm dùng lại cho endpoint cron.
 
 So với một khuôn khổ có cấu trúc nghiêm ngặt, Express trao nhiều trách nhiệm tổ chức cho người phát triển. Điều này phù hợp với đồ án nhưng có thể làm tệp máy chủ lớn khi số endpoint tăng. Báo cáo coi đây là hạn chế kiến trúc hiện tại và đề xuất tách controller, service, repository trong hướng phát triển.
 
@@ -164,7 +172,7 @@ MongoDB lưu tài liệu BSON và cho phép cấu trúc lồng nhau. CV có danh
 
 So với SQL, MongoDB giảm nhu cầu tạo nhiều bảng phụ cho mỗi thành phần CV. Tuy nhiên, SQL có ưu thế khi cần ràng buộc tham chiếu mạnh, truy vấn liên kết phức tạp và giao dịch nhiều bảng. RabbitCV bù một phần bằng ObjectId tham chiếu, chỉ mục, kiểm tra trong Mongoose và ảnh chụp dữ liệu tin tuyển dụng trong Application. Việc chọn MongoDB không loại bỏ nhu cầu thiết kế dữ liệu; tài liệu MongoDB cũng nhấn mạnh mô hình cần được quyết định theo mẫu truy cập [5].
 
-Mongoose cung cấp schema, kiểu dữ liệu, giá trị mặc định, validation, middleware và truy vấn. Các chỉ mục duy nhất như cặp `jobId-candidateId` ngăn ứng tuyển trùng; cặp `userId-room` bảo đảm mỗi người có một trạng thái ẩn và một mốc đã đọc cho mỗi cuộc trò chuyện.
+Mongoose cung cấp schema, kiểu dữ liệu, giá trị mặc định, validation, middleware và truy vấn. Các chỉ mục duy nhất như cặp `jobId-candidateId` ngăn ứng tuyển trùng; cặp `userId-room` bảo đảm mỗi người có một trạng thái ẩn và một mốc đã đọc cho mỗi cuộc trò chuyện. `AiUsage` có chỉ mục theo người dùng và thời gian để tính quota trong ngày; chỉ mục TTL tự xóa bản ghi thống kê sau 90 ngày.
 
 ## 2.8. REST API
 
@@ -182,17 +190,38 @@ So với lưu token trong localStorage, cookie HTTP-only giảm bề mặt truy 
 
 Socket.IO cung cấp kênh hai chiều, cơ chế sự kiện, phòng và tự động kết nối lại. Khi bắt tay, middleware đọc cookie, kiểm tra JWT và đưa socket vào phòng theo người dùng. Tin nhắn mới có thể được phát ngay đến bên nhận mà không cần tải lại trang. Phòng giúp giới hạn sự kiện đến đúng người hoặc đúng cuộc trò chuyện [8], [9].
 
-WebSocket thuần có ít lớp trừu tượng hơn nhưng người phát triển phải tự xử lý nhiều vấn đề về sự kiện, kết nối lại và phân phòng. Polling thuần đơn giản nhưng tạo nhiều yêu cầu dù không có tin mới. Socket.IO được chọn cho chat vì độ trễ tương tác quan trọng. Ngược lại, thông báo dùng polling 30 giây vì dữ liệu nhỏ, không đòi hỏi tức thời tuyệt đối và triển khai đơn giản hơn. Việc dùng hai cơ chế thể hiện lựa chọn theo đặc điểm nghiệp vụ thay vì áp dụng một công nghệ cho mọi tình huống.
+WebSocket thuần có ít lớp trừu tượng hơn nhưng người phát triển phải tự xử lý nhiều vấn đề về sự kiện, kết nối lại và phân phòng. Polling thuần đơn giản nhưng tạo nhiều yêu cầu dù không có tin mới. Socket.IO được chọn cho chat vì độ trễ tương tác quan trọng. Ngược lại, thông báo dùng polling 30 giây qua TanStack Query vì dữ liệu nhỏ, không đòi hỏi tức thời tuyệt đối và triển khai đơn giản hơn. Localhost kết nối Socket.IO tại cổng 5000; bản Vercel dùng endpoint cùng domain. Hai kênh realtime hoạt động độc lập theo môi trường, còn tính nhất quán lâu dài đến từ MongoDB và các lần refetch API.
 
 ## 2.11. PDF, PDF.js và CSS in A4
 
-PDF là định dạng đầu ra phù hợp cho CV vì giữ bố cục giữa thiết bị và dễ gửi cho doanh nghiệp. CV tạo trên web được trình bày bằng HTML/CSS rồi in qua trình duyệt. Quy tắc `@page`, kích thước 210 x 297 mm, lề trang, `min-height`, `clamp()` và `print-color-adjust` được dùng để kiểm soát đầu ra.
+PDF là định dạng đầu ra phù hợp cho CV vì giữ bố cục giữa thiết bị và dễ gửi cho doanh nghiệp. CV tạo trên web được trình bày bằng HTML/CSS rồi in qua trình duyệt. Hook `useResumePrint` dùng `react-to-print` cho cả editor, thư viện CV và trang doanh nghiệp, thay cho các đoạn `window.print` và timer rời rạc. Quy tắc `@page`, kích thước 210 x 297 mm, lề trang, `min-height`, `clamp()` và `print-color-adjust` được dùng để kiểm soát đầu ra.
 
 CV do người dùng tải lên được kiểm tra là PDF và hiển thị bằng PDF.js. Việc kết xuất từng trang vào vùng xem riêng giúp giao diện doanh nghiệp đồng nhất với CV tạo trên web và tránh thanh công cụ của trình xem PDF gốc. Đổi lại, PDF.js tăng chi phí xử lý phía trình duyệt và cần quản lý tỷ lệ hiển thị cẩn thận.
 
-## 2.12. Các thư viện và công cụ hỗ trợ
+## 2.12. Tích hợp AI bằng Structured Outputs
 
-React Router đảm nhiệm định tuyến; Tiptap hỗ trợ nội dung soạn thảo; Heroicons cung cấp biểu tượng; bcryptjs băm mật khẩu; cookie và cookie-parser xử lý cookie; CORS cấu hình nguồn cho phép; sanitize-html làm sạch một số nội dung; node-cron thực hiện tác vụ kiểm tra hạn tin; pdfjs-dist kết xuất PDF; và Socket.IO hỗ trợ giao tiếp thời gian thực. Git được dùng quản lý phiên bản, Vite thực hiện build, ESLint kiểm tra quy tắc mã và Node Test Runner thực hiện kiểm thử tự động.
+Backend dùng OpenAI SDK nhưng trỏ `baseURL` đến API tương thích OpenAI của Groq. Model mặc định là `openai/gpt-oss-120b`; khóa `GROQ_API_KEY` chỉ tồn tại ở backend hoặc biến môi trường Vercel và không được đưa vào bundle frontend. Mỗi chức năng gắn với một JSON Schema riêng. Nhà cung cấp phải trả JSON theo schema, sau đó server tiếp tục kiểm tra và làm sạch trước khi gửi kết quả cho trình duyệt. Cách tiếp cận này ổn định hơn việc yêu cầu mô hình trả văn bản tự do rồi tách chuỗi bằng biểu thức chính quy.
+
+AI không tự lưu CV. Giao diện hiển thị gợi ý hoặc kết quả review trong modal giữa màn hình; người dùng quyết định áp dụng nội dung. Dữ liệu gửi đi được rút gọn, loại email, số điện thoại, địa chỉ chi tiết và nội dung có dấu hiệu mã thực thi. Mỗi tài khoản có hạn mức mặc định 100 lượt/ngày, nhóm API AI có rate limit 30 yêu cầu trong 15 phút và timeout mặc định 20 giây. Bản ghi `AiUsage` chỉ giữ hash đầu vào, feature, model, token, độ trễ, trạng thái và mã lỗi.
+
+## 2.13. Các thư viện và công cụ hỗ trợ
+
+React Router đảm nhiệm định tuyến; TanStack Query quản lý server state; React Hook Form và Zod xử lý biểu mẫu; Tiptap cùng static renderer hỗ trợ nội dung soạn thảo và kết xuất CV; Radix UI cung cấp control có khả năng truy cập; Sonner hiển thị toast; Heroicons cung cấp biểu tượng; date-fns chuẩn hóa ngày giờ; react-to-print dùng chung luồng in; CompressorJS nén ảnh chat; react-error-boundary cung cấp màn hình phục hồi khi lỗi render. Ở backend, bcryptjs băm mật khẩu; cookie và cookie-parser xử lý cookie; CORS cấu hình nguồn cho phép; Helmet thiết lập header; express-rate-limit giới hạn yêu cầu; sanitize-html làm sạch rich text; OpenAI SDK gọi Groq; pdfjs-dist kết xuất PDF; Mongoose làm việc với MongoDB; và Socket.IO hỗ trợ giao tiếp thời gian thực. Vercel Cron thay cho `node-cron` trong tác vụ hết hạn tin. Git được dùng quản lý phiên bản, Vite thực hiện build, ESLint kiểm tra quy tắc mã và Node Test Runner thực hiện kiểm thử tự động.
+
+| Thay đổi dependency | Mục đích trong mã nguồn hiện tại |
+| --- | --- |
+| Thêm TanStack Query | Thay phần cache, polling và optimistic update tự quản lý ở thông báo và việc đã lưu. |
+| Thêm React Hook Form, Zod và hookform resolvers | Thay validation rời ở form đăng nhập, đăng ký bằng schema dùng chung. |
+| Thêm Radix Alert Dialog, Select, Dropdown Menu | Thay confirm, select và menu tự viết; quản lý focus, keyboard và portal. |
+| Thêm Sonner | Thay ToastProvider và component Toast cũ. |
+| Thêm date-fns | Thay nhiều đoạn định dạng ngày và thời gian tương đối rời rạc. |
+| Thêm Tiptap static renderer và sanitize-html | Thay render chuỗi HTML trực tiếp trong CV. |
+| Thêm react-to-print | Thay `window.print`, timer và xử lý sự kiện in lặp ở nhiều trang. |
+| Thêm CompressorJS | Thay thuật toán canvas nén ảnh chat tự viết. |
+| Thêm react-error-boundary | Cung cấp fallback và thao tác phục hồi lỗi render toàn ứng dụng. |
+| Loại `node-cron` | Tác vụ nền chuyển sang endpoint dùng lại bởi Vercel Cron. |
+| Loại Flowbite CDN và các component dropdown cũ không còn dùng | Giảm JavaScript ngoài bundle và tránh hai hệ component chạy song song. |
+| Loại các Tiptap extension không được cấu hình | Giữ dependency đúng với tính năng rich text thực tế. |
 
 [PAGEBREAK]
 
@@ -208,6 +237,9 @@ Hệ thống có bốn trạng thái tác nhân chính: khách, ứng viên, doa
 - Cập nhật thông tin cá nhân, học vấn, kinh nghiệm và cài đặt tài khoản.
 - Tạo, chỉnh sửa, xem, in và tải CV tạo trên web dưới dạng PDF.
 - Tải CV PDF từ máy tính, xem lại theo từng trang và dùng để ứng tuyển.
+- Dùng AI để viết mới, cải thiện hoặc rút gọn tiểu sử; điền mục còn thiếu và review toàn bộ CV trước khi người dùng quyết định áp dụng.
+- Chấm mức phù hợp giữa CV đã lưu và một tin tuyển dụng.
+- Luyện phỏng vấn AI theo vị trí, cấp độ, loại phỏng vấn và số lượng 5, 8 hoặc 12 câu; xem điểm tốt và nội dung cần cải thiện của từng câu.
 - Tìm kiếm, lọc và xem chi tiết tin tuyển dụng; lưu hoặc bỏ lưu tin.
 - Ứng tuyển bằng một CV, xem lịch sử và trạng thái xử lý.
 - Nhận thông báo, đánh dấu đã đọc và xem số lượng chưa đọc.
@@ -227,7 +259,7 @@ Hệ thống có bốn trạng thái tác nhân chính: khách, ứng viên, doa
 - Quản lý tài khoản, trạng thái khóa và xóa theo chính sách hệ thống.
 - Duyệt hoặc từ chối xác minh doanh nghiệp.
 - Ẩn, hiển thị lại hoặc xóa tin tuyển dụng vi phạm.
-- Theo dõi các nhóm nội dung quản trị và thông báo hệ thống.
+- Chỉ truy cập các trang quản trị có dữ liệu API thật; các đường dẫn báo cáo, đánh giá và nhật ký hệ thống cũ được chuyển về trang quản trị hợp lệ.
 
 ## 3.2. Yêu cầu phi chức năng
 
@@ -240,63 +272,56 @@ Hệ thống có bốn trạng thái tác nhân chính: khách, ứng viên, doa
 | Toàn vẹn nghiệp vụ | Không ứng tuyển trùng; không nộp vào tin đóng, hết hạn, bị ẩn hoặc bị xóa; lịch sử cũ vẫn được giữ. |
 | Khả năng bảo trì | Thành phần giao diện dùng lại; dữ liệu có schema; API nhóm theo tài nguyên; kiểm thử bao phủ quy tắc quan trọng. |
 | Tương thích tài liệu | CV in theo A4; PDF tải lên được xác nhận và kết xuất theo trang; không sử dụng DOC hoặc DOCX. |
+| Độ tin cậy AI | Đầu ra có JSON Schema; prompt được làm sạch và giới hạn; lỗi timeout, quota hoặc nhà cung cấp phải có thông báo; AI không tự lưu thay người dùng. |
 
 ## 3.3. Sơ đồ trường hợp sử dụng
 
 ```mermaid
-flowchart LR
-    Guest[Khách] --> ViewPublic[Xem trang công khai]
-    Guest --> Auth[Đăng ký và đăng nhập]
-    Candidate[Ứng viên] --> Profile[Quản lý hồ sơ]
-    Candidate --> CV[Tạo hoặc tải CV PDF]
-    Candidate --> Search[Tìm và lưu việc]
-    Candidate --> Apply[Ứng tuyển và theo dõi]
-    Candidate --> Chat[Nhắn tin]
-    Candidate --> Notice[Nhận thông báo]
-    Company[Doanh nghiệp] --> CompanyProfile[Quản lý công ty]
-    Company --> JobCRUD[Quản lý tin tuyển dụng]
-    Company --> Applicants[Quản lý ứng viên]
-    Company --> Chat
-    Company --> Notice
-    Admin[Quản trị viên] --> Users[Quản lý tài khoản]
-    Admin --> Verify[Xác minh doanh nghiệp]
-    Admin --> Moderate[Ẩn hoặc hiện tin]
-    Admin --> Statistics[Theo dõi thống kê]
+flowchart TB
+    Guest["Khách"] --> GuestUse["Xem nội dung công khai<br/>Đăng ký và đăng nhập"]
+    Candidate["Ứng viên"] --> CandidateUse["Quản lý hồ sơ và CV<br/>AI viết, điền, review và chấm CV<br/>Luyện phỏng vấn AI<br/>Tìm, lưu và ứng tuyển<br/>Chat và nhận thông báo"]
+    Company["Doanh nghiệp"] --> CompanyUse["Quản lý hồ sơ công ty<br/>Quản lý tin tuyển dụng<br/>Xử lý ứng viên<br/>Chat và nhận thông báo"]
+    Admin["Quản trị viên"] --> AdminUse["Xem thống kê<br/>Quản lý tài khoản<br/>Xác minh doanh nghiệp<br/>Ẩn hoặc hiện tin"]
 ```
 
 *Hình 3.1. Sơ đồ trường hợp sử dụng tổng quát bằng Mermaid.*
 
-Sơ đồ cho thấy chức năng công khai được tách khỏi chức năng yêu cầu đăng nhập. Chat và thông báo là khả năng dùng chung giữa ứng viên và doanh nghiệp, còn quản trị viên tập trung vào quản lý hệ thống thay vì tham gia trực tiếp quy trình tuyển dụng.
+Sơ đồ cho thấy chức năng công khai được tách khỏi chức năng yêu cầu đăng nhập. Các công cụ AI chỉ dành cho ứng viên đã xác thực và không thay thế quyết định của người dùng. Chat và thông báo là khả năng dùng chung giữa ứng viên và doanh nghiệp, còn quản trị viên tập trung vào quản lý hệ thống thay vì tham gia trực tiếp quy trình tuyển dụng.
 
 ## 3.4. Kiến trúc tổng thể
 
 ```mermaid
 flowchart TB
-    Browser[Trình duyệt người dùng]
-    React[React và React Router]
-    Vite[Vite tại cổng 4000]
-    API[Express REST API tại cổng 5000]
-    Socket[Socket.IO tại cổng 5000]
-    Auth[Middleware JWT và phân quyền]
-    Service[Logic nghiệp vụ]
+    Browser["Trình duyệt người dùng"]
+    React["React, Router và Error Boundary"]
+    ClientData["TanStack Query, Form và UI libraries"]
+    Vite["Vite tại cổng 4000"]
+    API["Express REST API tại cổng 5000"]
+    Socket["Socket.IO tại cổng 5000"]
+    Auth["Middleware JWT và phân quyền"]
+    Service["Logic nghiệp vụ và sanitizer"]
+    AI["AI Service và JSON Schema"]
+    Groq["Groq API - GPT-OSS"]
     Mongo[(MongoDB)]
-    Cron[Node-cron]
-    PDF[PDF.js và CSS in A4]
+    Cron["Vercel Cron"]
+    PDF["Tiptap, react-to-print và PDF.js"]
 
     Browser --> React
-    React --> Vite
+    React --> ClientData --> Vite
     Vite -->|proxy /api| API
     Vite -->|proxy /socket.io| Socket
     API --> Auth --> Service --> Mongo
+    Service --> AI --> Groq
+    AI --> Mongo
     Socket --> Auth
     Socket <--> Mongo
-    Cron --> Service
+    Cron -->|GET /api/cron/job-expiry| API
     React --> PDF
 ```
 
 *Hình 3.2. Kiến trúc triển khai của RabbitCV.*
 
-Vite đóng vai trò máy chủ phát triển và cổng chuyển tiếp, không phải lớp nghiệp vụ. Cả REST API lẫn Socket.IO đều xác thực qua JWT. Tác vụ theo lịch sử dụng cùng dữ liệu MongoDB để cập nhật tin hết hạn và tạo thông báo. PDF.js chạy ở trình duyệt để hiển thị CV tải lên.
+Vite đóng vai trò máy chủ phát triển và cổng chuyển tiếp, không phải lớp nghiệp vụ. Cả REST API lẫn Socket.IO đều xác thực qua JWT. Trong production, Vercel Cron gọi endpoint có `CRON_SECRET`; endpoint dùng cùng service và MongoDB để cập nhật tin hết hạn, tạo cảnh báo mà không cần một tiến trình Node chạy liên tục. AI Service gọi Groq ở phía backend và ghi metadata vào `AiUsage`. Tiptap và react-to-print xử lý CV web, còn PDF.js chạy ở trình duyệt để hiển thị CV tải lên.
 
 ## 3.5. Sơ đồ luồng dữ liệu
 
@@ -304,34 +329,39 @@ Vite đóng vai trò máy chủ phát triển và cổng chuyển tiếp, không
 
 ```mermaid
 flowchart LR
-    Candidate[Ứng viên] -->|Hồ sơ, CV, tìm kiếm, ứng tuyển| System((RabbitCV))
-    System -->|Việc làm, trạng thái, thông báo| Candidate
-    Company[Doanh nghiệp] -->|Hồ sơ công ty, tin, trạng thái ứng viên| System
-    System -->|CV ứng viên, trao đổi, thống kê| Company
-    Admin[Quản trị viên] -->|Lệnh quản lý và kiểm duyệt| System
-    System -->|Danh sách và số liệu hệ thống| Admin
+    Candidate["Ứng viên"] -->|"Hồ sơ, CV, yêu cầu AI, tìm kiếm, ứng tuyển"| System((RabbitCV))
+    System -->|"CV, gợi ý AI, việc làm, trạng thái, thông báo"| Candidate
+    Company["Doanh nghiệp"] -->|"Hồ sơ công ty, tin, trạng thái ứng viên"| System
+    System -->|"CV ứng viên, trao đổi, thống kê"| Company
+    Admin["Quản trị viên"] -->|"Lệnh quản lý và kiểm duyệt"| System
+    System -->|"Danh sách và số liệu hệ thống"| Admin
+    System -->|"Prompt đã làm sạch và có schema"| Provider["Groq API"]
+    Provider -->|"Kết quả JSON có cấu trúc"| System
 ```
 
 *Hình 3.3. DFD mức ngữ cảnh.*
 
-DFD ngữ cảnh xem RabbitCV như một tiến trình duy nhất và mô tả dữ liệu trao đổi với ba tác nhân. Mật khẩu và token là dữ liệu xác thực, không được trả nguyên trạng trong các phản hồi nghiệp vụ.
+DFD ngữ cảnh xem RabbitCV như một tiến trình duy nhất và mô tả dữ liệu trao đổi với ba tác nhân cùng nhà cung cấp AI bên ngoài. Mật khẩu, token và khóa Groq không được trả trong phản hồi nghiệp vụ. Prompt AI không chứa thông tin liên hệ trực tiếp sau bước rút gọn dữ liệu.
 
 ### 3.5.2. DFD mức 1
 
 ```mermaid
 flowchart TB
-    U[Người dùng]
-    C[Doanh nghiệp]
-    A[Quản trị viên]
-    P1((1. Xác thực và hồ sơ))
-    P2((2. CV và PDF))
-    P3((3. Việc làm và ứng tuyển))
-    P4((4. Chat và thông báo))
-    P5((5. Quản trị))
+    U["Người dùng"]
+    C["Doanh nghiệp"]
+    A["Quản trị viên"]
+    G["Groq API"]
+    P1(("1. Xác thực và hồ sơ"))
+    P2(("2. CV và PDF"))
+    P3(("3. Việc làm và ứng tuyển"))
+    P4(("4. Chat và thông báo"))
+    P5(("5. AI hỗ trợ nghề nghiệp"))
+    P6(("6. Quản trị"))
     D1[(User)]
     D2[(Resume)]
     D3[(Job và Application)]
     D4[(Message, ReadState, Notification)]
+    D5[(AiUsage)]
 
     U <--> P1 <--> D1
     U <--> P2 <--> D2
@@ -339,14 +369,18 @@ flowchart TB
     C <--> P3
     U <--> P4 <--> D4
     C <--> P4
-    A <--> P5
-    P5 <--> D1
-    P5 <--> D3
+    U <--> P5
+    P5 <--> D2
+    P5 <--> D5
+    P5 <--> G
+    A <--> P6
+    P6 <--> D1
+    P6 <--> D3
 ```
 
 *Hình 3.4. DFD mức 1.*
 
-Mỗi tiến trình tương ứng một nhóm API và tập collection. Việc phân chia này giúp xác định nơi kiểm tra quyền và giảm phụ thuộc giữa các chức năng. Tiến trình quản trị truy cập dữ liệu dùng chung nhưng có middleware vai trò riêng.
+Mỗi tiến trình tương ứng một nhóm API và tập collection. Việc phân chia này giúp xác định nơi kiểm tra quyền và giảm phụ thuộc giữa các chức năng. Tiến trình AI chỉ nhận dữ liệu đã qua sanitizer, dùng schema đầu ra và lưu metadata sử dụng. Tiến trình quản trị truy cập dữ liệu dùng chung nhưng có middleware vai trò riêng.
 
 ## 3.6. Thiết kế dữ liệu
 
@@ -362,6 +396,7 @@ Mỗi tiến trình tương ứng một nhóm API và tập collection. Việc p
 | Message | người gửi, tên hiển thị, nội dung, ảnh, phòng và thời điểm gửi. |
 | HiddenChat | userId, room, hiddenAt; cho phép một người ẩn cuộc trò chuyện mà không xóa tin của người khác. |
 | ChatReadState | userId, room, lastReadAt; xác định số lượng tin chưa đọc theo cuộc trò chuyện. |
+| AiUsage | userId, feature, provider, model, trạng thái, hash đầu vào, input/output token, độ trễ và mã lỗi; TTL 90 ngày. |
 
 ### 3.6.2. Sơ đồ ERD
 
@@ -374,6 +409,7 @@ erDiagram
     USER ||--o{ MESSAGE : gui
     USER ||--o{ HIDDEN_CHAT : an
     USER ||--o{ CHAT_READ_STATE : doc
+    USER ||--o{ AI_USAGE : su_dung
     JOB ||--o{ APPLICATION : tiep_nhan
     RESUME ||--o{ APPLICATION : duoc_dung
 
@@ -416,11 +452,102 @@ erDiagram
         string room
         string content
     }
+    AI_USAGE {
+        ObjectId userId
+        string feature
+        string provider
+        string model
+        string status
+        number inputTokens
+        number outputTokens
+        number latencyMs
+    }
 ```
 
 *Hình 3.5. ERD rút gọn của hệ thống.*
 
-Quan hệ được biểu diễn ở mức logic; MongoDB không áp đặt khóa ngoại như hệ quan hệ. Mongoose và nghiệp vụ ứng dụng chịu trách nhiệm kiểm tra ObjectId, quyền sở hữu và tình trạng tài nguyên. `jobSnapshot` là dữ liệu phi chuẩn hóa có chủ đích để giữ lịch sử.
+Quan hệ được biểu diễn ở mức logic; MongoDB không áp đặt khóa ngoại như hệ quan hệ. Mongoose và nghiệp vụ ứng dụng chịu trách nhiệm kiểm tra ObjectId, quyền sở hữu và tình trạng tài nguyên. `jobSnapshot` là dữ liệu phi chuẩn hóa có chủ đích để giữ lịch sử. `AiUsage` liên kết người dùng để tính quota nhưng không lưu prompt hoặc nội dung CV nguyên văn; `inputHash` chỉ hỗ trợ đối chiếu kỹ thuật.
+
+### 3.6.3. Sơ đồ lớp miền rút gọn
+
+```mermaid
+classDiagram
+    direction LR
+    class User {
+        +ObjectId id
+        +string username
+        +string email
+        +string role
+        +string status
+        +ObjectId[] savedJobs
+    }
+    class Resume {
+        +ObjectId id
+        +ObjectId userId
+        +string title
+        +boolean isVirtual
+        +object personalInfo
+        +object[] sections
+    }
+    class Job {
+        +ObjectId id
+        +ObjectId companyId
+        +string title
+        +string status
+        +date expiryDate
+        +date deletedAt
+    }
+    class Application {
+        +ObjectId jobId
+        +ObjectId candidateId
+        +ObjectId resumeId
+        +string status
+        +object jobSnapshot
+    }
+    class Notification {
+        +ObjectId recipient
+        +string type
+        +boolean isRead
+    }
+    class Message {
+        +string senderId
+        +string senderName
+        +string room
+        +string content
+    }
+    class AiUsage {
+        +ObjectId userId
+        +string feature
+        +string model
+        +string status
+        +number inputTokens
+        +number outputTokens
+    }
+    class AiService {
+        +getAiStatus(userId)
+        +runStructuredAiRequest(request)
+    }
+    class JobExpiryService {
+        +runJobExpiryCheck()
+    }
+
+    User "1" --> "0..*" Resume : sở hữu
+    User "1" --> "0..*" Job : đăng
+    User "1" --> "0..*" Application : nộp
+    Job "1" --> "0..*" Application : nhận
+    Resume "1" --> "0..*" Application : được chọn
+    User "1" --> "0..*" Notification : nhận
+    User "1" --> "0..*" Message : gửi
+    User "1" --> "0..*" AiUsage : phát sinh
+    AiService ..> Resume : làm sạch dữ liệu
+    AiService ..> AiUsage : ghi thống kê
+    JobExpiryService ..> Job : cập nhật trạng thái
+    JobExpiryService ..> Notification : tạo cảnh báo
+```
+
+*Hình 3.6. Sơ đồ lớp miền và service rút gọn.*
+
+Các class dữ liệu tương ứng Mongoose model. Service không sở hữu dữ liệu mà phụ thuộc model qua các truy vấn; cách thể hiện này làm rõ phần logic đã được tách khỏi `server.js` và phần vẫn cần tiếp tục refactor.
 
 ## 3.7. Thiết kế API
 
@@ -429,16 +556,18 @@ API được chia theo tài nguyên và vai trò. Bảng sau trình bày các nh
 | Nhóm | Đường dẫn tiêu biểu | Quyền |
 | --- | --- | --- |
 | Xác thực | `/api/register`, `/api/login`, `/api/me`, `/api/logout` | Công khai hoặc đã đăng nhập |
-| Hồ sơ | `/api/profile`, `/api/search-users`, `/api/change-password` | Đã đăng nhập |
-| CV | `/api/resumes`, `/api/resumes/:id`, `/api/resume/:id/view` | Chủ sở hữu hoặc người được phép xem |
-| Việc làm | `/api/jobs`, `/api/jobs/:id`, `/api/jobs/mine`, `/api/jobs/:id/status` | Công khai, ứng viên hoặc doanh nghiệp |
-| Ứng tuyển | `/api/jobs/:id/apply`, `/api/applications/mine` | Ứng viên; doanh nghiệp xem và cập nhật |
+| Hồ sơ | `/api/users/search`, `/api/user/profile/:userId`, `/api/user/profile`, `/api/user/password` | Đã đăng nhập |
+| CV | `/api/resumes`, `/api/resume`, `/api/resume/:id`, `/api/resumes/view/:id` | Chủ sở hữu hoặc người được phép xem |
+| AI | `/api/ai/status`, `/api/ai/resume/*`, `/api/ai/interview/turn` | Ứng viên đã đăng nhập, có quota |
+| Việc làm | `/api/jobs`, `/api/jobs/:id`, `/api/jobs/my` | Công khai, ứng viên hoặc doanh nghiệp |
+| Ứng tuyển | `/api/jobs/apply`, `/api/jobs/apply-file`, `/api/jobs/applications/*` | Ứng viên; doanh nghiệp xem và cập nhật |
 | Việc đã lưu | `/api/saved-jobs`, `/api/saved-jobs/:jobId` | Ứng viên |
 | Thông báo | `/api/notifications`, `/api/notifications/unread-count` | Đã đăng nhập |
-| Chat | `/api/messages`, `/api/chat-threads`, `/api/chat/:room/read` | Đã đăng nhập và thuộc phòng |
-| Quản trị | `/api/admin/stats`, `/api/admin/users`, `/api/admin/jobs` | Quản trị viên |
+| Chat | `/api/messages`, `/api/chat/threads`, `/api/chat/threads/:room/read` | Đã đăng nhập và thuộc phòng |
+| Quản trị | `/api/admin/stats`, `/api/admin/users/:id`, `/api/admin/jobs` | Quản trị viên |
+| Vận hành | `/api/health`, `/api/admin/health/details`, `/api/cron/job-expiry` | Công khai tối giản, admin hoặc cron token |
 
-Nguyên tắc thiết kế quan trọng là không trả `pdfData` khi chỉ cần danh sách CV. Endpoint xem CV có quyền riêng và chỉ trả dữ liệu lớn khi người dùng thực sự mở tài liệu. Tương tự, endpoint danh sách công việc chỉ trả trường cần cho thẻ tóm tắt.
+Nguyên tắc thiết kế quan trọng là không trả `pdfData` khi chỉ cần danh sách CV. Endpoint xem CV có quyền riêng và chỉ trả dữ liệu lớn khi người dùng thực sự mở tài liệu. Các phản hồi người dùng được giới hạn theo danh sách trường cho bản thân, dữ liệu công khai và quản trị. Endpoint `/api/health` chỉ trả `{ "ok": true }` hoặc trạng thái lỗi; thông tin chẩn đoán chi tiết nằm ở endpoint riêng cho quản trị viên.
 
 ## 3.8. Các sơ đồ trình tự
 
@@ -462,7 +591,7 @@ sequenceDiagram
     E-->>R: Phiên người dùng hợp lệ
 ```
 
-*Hình 3.6. Trình tự đăng nhập và khôi phục phiên.*
+*Hình 3.7. Trình tự đăng nhập và khôi phục phiên.*
 
 Cookie được trình duyệt gửi tự động khi yêu cầu có cấu hình thông tin xác thực. AuthContext chỉ cập nhật sau phản hồi máy chủ, nhờ đó header có một nguồn trạng thái thống nhất.
 
@@ -476,7 +605,7 @@ sequenceDiagram
     participant DB as MongoDB
     participant N as Notification
     C->>UI: Chọn CV và nhấn ứng tuyển
-    UI->>API: POST /api/jobs/:id/apply
+    UI->>API: POST /api/jobs/apply với jobId và resumeId
     API->>DB: Kiểm tra job, hạn, trạng thái, quyền
     API->>DB: Kiểm tra cặp jobId-candidateId
     API->>DB: Tạo Application kèm jobSnapshot
@@ -485,7 +614,7 @@ sequenceDiagram
     UI-->>C: Cập nhật trạng thái theo dõi
 ```
 
-*Hình 3.7. Trình tự ứng tuyển.*
+*Hình 3.8. Trình tự ứng tuyển.*
 
 Kiểm tra diễn ra tại API để không thể bỏ qua bằng cách sửa giao diện. Chỉ mục duy nhất là lớp bảo vệ bổ sung trước tình huống hai yêu cầu đồng thời.
 
@@ -495,27 +624,90 @@ Kiểm tra diễn ra tại API để không thể bỏ qua bằng cách sửa gi
 sequenceDiagram
     actor A as Người gửi
     participant CA as Client A
-    participant S as Socket.IO
+    participant API as Express API
     participant DB as MongoDB
+    participant S as Socket.IO
     participant CB as Client B
     A->>CA: Gửi nội dung
-    CA->>S: emit send_message
-    S->>S: Xác minh socket từ JWT cookie
-    S->>DB: Lưu Message
-    DB-->>S: Tin nhắn đã lưu
-    S-->>CA: Xác nhận và cập nhật cục bộ
-    S-->>CB: emit message_received vào phòng người nhận
+    CA->>API: POST /api/messages với JWT cookie
+    API->>API: Xác thực người gửi và nội dung
+    API->>DB: Lưu Message
+    DB-->>API: Tin nhắn đã lưu
+    API-->>CA: HTTP 201 và dữ liệu tin nhắn
+    API->>S: Phát sự kiện newMessage
+    S-->>CB: newMessage vào phòng user người nhận
+    CA->>CA: Cập nhật tin đã gửi cục bộ
     CB->>CB: Cập nhật danh sách không tải lại toàn trang
 ```
 
-*Hình 3.8. Trình tự gửi tin nhắn thời gian thực.*
+*Hình 3.9. Trình tự gửi tin nhắn thời gian thực.*
 
-Dữ liệu được lưu trước khi phát sự kiện để bảo đảm có thể tải lại lịch sử. Client cập nhật trạng thái cục bộ thay vì gọi lại mọi thông tin doanh nghiệp sau mỗi tin.
+Dữ liệu được lưu qua REST trước khi phát sự kiện để bảo đảm có thể tải lại lịch sử. Socket.IO chịu trách nhiệm đưa bản tin đã lưu đến phía nhận. Client cập nhật trạng thái cục bộ thay vì gọi lại mọi thông tin doanh nghiệp sau mỗi tin.
 
-## 3.9. Thiết kế trạng thái tin tuyển dụng
+### 3.8.4. Yêu cầu AI có cấu trúc
+
+```mermaid
+sequenceDiagram
+    actor C as Ứng viên
+    participant UI as Giao diện React
+    participant API as AI Router
+    participant DB as MongoDB
+    participant AI as Groq API
+    C->>UI: Chọn review CV hoặc gửi câu trả lời phỏng vấn
+    UI->>API: POST /api/ai/... với dữ liệu hiện tại
+    API->>API: Xác thực, rate limit và làm sạch input
+    API->>DB: Kiểm tra quota, tạo AiUsage pending
+    API->>AI: Prompt rút gọn kèm JSON Schema
+    AI-->>API: Kết quả JSON và thống kê token
+    API->>API: Validate schema và làm sạch output
+    API->>DB: Cập nhật trạng thái, token và độ trễ
+    API-->>UI: result, model và số lượt còn lại
+    UI-->>C: Hiển thị modal hoặc đánh giá từng câu
+```
+
+*Hình 3.10. Trình tự xử lý một yêu cầu AI.*
+
+Khóa API chỉ được đọc tại backend. Nếu hết quota, quá rate limit, timeout hoặc nhà cung cấp lỗi, server trả mã và thông báo chuẩn hóa; giao diện dùng toast để thông báo nhưng không làm mất nội dung CV hoặc câu trả lời đang nhập.
+
+## 3.9. Sơ đồ hoạt động phỏng vấn AI
+
+```mermaid
+flowchart TB
+    Start(["Bắt đầu"])
+    Config["Nhập vị trí, cấp độ, hình thức và chọn 5, 8 hoặc 12 câu"]
+    Validate{"Thiết lập hợp lệ?"}
+    Ask["AI tạo câu hỏi hiện tại"]
+    Answer["Ứng viên nhập câu trả lời"]
+    Evaluate["AI chấm điểm, ghi điểm tốt và điểm cần cải thiện"]
+    Review["Lưu đánh giá theo số thứ tự câu"]
+    More{"Đã đủ số câu hoặc người dùng kết thúc?"}
+    Summary["AI tổng kết toàn bộ buổi phỏng vấn"]
+    End(["Kết thúc hoặc luyện lại"])
+
+    subgraph Setup["Thiết lập và trả lời"]
+        direction LR
+        Start --> Config --> Validate
+        Validate -- Có --> Ask --> Answer
+        Validate -- Không --> Config
+    end
+    subgraph Feedback["Đánh giá và kết thúc"]
+        direction LR
+        Evaluate --> Review --> More
+        More -- Rồi --> Summary --> End
+    end
+    Answer --> Evaluate
+    More -- Chưa --> Ask
+```
+
+*Hình 3.11. Sơ đồ hoạt động của buổi phỏng vấn AI.*
+
+Thanh tiến độ trong sidebar cho phép chọn lại câu đã trả lời để xem đánh giá tương ứng. Kết quả cuối buổi tổng hợp điểm mạnh, nội dung cần cải thiện và đề xuất luyện tập; điểm số chỉ có ý nghĩa tham khảo.
+
+## 3.10. Thiết kế trạng thái tin tuyển dụng
 
 ```mermaid
 stateDiagram-v2
+    direction LR
     [*] --> Draft: Tạo bản nháp
     Draft --> Active: Bật nhận hồ sơ
     Active --> Expired: Quá hạn
@@ -527,19 +719,21 @@ stateDiagram-v2
     Deleted --> [*]
 ```
 
-*Hình 3.9. Vòng đời rút gọn của tin tuyển dụng.*
+*Hình 3.12. Vòng đời rút gọn của tin tuyển dụng.*
 
 Tin bị xóa không còn xuất hiện như cơ hội có thể ứng tuyển. Tuy nhiên, việc đã lưu vẫn có thể hiển thị một thẻ trạng thái không khả dụng để người dùng bỏ lưu, còn Application tiếp tục sử dụng ảnh chụp dữ liệu và lưu lịch sử xử lý.
 
-## 3.10. Thiết kế giao diện và trải nghiệm
+## 3.11. Thiết kế giao diện và trải nghiệm
 
 Phong cách của RabbitCV sử dụng violet làm màu nhấn, nền trắng hoặc lavender nhạt, thẻ có viền mảnh, bóng nhẹ và bo góc. Glassmorphism được áp dụng có tiết chế qua lớp nền bán trong suốt và độ mờ, tránh làm giảm độ tương phản văn bản. Nội dung chính dùng nền khác biệt rõ với nền trang để tránh hiện tượng các thành phần hòa lẫn.
 
-Header công khai hiển thị đăng nhập và đăng ký; header sau đăng nhập hiển thị tìm kiếm, thông báo, tin nhắn và hồ sơ. Dropdown của ba biểu tượng dùng cùng chiều rộng, cấu trúc tiêu đề và khoảng cách. Chỉ báo chưa đọc biến mất khi người dùng mở danh sách và dữ liệu được đánh dấu đã đọc theo đúng ngữ cảnh.
+Header công khai hiển thị đăng nhập và đăng ký; header sau đăng nhập hiển thị tìm kiếm, thông báo, tin nhắn và hồ sơ. Mục Phỏng vấn AI được đặt sau Tin tức trong navigation ứng viên. Dropdown và menu dùng portal để không bị cắt bởi vùng cuộn; chỉ báo chưa đọc chỉ biến mất sau khi trạng thái đọc được ghi qua API. Doanh nghiệp và quản trị viên truy cập đường dẫn công khai sẽ được RoleAccessGuard chuyển về dashboard riêng.
 
 Khu vực ứng viên sử dụng sidebar ổn định giữa Tìm công việc, Công việc của tôi và Đã lưu. Vị trí và chiều rộng sidebar không thay đổi khi điều hướng. Các thẻ việc làm dùng chiều cao và vùng hành động tương đương; thông báo trạng thái được đặt gần hành động để tránh khoảng trắng lớn.
 
-CV có tỷ lệ A4 trực quan. Ở màn hình rộng, trang A4 được thu phóng trong vùng xem nhưng không thay đổi tỷ lệ. Khi in, các quy tắc màn hình được thay bằng đơn vị vật lý. Doanh nghiệp xem CV tải lên qua lớp kết xuất PDF.js, giúp tài liệu trông như một trang CV thay vì một trình xem có thanh công cụ.
+CV có tỷ lệ A4 trực quan. Ở màn hình rộng, trang A4 được thu phóng trong vùng xem nhưng không thay đổi tỷ lệ. Khi in, các quy tắc màn hình được thay bằng đơn vị vật lý. Trên mobile, toolbar dùng năm nút biểu tượng có kích thước ổn định để không tràn ngang. Các hộp AI điền CV và review được render qua portal ở giữa viewport thay vì bị bó trong sidebar. Trợ lý tiểu sử có ba lựa chọn cân đều: Viết mới, Cải thiện và Rút gọn; kết quả chỉ được áp dụng sau hành động rõ ràng của người dùng. Doanh nghiệp xem CV tải lên qua lớp kết xuất PDF.js, giúp tài liệu trông như một trang CV thay vì một trình xem có thanh công cụ.
+
+Trang phỏng vấn AI có bố cục ba vùng trên desktop: tiến độ và danh sách câu bên trái, hội thoại ở giữa, đánh giá câu đang chọn bên phải. Header, hai sidebar và vùng soạn tin có kích thước cố định theo breakpoint để tránh khoảng trống không cần thiết. Trên màn hình hẹp, các vùng phụ được ẩn hoặc đưa về dạng rút gọn, còn hội thoại và ô nhập giữ ưu tiên hiển thị.
 
 [PAGEBREAK]
 
@@ -547,15 +741,15 @@ CV có tỷ lệ A4 trực quan. Ở màn hình rộng, trang A4 được thu ph
 
 ## 4.1. Tổ chức dự án và môi trường
 
-Mã nguồn được chia thành `src` cho frontend, `server` cho backend, `test` cho kiểm thử và `public` cho tài nguyên tĩnh. Tệp `vite.config.js` cấu hình cổng 4000 và proxy đến backend cổng 5000. Backend đọc biến môi trường cho chuỗi kết nối MongoDB, bí mật JWT và danh sách nguồn CORS. Các lệnh chính gồm `npm run dev`, `npm run build`, `npm run lint`, `npm test` và `npm start`.
+Mã nguồn được chia thành `src` cho frontend, `server` cho backend, `test` cho kiểm thử, `public` cho tài nguyên tĩnh và `docs` cho tài liệu. Tệp `vite.config.js` cấu hình cổng 4000, proxy đến backend cổng 5000 và chiến lược chia bundle. Backend đọc biến môi trường cho MongoDB, JWT, CORS, Groq, quota AI và cron. Các lệnh chính gồm `npm run start:all`, `npm run dev`, `npm start`, `npm run check` và `npm run build`.
 
-Trong môi trường phát triển, cần chạy đồng thời frontend, backend và MongoDB. Lỗi `ECONNREFUSED` ở proxy thường không bắt nguồn từ component React mà do backend cổng 5000 chưa chạy, chạy sai cổng hoặc không kết nối được cơ sở dữ liệu. Phân biệt lỗi mạng với lỗi giao diện giúp tránh sửa sai vị trí.
+Trong môi trường phát triển, `npm run start:all` khởi động đồng thời Vite và backend; MongoDB có thể chạy local hoặc dùng URI từ Atlas. Nodemon chỉ theo dõi `server` và `.env`, bỏ qua `src` và `dist`, do đó chạy production build không còn làm backend restart liên tục. Lỗi `ECONNREFUSED` ở proxy thường không bắt nguồn từ component React mà do backend cổng 5000 chưa chạy, chạy sai cổng hoặc không kết nối được cơ sở dữ liệu. Phân biệt lỗi mạng với lỗi giao diện giúp tránh sửa sai vị trí.
 
 ## 4.2. Xác thực và AuthContext
 
 Khi đăng ký, mật khẩu được băm bằng bcryptjs trước khi lưu. Khi đăng nhập, backend so sánh mật khẩu, ký JWT và đặt cookie HTTP-only. Middleware xác thực đọc token, xác minh chữ ký và gắn người dùng vào yêu cầu. Các middleware bổ sung kiểm tra vai trò doanh nghiệp hoặc quản trị viên.
 
-Frontend trước đây có nguy cơ gọi `/api/me` ở nhiều thành phần, dẫn đến trạng thái tạm thời không thống nhất. AuthContext được dùng làm nguồn duy nhất cho `user`, trạng thái đang tải và các thao tác đăng nhập, đăng xuất, làm mới phiên. Header chỉ quyết định hiển thị sau khi trạng thái tải ban đầu hoàn tất. Đây là thay đổi kiến trúc nhỏ nhưng ảnh hưởng trực tiếp đến trải nghiệm.
+Frontend trước đây có nguy cơ gọi `/api/me` ở nhiều thành phần, dẫn đến trạng thái tạm thời không thống nhất. AuthContext được dùng làm nguồn duy nhất cho `user`, trạng thái đang tải và các thao tác đăng nhập, đăng xuất, làm mới phiên. Header chỉ quyết định hiển thị sau khi trạng thái tải ban đầu hoàn tất. `RoleAccessGuard` bao quanh hệ thống route để doanh nghiệp và admin không nhìn thấy landing page ứng viên sau khi phiên đã được nhận diện. Form đăng nhập, đăng ký dùng React Hook Form và Zod; lỗi email, mật khẩu, xác nhận mật khẩu và điều khoản được hiển thị ngay theo trường. Error Boundary ở root cung cấp màn hình thử lại nếu React gặp lỗi render không được xử lý.
 
 ### 4.2.1. Cookie khác nguồn khi triển khai
 
@@ -567,13 +761,15 @@ Socket.IO cần đọc cookie ngay ở bước bắt tay. Vấn đề có thể 
 
 ## 4.3. Hồ sơ người dùng
 
-Hồ sơ ứng viên gồm thông tin liên hệ, vị trí, học vấn, kinh nghiệm và các thuộc tính nghề nghiệp. Form chỉnh sửa sử dụng ngày chuẩn hóa để cùng một giá trị có thể hiển thị theo tiếng Việt và đưa trở lại trường ngày của trình duyệt. Việc lưu chuỗi ngày đầy đủ của JavaScript gây hiển thị như `GMT+0700`; hệ thống chuyển sang định dạng tháng, năm ở giao diện và chuẩn ISO ngắn trong biểu mẫu.
+Hồ sơ ứng viên gồm thông tin liên hệ, vị trí, học vấn, kinh nghiệm và các thuộc tính nghề nghiệp. Các hàm dùng chung trong `dateTime.js` dựa trên date-fns và locale tiếng Việt để định dạng ngày thông báo, thời gian tương đối, ngày ứng tuyển và khoảng tháng trong CV. Form chỉnh sửa sử dụng bộ chuẩn hóa riêng để cùng một giá trị có thể hiển thị theo tiếng Việt và đưa trở lại trường ngày của trình duyệt. Việc lưu chuỗi ngày đầy đủ của JavaScript gây hiển thị như `GMT+0700`; hệ thống chuyển sang định dạng tháng, năm ở giao diện và chuẩn ISO ngắn trong biểu mẫu.
 
 Trang cài đặt giữ sidebar đơn giản và thay đổi nội dung chính theo mục. Thông tin cá nhân, thông báo, giao diện, quyền riêng tư và thay đổi mật khẩu là các nội dung riêng. Trường mật khẩu hiện tại không hiển thị giá trị từ cơ sở dữ liệu; đây là dữ liệu người dùng phải nhập để xác nhận trước khi đặt mật khẩu mới.
 
 ## 4.4. Tạo và quản lý CV
 
-CV tạo trên web được lưu trong Resume theo các nhóm dữ liệu có cấu trúc. `selectedTemplate` xác định mẫu trình bày; dữ liệu cá nhân và các mục nội dung được đưa vào component CV. Người dùng chỉnh sửa dữ liệu, xem trước và gọi chức năng in của trình duyệt để tải PDF.
+CV tạo trên web được lưu trong Resume theo các nhóm dữ liệu có cấu trúc. `selectedTemplate` xác định mẫu trình bày; dữ liệu cá nhân và các mục nội dung được đưa vào component CV. Các vùng mô tả dùng Tiptap. Dữ liệu HTML cũ được chuyển sang tài liệu Tiptap để static renderer tạo React element; `sanitize-html` chỉ giữ thẻ định dạng cho phép và loại script, iframe, object, event attribute. Nhờ đó source frontend không còn dùng `dangerouslySetInnerHTML` để hiển thị nội dung CV.
+
+Người dùng chỉnh sửa, xem trước và tải PDF qua hook `useResumePrint`. Hook quản lý tiêu đề tệp, CSS A4, lỗi in và callback sau khi in; editor, thư viện CV và trang xem của doanh nghiệp dùng cùng một triển khai. Khi lưu CV mới, backend chuẩn hóa tiêu đề và kiểm tra trùng không phân biệt hoa thường trong phạm vi cùng người dùng. Nếu trùng, API trả `DUPLICATE_RESUME_TITLE` và giao diện yêu cầu đổi tên hoặc mở bản cũ để chỉnh sửa.
 
 `isVirtual` phân biệt CV ảo dùng cho giao diện hoặc quy trình mẫu với CV thật của người dùng. Quy tắc này ngăn CV ảo xuất hiện trong những nơi chỉ nên chọn hồ sơ thực. Khi lấy danh sách, backend dùng `.select("-pdfData")`; nếu mỗi PDF vài megabyte, loại bỏ trường này giúp giảm đáng kể băng thông, thời gian tuần tự hóa JSON và bộ nhớ phía client.
 
@@ -581,7 +777,7 @@ CV tạo trên web được lưu trong Resume theo các nhóm dữ liệu có c�
 
 Trang A4 có kích thước vật lý 210 x 297 mm. Vùng xem trên màn hình có thể được thu nhỏ nhưng phải giữ tỷ lệ chiều rộng trên chiều cao. CSS in sử dụng `@page`, lề xác định và `min-height` để nội dung không bị co bất thường. `clamp()` giới hạn cỡ chữ trong vùng xem nhưng khi in cần giá trị ổn định. `break-inside: avoid` được áp dụng có chọn lọc cho mục học vấn hoặc kinh nghiệm; nếu áp dụng cho khối quá lớn, trình duyệt có thể đẩy cả khối sang trang sau và tạo khoảng trắng.
 
-Lỗi trang trắng thường xuất hiện khi tổng chiều cao khối A4 cộng margin, padding hoặc border vượt nhẹ 297 mm. Cách khắc phục là dùng `box-sizing: border-box`, kiểm soát lề `@page`, không đồng thời đặt chiều cao cố định và `min-height` mâu thuẫn, đồng thời kiểm thử với nội dung ngắn và dài. Nền và màu được giữ bằng `print-color-adjust: exact` trong phạm vi trình duyệt hỗ trợ.
+Lỗi trang trắng thường xuất hiện khi tổng chiều cao khối A4 cộng margin, padding hoặc border vượt nhẹ 297 mm. Cách khắc phục là dùng `box-sizing: border-box`, kiểm soát lề `@page`, không đồng thời đặt chiều cao cố định và `min-height` mâu thuẫn, đồng thời kiểm thử với nội dung ngắn và dài. Nền và màu được giữ bằng `print-color-adjust: exact` trong phạm vi trình duyệt hỗ trợ. Trên mobile, năm hành động chính được chuyển sang icon button trong lưới có kích thước ổn định, tránh nút lưu bị cắt khỏi viewport.
 
 ### 4.4.2. CV tải từ máy tính
 
@@ -593,21 +789,21 @@ Lưu base64 trong MongoDB đơn giản cho đồ án nhưng làm tăng kích th�
 
 Job có trạng thái Draft, Active, Expired hoặc Deleted; ngoài ra có cờ ẩn bởi quản trị viên. Giao diện doanh nghiệp dùng một công tắc để bật hoặc tắt nhận hồ sơ và một nút lưu thay đổi. Bản nháp và bản chính dùng cùng cấu trúc form; khác biệt nằm ở trạng thái nghiệp vụ.
 
-Ứng viên có thể lưu job bằng liên kết trong User. API lưu và bỏ lưu kiểm tra tồn tại của job và quyền người dùng. Danh sách đã lưu phải xử lý cả tin đang tuyển, đã đóng và đã xóa. Với tin đang tuyển, thẻ hiển thị thông tin, thông báo màu xanh và liên kết xem chi tiết. Với tin xóa, thẻ hiển thị dữ liệu còn có thể xác định, nhãn không khả dụng, thông báo màu vàng và chỉ cho phép bỏ lưu.
+Ứng viên có thể lưu job bằng liên kết trong User. API lưu và bỏ lưu kiểm tra tồn tại của job và quyền người dùng. `SavedJobsContext` giữ API component cũ nhưng phần dữ liệu bên trong dùng TanStack Query. Mutation lưu/bỏ lưu cập nhật cache lạc quan để icon phản hồi ngay, khôi phục dữ liệu cũ nếu API thất bại và refetch sau khi kết thúc. Danh sách đã lưu phải xử lý cả tin đang tuyển, đã đóng và đã xóa. Với tin đang tuyển, thẻ hiển thị thông tin, thông báo màu xanh và liên kết xem chi tiết. Với tin xóa, thẻ hiển thị dữ liệu còn có thể xác định, nhãn không khả dụng, thông báo màu vàng và chỉ cho phép bỏ lưu.
 
 Khi ứng tuyển, backend kiểm tra job đang Active, chưa hết hạn, không bị ẩn và không bị xóa. Application lưu `jobSnapshot` gồm tên vị trí, công ty, địa điểm và dữ liệu cần hiển thị lịch sử. Nếu doanh nghiệp xóa Job sau đó, Application không bị xóa dây chuyền. Ứng viên vẫn thấy ngày nộp, trạng thái và thông báo rằng tin đã bị xóa nhưng lịch sử được giữ. Đây là lựa chọn quan trọng để bảo toàn bằng chứng nghiệp vụ.
 
 ## 4.6. Thông báo
 
-Notification có người nhận, loại, tiêu đề, nội dung, liên kết và cờ đã đọc. Hook phía client lấy số chưa đọc theo chu kỳ khoảng 30 giây. Khi mở dropdown thông báo, hệ thống gọi API đánh dấu hoặc cập nhật bộ đếm để chỉ báo biến mất. Các trang quản trị và doanh nghiệp cần dùng cùng hành vi này thay vì chỉ thay đổi trạng thái cục bộ ở một loại header.
+Notification có người nhận, loại, tiêu đề, nội dung, liên kết và cờ đã đọc. Hook phía client dùng TanStack Query lấy số chưa đọc theo chu kỳ khoảng 30 giây, cache các trang thông báo đã tải và gộp chúng khi người dùng chọn xem thêm. Mutation đọc/xóa cập nhật cache trước, gọi API và đồng bộ lại sau đó. Chỉ báo vì vậy phản ánh trạng thái đã lưu thay vì chỉ bị ẩn cục bộ. Sonner hiển thị lỗi tải hoặc thao tác; trang đầy đủ có trạng thái thử lại.
 
-Node-cron chạy định kỳ để kiểm tra hạn nhận hồ sơ. Hệ thống có thể tạo cảnh báo sắp hết hạn, chuyển tin quá hạn và tránh gửi lặp bằng các mốc đã thông báo. Polling được chấp nhận vì số lượng thông báo trong đồ án nhỏ; chu kỳ 30 giây tạo độ trễ tối đa tương ứng nhưng giảm độ phức tạp so với phát mọi sự kiện qua socket.
+Hàm `runJobExpiryCheck` kiểm tra hạn nhận hồ sơ, tạo cảnh báo sắp hết hạn, chuyển tin quá hạn và tránh gửi lặp bằng các mốc đã thông báo. Ở production, Vercel Cron gọi `GET /api/cron/job-expiry` theo lịch hằng ngày; endpoint yêu cầu Bearer `CRON_SECRET`. Ở local, endpoint được phép gọi trực tiếp để kiểm thử. Cách triển khai này thay `node-cron`, vì tiến trình serverless không duy trì vòng lặp nền lâu dài. Polling 30 giây vẫn được dùng ở client để nhận thông báo mới với độ phức tạp thấp.
 
 ## 4.7. Nhắn tin thời gian thực
 
-Socket.IO middleware đọc cookie bắt tay, xác minh JWT và gắn thông tin người dùng vào socket. Mỗi người tham gia phòng theo định danh để nhận tin riêng. Khi gửi, server xác thực nội dung, lưu Message và phát sự kiện đến bên nhận. Client thêm tin vào trạng thái hiện tại, cập nhật đoạn xem trước và thời gian mà không tải lại toàn bộ panel thông tin doanh nghiệp.
+Socket.IO middleware đọc cookie bắt tay, xác minh JWT và gắn thông tin người dùng vào socket. Mỗi người tham gia phòng theo định danh để nhận tin riêng. Khi gửi, client gọi REST API, server xác thực nội dung, lưu Message rồi phát sự kiện `newMessage` đến phòng người nhận. Client thêm tin vào trạng thái hiện tại, cập nhật đoạn xem trước và thời gian mà không tải lại toàn bộ panel thông tin doanh nghiệp. Ảnh chat được nén bằng CompressorJS trước khi chuyển thành data URL, thay cho đoạn canvas resize tự viết.
 
-Danh sách chat cần phân biệt rõ từng kênh. Tên hiển thị ưu tiên tên cá nhân hoặc tên doanh nghiệp từ dữ liệu hồ sơ; không dùng chuỗi dự phòng chung như “Tài khoản” khi còn có thể truy xuất tên thật. Tin mới nhất và thời gian nằm cùng một vùng, giúp người dùng nhận biết nhanh mức độ gần đây.
+Danh sách chat cần phân biệt rõ từng kênh. Tên hiển thị ưu tiên tên cá nhân hoặc tên doanh nghiệp từ dữ liệu hồ sơ; không dùng chuỗi dự phòng chung như “Tài khoản” khi còn có thể truy xuất tên thật. Tin mới nhất và thời gian nằm cùng một vùng, giúp người dùng nhận biết nhanh mức độ gần đây. Menu hành động dùng Radix Dropdown Menu và hộp xác nhận xóa dùng Alert Dialog qua portal, vì vậy không bị cắt hoặc làm thay đổi chiều cao danh sách.
 
 ### 4.7.1. Xóa đoạn chat theo phía người dùng
 
@@ -615,7 +811,23 @@ Xóa vật lý toàn bộ Message sẽ ảnh hưởng cả bên còn lại và l
 
 ChatReadState lưu `lastReadAt`. Tin chưa đọc là tin trong phòng có thời gian sau mốc đọc và người gửi không phải người đang xem. Khi mở biểu tượng hoặc phòng chat, API cập nhật mốc đọc và chỉ báo biến mất.
 
-## 4.8. Cổng doanh nghiệp
+## 4.8. Hỗ trợ CV và phỏng vấn bằng AI
+
+Nhóm `/api/ai` yêu cầu JWT và có rate limit riêng. `aiService.js` khởi tạo OpenAI SDK với endpoint Groq, model mặc định `openai/gpt-oss-120b`, timeout 20 giây và tối đa một lần retry của SDK. Mỗi lời gọi tạo một `AiUsage` ở trạng thái pending; khi hoàn tất, bản ghi được cập nhật token đầu vào, token đầu ra, độ trễ và trạng thái. Hạn mức mặc định là 100 lượt/tài khoản/ngày, có thể thay bằng `AI_DAILY_LIMIT`.
+
+Năm luồng AI hiện có gồm:
+
+1. `/api/ai/resume/improve`: viết mới, cải thiện hoặc rút gọn tiểu sử; kết quả phải là đoạn tiểu sử hoàn chỉnh thay vì lời khuyên biên tập.
+2. `/api/ai/resume/fill`: dùng hồ sơ và phần CV đã nhập để điền trường còn thiếu. Thuật toán merge giữ dữ kiện có sẵn, chỉ bổ sung khoảng trống và loại mô tả kỹ năng có dấu hiệu HTML hoặc mã thực thi.
+3. `/api/ai/resume/review`: chấm điểm tổng thể và theo nhóm, liệt kê điểm mạnh, vấn đề, cách sửa cùng mức ưu tiên; kết quả xuất hiện trong modal giữa viewport.
+4. `/api/ai/resume/score`: so sánh CV đã lưu với tin tuyển dụng theo kỹ năng, kinh nghiệm, học vấn, từ khóa và độ hoàn thiện.
+5. `/api/ai/interview/turn`: bắt đầu, xử lý từng câu trả lời hoặc kết thúc buổi phỏng vấn; trả câu hỏi, feedback, điểm và bản tổng kết theo JSON Schema.
+
+`sanitizeResumeForAi` tạo payload rút gọn, thay dữ liệu liên hệ bằng cờ đã điền/chưa điền và giới hạn độ dài từng trường. `sanitizeInterviewRequest` chỉ giữ lịch sử cần thiết cho tối đa 12 câu, chặn yêu cầu thay đổi vai trò nằm trong nội dung hội thoại và giới hạn độ dài câu trả lời. Output tiếp tục đi qua hàm clean tương ứng trước khi tới client. Nếu Groq chưa cấu hình, hết quota, rate limit hoặc lỗi mạng, API trả code riêng để toast có thông báo phù hợp; dữ liệu đang soạn không bị xóa.
+
+Trang `/ai-interview` cho phép chọn vị trí, cấp độ, hình thức và 5, 8 hoặc 12 câu. Trong buổi luyện, sidebar trái hiển thị tiến độ và cho chọn câu đã trả lời; vùng giữa chứa hội thoại và composer tối đa 1.200 ký tự; sidebar phải hiển thị đánh giá của câu đang chọn. Người dùng có thể kết thúc sớm hoặc xem tổng kết sau câu cuối. Số lượt AI còn lại không được đưa lên thanh điều hướng để giao diện tập trung vào nhiệm vụ, nhưng status và quota vẫn được kiểm soát ở backend.
+
+## 4.9. Cổng doanh nghiệp
 
 Cổng doanh nghiệp có nhận diện RabbitCV Business, sử dụng cùng logo với hệ thống và một kiểu header thống nhất giữa dashboard, tin tuyển dụng, hồ sơ công ty và trang message. Form đăng hoặc sửa job dùng nhãn tiếng Việt, chia nhóm thông tin cơ bản, mô tả, yêu cầu, quyền lợi, địa điểm và hạn nhận hồ sơ. Trường ngày có khoảng cách hợp lý với nhãn và dùng định dạng trình duyệt khi nhập.
 
@@ -623,19 +835,19 @@ Doanh nghiệp có thể lưu thay đổi và bật hoặc tắt nhận ứng vi
 
 Hồ sơ công ty chứa tên, lĩnh vực, địa chỉ, quy mô, website và phần giới thiệu. Tab không có nội dung hoặc gây hiểu sai được loại bỏ để tập trung vào phần tổng quan có dữ liệu thực. Cập nhật thông tin không nên bị tải lại khi gửi tin nhắn do hai khu vực dùng các trạng thái độc lập.
 
-## 4.9. Khu vực quản trị
+## 4.10. Khu vực quản trị
 
-Quản trị viên xem thống kê tổng quan và các danh sách người dùng, doanh nghiệp, tin tuyển dụng. Trạng thái xác minh doanh nghiệp có thể chuyển giữa chờ duyệt, đã duyệt và từ chối. Quản trị viên có thể khóa hoặc mở lại người dùng tùy quy tắc, ẩn tin vi phạm và hiển thị lại nếu quyết định được thay đổi.
+Quản trị viên xem thống kê tổng quan và các danh sách người dùng, doanh nghiệp, tin tuyển dụng. Trạng thái xác minh doanh nghiệp có thể chuyển giữa chờ duyệt, đã duyệt và từ chối. Quản trị viên có thể khóa hoặc mở lại người dùng tùy quy tắc, ẩn tin vi phạm và hiển thị lại nếu quyết định được thay đổi. Các trang Reports, Reviews và System Logs trước đây chỉ có dữ liệu minh họa đã được xóa khỏi navigation; route cũ chuyển đến dashboard hoặc trang doanh nghiệp hợp lệ. Danh sách việc làm admin không còn dùng dữ liệu fallback giả khi API lỗi mà hiển thị lỗi và nút thử lại.
 
 Thao tác ẩn và hiện phải đối xứng. Nếu `isAdminHidden` là true, biểu tượng hoặc menu cần cung cấp hành động hiện lại; nếu false, cung cấp hành động ẩn. Nhãn “Tuyển dụng & Việc làm” được giữ trên một dòng bằng chiều rộng sidebar phù hợp. Dropdown hành động được định vị lên trên nếu không còn đủ không gian phía dưới, tránh bị cắt trong vùng cuộn.
 
-## 4.10. Bảo mật trong phạm vi đồ án cá nhân
+## 4.11. Bảo mật trong phạm vi đồ án cá nhân
 
-Các biện pháp đã áp dụng gồm băm mật khẩu, JWT có chữ ký, cookie HTTP-only, xác thực REST và Socket.IO, CORS theo nguồn cho phép, kiểm tra vai trò, kiểm tra chủ sở hữu, validation cơ bản và làm sạch nội dung HTML ở nơi cần thiết. API không trả mật khẩu băm và không tin vào role do client tự gửi trong các thao tác đặc quyền.
+Các biện pháp đã áp dụng gồm băm mật khẩu, JWT có chữ ký, cookie HTTP-only, xác thực REST và Socket.IO, CORS theo nguồn cho phép, kiểm tra vai trò, kiểm tra chủ sở hữu, validation và làm sạch nội dung HTML. Helmet thiết lập CSP cùng các header nền tảng; express-rate-limit áp dụng mức chung cho API, mức chặt hơn cho đăng nhập, đăng ký và AI. Các danh sách trường `SELF_USER_FIELDS`, `PUBLIC_USER_FIELDS` và `ADMIN_USER_FIELDS` giới hạn dữ liệu tài khoản theo ngữ cảnh. `/api/health` chỉ trả trạng thái `ok`; thông tin database và môi trường chi tiết yêu cầu quyền admin. API không trả mật khẩu băm và không tin vào role do client tự gửi trong các thao tác đặc quyền.
 
-Một số điểm chưa ở mức sản xuất gồm quản lý bí mật, giới hạn tần suất, chống CSRF đầy đủ, chính sách mật khẩu, nhật ký kiểm toán, quét tệp độc hại và xoay khóa. Việc dùng mật khẩu mẫu ngắn chỉ phù hợp dữ liệu trình diễn; không nên áp dụng cho tài khoản thực. Báo cáo ghi nhận trung thực các giới hạn này thay vì mở rộng phạm vi đồ án sang một hệ thống an ninh hoàn chỉnh.
+Một số điểm chưa ở mức sản xuất gồm chống CSRF đầy đủ, chính sách mật khẩu, nhật ký kiểm toán, quét tệp độc hại và xoay khóa. Tài khoản `admin/1111` được giữ để trình diễn và được seed nếu chưa tồn tại; mật khẩu ngắn này không phù hợp tài khoản thực. Báo cáo ghi nhận trung thực các giới hạn này nhưng trọng tâm cải tiến hiện tại vẫn là độ hoàn thiện chức năng và trải nghiệm.
 
-## 4.11. Các vấn đề kỹ thuật và cách giải quyết
+## 4.12. Các vấn đề kỹ thuật và cách giải quyết
 
 | Vấn đề | Nguyên nhân | Giải pháp |
 | --- | --- | --- |
@@ -643,15 +855,22 @@ Một số điểm chưa ở mức sản xuất gồm quản lý bí mật, gi�
 | Proxy báo ECONNREFUSED | Backend cổng 5000 chưa chạy hoặc không truy cập được | Kiểm tra tiến trình backend, biến môi trường và MongoDB trước khi sửa frontend. |
 | CV in thừa trang trắng | Kích thước A4 cộng padding hoặc khối tránh ngắt vượt trang | Chuẩn hóa `@page`, box sizing, min-height và kiểm thử nội dung dài/ngắn. |
 | CV tải lên trông như trình xem PDF | Dùng iframe hoặc trình xem gốc | Kết xuất từng trang bằng PDF.js trong khung A4. |
+| Nội dung rich text có nguy cơ chèn HTML thực thi | Render chuỗi HTML trực tiếp | Làm sạch bằng allowlist, chuyển qua Tiptap JSON và static renderer. |
+| Lưu CV trùng tên nhưng người dùng không biết nguyên nhân | Backend chỉ trả lỗi chung | Trả `DUPLICATE_RESUME_TITLE`, focus vào tên CV và hướng dẫn đổi tên hoặc mở bản cũ. |
+| AI cải thiện tiểu sử trả lời khuyên thay vì nội dung để dán | Prompt không phân biệt nội dung cuối với hướng dẫn biên tập | Validate kết quả, retry với chỉ dẫn cụ thể và chỉ chấp nhận đoạn tiểu sử hoàn chỉnh. |
+| AI điền kỹ năng có HTML hoặc mã JavaScript | Dữ liệu đầu vào hoặc output không được lọc theo ngữ nghĩa | Phát hiện executable text ở cả sanitizer server và hàm merge client. |
+| Modal AI bị bó trong sidebar CV | Modal render bên trong vùng có overflow | Render qua portal cố định ở giữa viewport. |
 | Tin bị xóa làm mất tên công việc | Giao diện chỉ populate Job hiện tại | Lưu `jobSnapshot` trong Application và có trạng thái fallback. |
 | Xóa chat ảnh hưởng hai bên | Xóa vật lý Message | Dùng HiddenChat và mốc `hiddenAt` riêng từng người. |
 | Gửi tin làm panel bên phải tải lại | Tái lấy toàn bộ chi tiết khi danh sách message đổi | Tách state thông tin đối tác và cập nhật message cục bộ. |
 | Chỉ báo chưa đọc không mất | Chỉ mở dropdown nhưng không cập nhật trạng thái đọc | Gọi API đánh dấu đọc và đồng bộ bộ đếm cho mọi loại header. |
 | Ngày hiển thị chuỗi GMT dài | Render trực tiếp đối tượng Date | Chuẩn hóa dữ liệu nhập và định dạng tháng/năm tiếng Việt khi hiển thị. |
+| Build frontend làm backend restart nhiều lần | Nodemon theo dõi cả `dist` và `src` | Chỉ watch `server`, `.env`; bỏ qua output build. |
+| Cron nền không ổn định trên serverless | `node-cron` cần tiến trình Node chạy liên tục | Tách hàm xử lý và gọi bằng Vercel Cron qua endpoint có token. |
 
-## 4.12. Nhận xét triển khai
+## 4.13. Nhận xét triển khai
 
-Phiên bản hiện tại đã hình thành một luồng xuyên suốt từ hồ sơ ứng viên đến CV, việc làm, ứng tuyển và trao đổi. Điểm mạnh nằm ở việc nhiều lỗi giao diện được xử lý bằng thay đổi dữ liệu hoặc trạng thái phù hợp. Tuy nhiên, backend còn tập trung nhiều endpoint trong một tệp lớn và một số component giao diện có thể được tách nhỏ hơn. Đây là khoản nợ kỹ thuật chấp nhận được ở đồ án cá nhân nhưng cần giải quyết trước khi mở rộng nhóm phát triển.
+Phiên bản hiện tại đã hình thành một luồng xuyên suốt từ hồ sơ ứng viên đến CV, hỗ trợ AI, việc làm, ứng tuyển và trao đổi. Điểm mạnh nằm ở việc nhiều lỗi giao diện được xử lý bằng thay đổi dữ liệu, schema hoặc trạng thái phù hợp. Một số phần đã có ranh giới rõ hơn như AI router/service/schema, query cache, form schema, rich text renderer và print hook. Tuy nhiên, phần lớn endpoint nghiệp vụ vẫn tập trung trong `server.js`; `Resume.jsx`, `ResumeForm.jsx`, `CompanyDashboard.jsx` và trang chat còn lớn. Đây là khoản nợ kỹ thuật chấp nhận được ở đồ án cá nhân nhưng cần tiếp tục tách theo feature trước khi mở rộng nhóm phát triển.
 
 [PAGEBREAK]
 
@@ -661,7 +880,7 @@ Phiên bản hiện tại đã hình thành một luồng xuyên suốt từ h�
 
 Kiểm thử nhằm xác nhận các quy tắc quan trọng của RabbitCV hoạt động đúng và các thay đổi giao diện không phá vỡ nghiệp vụ. Vì đồ án có nhiều luồng, chiến lược được chia thành kiểm thử tự động cho logic ổn định, kiểm thử build để phát hiện lỗi tích hợp tĩnh và kiểm thử thủ công cho hành vi liên quan trình duyệt, PDF, Socket.IO và nhiều vai trò.
 
-Các tiêu chí ưu tiên gồm: CV đúng A4; chỉ tải PDF hợp lệ; tin không khả dụng không nhận hồ sơ; dữ liệu ứng tuyển không mất khi job bị xóa; ngày tháng hiển thị tiếng Việt; form doanh nghiệp dùng nhãn thống nhất; và trình xem CV tải lên không phụ thuộc iframe gốc.
+Các tiêu chí ưu tiên gồm: CV đúng A4; chỉ tải PDF hợp lệ; rich text không thực thi mã; dữ liệu AI được rút gọn và đầu ra được giới hạn; tin không khả dụng không nhận hồ sơ; dữ liệu ứng tuyển không mất khi job bị xóa; trạng thái đọc được lưu; ngày tháng hiển thị tiếng Việt; điều hướng đúng vai trò; form doanh nghiệp dùng nhãn thống nhất; và trình xem CV tải lên không phụ thuộc iframe gốc.
 
 ## 5.2. Môi trường và công cụ
 
@@ -672,30 +891,32 @@ Các tiêu chí ưu tiên gồm: CV đúng A4; chỉ tải PDF hợp lệ; tin k
 | Backend | Node.js, Express 5 |
 | Cơ sở dữ liệu | MongoDB qua Mongoose |
 | Kiểm thử tự động | Node Test Runner, lệnh `npm test` |
+| Kiểm tra tĩnh | ESLint, lệnh `npm run lint` |
 | Kiểm tra bản phát hành | Vite build, lệnh `npm run build` |
 | Kiểm tra PDF | Xem trước trình duyệt, CSS in A4 và kết xuất PDF.js |
+| Kiểm tra giao diện | Chromium ở desktop và viewport mobile 390 x 844 |
+| Kiểm tra tích hợp AI | Static integration test cho route, schema, sanitizer và giao diện; gọi thật phụ thuộc `GROQ_API_KEY` |
 
 ## 5.3. Kết quả kiểm thử tự động
 
-Tại thời điểm lập báo cáo, bộ kiểm thử gồm 13 trường hợp và đều đạt. Tổng thời gian chạy gần nhất khoảng 3,99 giây. Bảng dưới đây diễn giải mục tiêu của từng trường hợp.
+Tại thời điểm cập nhật báo cáo ngày 09-08-2026, lệnh `npm run check` hoàn thành cả ESLint, 41 kiểm thử và production build. Bảng dưới đây nhóm các trường hợp theo tệp kiểm thử để trình bày ngắn gọn nhưng vẫn đối chiếu được với mã nguồn.
 
-| Mã | Nội dung kiểm thử | Kết quả |
-| --- | --- | --- |
-| TC01 | Vùng bao CV và trang in sử dụng kích thước A4. | Đạt |
-| TC02 | Trình chỉnh sửa và thư viện CV cung cấp tải PDF dựa trên chức năng in. | Đạt |
-| TC03 | PDF tải lên được kết xuất thành các trang A4, không dùng iframe gốc. | Đạt |
-| TC04 | Form việc làm và hồ sơ công ty sử dụng nhãn tiếng Việt. | Đạt |
-| TC05 | Hồ sơ công khai định dạng ngày học vấn và kinh nghiệm theo tiếng Việt. | Đạt |
-| TC06 | Ngày cũ được chuẩn hóa để đưa vào trường ngày của trình duyệt. | Đạt |
-| TC07 | Ngày học vấn và kinh nghiệm được chuẩn hóa cùng quy tắc. | Đạt |
-| TC08 | Tin bị xóa không còn khả dụng nhưng dữ liệu cần thiết được giữ. | Đạt |
-| TC09 | Tin Active và chưa hết hạn vẫn khả dụng. | Đạt |
-| TC10 | Tin hết hạn từ chối yêu cầu ứng tuyển. | Đạt |
-| TC11 | Data URL PDF hợp lệ được chấp nhận và tính đúng dung lượng giải mã. | Đạt |
-| TC12 | Tệp Word và tệp không phải PDF bị từ chối. | Đạt |
-| TC13 | PDF vượt quá 5 MB bị từ chối. | Đạt |
+| Nhóm | Số test | Nội dung chính | Kết quả |
+| --- | ---: | --- | --- |
+| A4, in CV và PDF viewer | 3 | Kích thước A4, shared print hook, PDF tải lên không dùng iframe. | Đạt |
+| Kiểm tra tệp PDF | 3 | Chấp nhận PDF hợp lệ; từ chối Word, MIME sai và PDF trên 5 MB. | Đạt |
+| Chuẩn hóa ngày | 5 | Legacy date, học vấn, kinh nghiệm, tháng CV, trạng thái đang diễn ra. | Đạt |
+| UI doanh nghiệp và dữ liệu job | 3 | Nhãn tiếng Việt, chi tiết job đủ trường, ngày hồ sơ công khai. | Đạt |
+| Trạng thái và hạn tin | 6 | Deleted/Active/Expired, hạn quá khứ, hạn tương lai và chặn ứng tuyển. | Đạt |
+| Trạng thái đã đọc | 2 | Badge chat và thông báo được lưu qua API thay vì chỉ ẩn cục bộ. | Đạt |
+| Rich text sanitizer | 3 | Giữ định dạng cho phép, loại HTML thực thi và xử lý input không phải chuỗi. | Đạt |
+| Dữ liệu AI | 5 | Làm sạch input, nhận diện code, validator tiểu sử, loại liên hệ và kỹ năng nguy hiểm. | Đạt |
+| Merge AI điền CV | 4 | Giữ dữ kiện cũ, điền phần trống và loại mô tả kỹ năng thực thi. | Đạt |
+| Tích hợp AI và điều hướng | 4 | Route có auth, Structured Outputs, chức năng frontend, interview và role guard. | Đạt |
+| Sanitizer phỏng vấn | 3 | Giới hạn settings, giữ lịch sử 12 câu và giới hạn feedback. | Đạt |
+| **Tổng** | **41** | **Toàn bộ test Node hiện có.** | **Đạt** |
 
-Kết quả 13/13 không có nghĩa hệ thống không còn lỗi. Bộ test hiện tập trung vào các quy tắc đã từng gây lỗi hoặc có khả năng hồi quy cao. Chưa có độ bao phủ mã đầy đủ, chưa tự động hóa trình duyệt đầu cuối và chưa thực hiện kiểm thử tải.
+ESLint hoàn thành không lỗi và không cảnh báo. Vite build 1.906 module thành công; các chunk JavaScript chính đều dưới 500 kB, trong đó nhóm PDF, rich text và React được tách riêng. Kết quả 41/41 không có nghĩa hệ thống không còn lỗi. Bộ test tập trung vào các quy tắc đã từng gây lỗi hoặc có khả năng hồi quy cao; chưa có đo độ bao phủ mã, bộ E2E chạy tự động trong CI hoặc kiểm thử tải.
 
 ## 5.4. Kịch bản kiểm thử thủ công
 
@@ -703,8 +924,10 @@ Kết quả 13/13 không có nghĩa hệ thống không còn lỗi. Bộ test hi
 
 1. Mở trang chủ ở trạng thái chưa đăng nhập; xác nhận chỉ có nút đăng nhập và đăng ký.
 2. Đăng nhập tài khoản ứng viên; xác nhận header chuyển sang các biểu tượng tìm kiếm, thông báo, chat và profile mà không tải lại trang.
-3. Mở từng dropdown; xác nhận chiều rộng đồng nhất, chỉ báo chưa đọc biến mất theo quy tắc và liên kết không chuyển sai về trang đăng nhập.
-4. Đăng xuất; xác nhận dữ liệu cá nhân bị xóa khỏi trạng thái frontend và header trở lại trạng thái công khai.
+3. Nhập email sai, mật khẩu trống hoặc xác nhận mật khẩu không khớp; xác nhận lỗi Zod hiển thị đúng trường và form chưa gửi.
+4. Đăng nhập doanh nghiệp hoặc admin rồi nhập trực tiếp `/`, `/MainMenu`, `/Jobs`; xác nhận hệ thống chuyển về cổng đúng vai trò.
+5. Mở từng dropdown; xác nhận focus bàn phím hợp lý, chỉ báo chưa đọc biến mất sau khi API ghi trạng thái và liên kết không chuyển sai về trang đăng nhập.
+6. Đăng xuất; xác nhận dữ liệu cá nhân bị xóa khỏi trạng thái frontend và header trở lại trạng thái công khai.
 
 ### 5.4.2. CV tạo trên web và CV tải lên
 
@@ -713,8 +936,20 @@ Kết quả 13/13 không có nghĩa hệ thống không còn lỗi. Bộ test hi
 3. Tải PDF hợp lệ dưới 5 MB; xác nhận danh sách hiển thị tên tệp nhưng không tải trước toàn bộ base64.
 4. Ứng tuyển bằng PDF tải lên; đăng nhập doanh nghiệp và mở CV; xác nhận từng trang giữ tỷ lệ A4 và không có thanh công cụ PDF gốc.
 5. Thử tải DOC, DOCX, ảnh và PDF quá dung lượng; xác nhận hệ thống từ chối với thông báo phù hợp.
+6. Tạo hai CV cùng tên; xác nhận lần lưu thứ hai hiển thị yêu cầu đổi tên và focus vào ô tên CV.
+7. Nhập rich text có định dạng và thử chèn script/iframe; xác nhận định dạng hợp lệ còn hiển thị nhưng mã thực thi bị loại.
+8. Mở viewport 390 x 844; xác nhận năm nút toolbar không tràn khỏi màn hình.
 
-### 5.4.3. Việc làm và lịch sử ứng tuyển
+### 5.4.3. Chức năng AI
+
+1. Chọn Viết mới, Cải thiện và Rút gọn trong trợ lý tiểu sử; xác nhận nút hành động đổi đúng nhãn và kết quả chưa ghi đè trước khi chọn áp dụng.
+2. Mở AI điền CV khi hồ sơ cá nhân đã có dữ liệu; xác nhận trường có sẵn được giữ, phần thiếu được bổ sung và modal nằm giữa viewport.
+3. Chạy Review toàn bộ CV; xác nhận có điểm tổng thể, điểm theo nhóm, điểm mạnh, mục cần sửa và cách sửa theo ưu tiên.
+4. Chọn một CV tại trang chi tiết job và thực hiện chấm điểm; xác nhận chỉ còn chức năng Chấm điểm, không có Viết thư AI.
+5. Tạo buổi phỏng vấn 5, 8 và 12 câu; trả lời ít nhất hai câu, chọn lại câu cũ ở sidebar và xác nhận panel phải đổi đúng feedback của câu đó.
+6. Thử khi thiếu `GROQ_API_KEY`, hết quota hoặc gửi quá nhanh; xác nhận có thông báo lỗi và nội dung CV/câu trả lời đang nhập không mất.
+
+### 5.4.4. Việc làm và lịch sử ứng tuyển
 
 1. Doanh nghiệp tạo bản nháp, lưu, bật trạng thái nhận hồ sơ và xác nhận tin xuất hiện ở danh sách công khai.
 2. Ứng viên lưu tin, ứng tuyển và xác nhận trạng thái “Chờ xử lý”.
@@ -722,21 +957,24 @@ Kết quả 13/13 không có nghĩa hệ thống không còn lỗi. Bộ test hi
 4. Xóa tin sau khi đã có ứng viên; xác nhận không thể nộp mới nhưng lịch sử ứng tuyển, ngày nộp và trạng thái cũ vẫn hiển thị.
 5. Mở danh sách đã lưu; xác nhận tin bị xóa có cảnh báo và vẫn cho phép bỏ lưu.
 
-### 5.4.4. Chat và thông báo
+### 5.4.5. Chat và thông báo
 
 1. Doanh nghiệp nhắn cho ứng viên; xác nhận ứng viên thấy chỉ báo chưa đọc mà không cần tải lại toàn trang.
 2. Mở biểu tượng chat và phòng tương ứng; xác nhận số chưa đọc biến mất.
 3. Gửi nhiều tin liên tiếp; xác nhận panel thông tin đối tác không bị tải lại và danh sách kênh không trộn tên.
 4. Xóa đoạn chat ở ứng viên; xác nhận cuộc trò chuyện chỉ ẩn ở phía ứng viên và vẫn còn ở doanh nghiệp.
 5. Gửi tin mới sau thời điểm ẩn; xác nhận cuộc trò chuyện có thể xuất hiện lại theo thiết kế.
+6. Gửi ảnh dung lượng lớn; xác nhận CompressorJS nén trước khi gửi và ảnh vẫn xem được.
 
-### 5.4.5. Quản trị
+### 5.4.6. Quản trị
 
 1. Đăng nhập quản trị viên và mở dropdown thông báo; xác nhận biểu tượng chưa đọc được cập nhật.
 2. Xác minh một doanh nghiệp đang chờ duyệt; xác nhận trạng thái thay đổi ở danh sách và phía doanh nghiệp.
 3. Ẩn một tin đang tuyển; xác nhận tin không còn xuất hiện công khai.
 4. Hiển thị lại tin; xác nhận thao tác đối xứng và trạng thái được phục hồi nếu tin còn hạn.
-5. Mở menu ở dòng cuối bảng; xác nhận dropdown tự đặt lên trên nếu thiếu không gian.
+5. Mở menu ở dòng cuối bảng; xác nhận dropdown dùng portal và không bị vùng cuộn cắt.
+6. Mở `/admin/reports`, `/admin/reviews` và `/admin/system-logs`; xác nhận route chuyển về trang quản trị có dữ liệu thật.
+7. Ngắt API việc làm admin; xác nhận trang hiển thị lỗi và nút thử lại thay vì chèn danh sách mẫu.
 
 ## 5.5. Kiểm tra tỷ lệ A4 và khả năng xem CV
 
@@ -749,20 +987,23 @@ Nếu người dùng tải một PDF vốn không phải A4, hệ thống có ha
 | Mục tiêu | Mức độ | Nhận xét |
 | --- | --- | --- |
 | Quản lý tài khoản và hồ sơ | Hoàn thành | Có vai trò, hồ sơ cá nhân/công ty, cài đặt và đổi mật khẩu. |
-| Tạo CV và tải PDF | Hoàn thành chính | Có mẫu CV, in PDF, kiểm soát A4 và tải PDF từ máy tính. |
+| Tạo CV và tải PDF | Hoàn thành chính | Có mẫu CV, Tiptap rich text, shared print hook, kiểm soát A4 và tải PDF từ máy tính. |
+| AI hỗ trợ CV | Hoàn thành chính | Viết tiểu sử, điền phần thiếu, review toàn CV và chấm theo job; người dùng duyệt trước khi áp dụng. |
+| Phỏng vấn AI | Hoàn thành chính | Thiết lập phiên 5/8/12 câu, feedback từng câu, chọn lại đánh giá và tổng kết. |
 | Tìm, lưu và ứng tuyển | Hoàn thành | Có lọc, chi tiết, lưu, ứng tuyển và theo dõi trạng thái. |
 | Bảo toàn lịch sử khi xóa tin | Hoàn thành | Application có ảnh chụp dữ liệu; việc đã lưu có trạng thái fallback. |
 | Nhắn tin thời gian thực | Hoàn thành chính | Socket.IO, trạng thái đã đọc và ẩn riêng cuộc trò chuyện. |
-| Thông báo | Hoàn thành chính | Schema, trigger, polling, số chưa đọc và tác vụ hết hạn. |
+| Thông báo | Hoàn thành chính | TanStack Query cache/polling, optimistic update, số chưa đọc và Vercel Cron hết hạn. |
 | Cổng doanh nghiệp | Hoàn thành chính | Hồ sơ công ty, CRUD tin và quản lý ứng viên. |
-| Quản trị | Hoàn thành cơ bản | Thống kê, người dùng, xác minh doanh nghiệp và ẩn/hiện tin. |
+| Quản trị | Hoàn thành cơ bản | Chỉ giữ trang có API thật: thống kê, người dùng, xác minh doanh nghiệp và ẩn/hiện tin. |
+| Nền tảng trải nghiệm | Hoàn thành đợt 1 | Sonner, Radix controls, Zod form, Error Boundary, date-fns và role guard. |
 | Khả năng vận hành quy mô lớn | Chưa hoàn thành | Chưa có object storage, queue, quan sát hệ thống và kiểm thử tải. |
 
 ## 5.7. Hạn chế
 
-Thứ nhất, PDF base64 lưu trong MongoDB làm tài liệu lớn và tăng chi phí sao lưu. Thứ hai, backend có nhiều trách nhiệm trong một tệp, gây khó bảo trì khi mở rộng. Thứ ba, thông báo polling tạo yêu cầu định kỳ và có độ trễ. Thứ tư, bộ kiểm thử chưa bao phủ trình duyệt, socket và quyền truy cập theo ma trận đầy đủ. Thứ năm, chưa có phân trang và tìm kiếm toàn văn tối ưu cho lượng tin lớn.
+Thứ nhất, PDF base64 và ảnh chat data URL lưu trong MongoDB làm tài liệu lớn và tăng chi phí sao lưu. Thứ hai, backend có nhiều trách nhiệm trong một tệp, gây khó bảo trì khi mở rộng. Thứ ba, thông báo polling tạo yêu cầu định kỳ và có độ trễ; Socket.IO trên môi trường serverless chưa phải kiến trúc phù hợp cho tải lớn. Thứ tư, bộ kiểm thử chưa tự động hóa đầy đủ trình duyệt, socket, gọi Groq thật và quyền truy cập theo ma trận. Thứ năm, chưa có phân trang cursor cho chat, tìm kiếm toàn văn tối ưu hoặc xếp hạng công việc cá nhân hóa.
 
-Ngoài ra, thiết kế gợi ý công việc hiện chủ yếu dựa trên dữ liệu mẫu hoặc quy tắc, chưa có mô hình xếp hạng cá nhân hóa. Khả năng truy cập cho người dùng bàn phím và trình đọc màn hình cần được kiểm tra sâu hơn. Quy trình xác minh doanh nghiệp vẫn dựa trên thao tác quản trị thủ công.
+Ngoài ra, chất lượng AI phụ thuộc Groq, model, quota và độ chính xác của dữ liệu người dùng. Structured Outputs ổn định cấu trúc nhưng không loại bỏ hoàn toàn nội dung thiếu chính xác; người dùng vẫn phải review trước khi lưu. Lịch sử phỏng vấn AI hiện giữ trong state của phiên, chưa có collection lưu nhiều buổi để so sánh tiến bộ. Khả năng truy cập cho người dùng bàn phím và trình đọc màn hình cần được kiểm tra sâu hơn. Quy trình xác minh doanh nghiệp vẫn dựa trên thao tác quản trị thủ công.
 
 [PAGEBREAK]
 
@@ -770,23 +1011,24 @@ Ngoài ra, thiết kế gợi ý công việc hiện chủ yếu dựa trên d�
 
 ## 6.1. Kết luận
 
-Đồ án đã xây dựng được RabbitCV như một ứng dụng web toàn ngăn xếp có luồng nghiệp vụ liên tục giữa ứng viên, doanh nghiệp và quản trị viên. Ứng viên có thể tạo hoặc tải CV PDF, tìm và lưu việc, nộp hồ sơ, theo dõi trạng thái, nhận thông báo và nhắn tin. Doanh nghiệp có thể quản lý hồ sơ, tin tuyển dụng và ứng viên. Quản trị viên có khả năng theo dõi dữ liệu và can thiệp vào tài khoản, doanh nghiệp và tin tuyển dụng.
+Đồ án đã xây dựng được RabbitCV như một ứng dụng web toàn ngăn xếp có luồng nghiệp vụ liên tục giữa ứng viên, doanh nghiệp và quản trị viên. Ứng viên có thể tạo hoặc tải CV PDF, dùng AI để hoàn thiện và review CV, luyện phỏng vấn, tìm và lưu việc, nộp hồ sơ, theo dõi trạng thái, nhận thông báo và nhắn tin. Doanh nghiệp có thể quản lý hồ sơ, tin tuyển dụng và ứng viên. Quản trị viên có khả năng theo dõi dữ liệu và can thiệp vào tài khoản, doanh nghiệp và tin tuyển dụng qua các trang dùng dữ liệu thật.
 
-Các mục tiêu kỹ thuật chính đã được hiện thực hóa bằng React, Vite, Tailwind CSS, Express, MongoDB, JWT, Socket.IO, node-cron và PDF.js. Hệ thống xử lý được một số tình huống thực tế như đồng bộ trạng thái header, giữ lịch sử sau khi xóa tin, phân biệt CV ảo và CV thật, tránh tải base64 trong danh sách, xem PDF theo A4 và ẩn chat theo từng người dùng.
+Các mục tiêu kỹ thuật chính đã được hiện thực hóa bằng React, Vite, Tailwind CSS, TanStack Query, React Hook Form, Zod, Tiptap, Radix UI, Express, MongoDB, JWT, Socket.IO, Groq Structured Outputs, Vercel Cron, react-to-print và PDF.js. Hệ thống xử lý được một số tình huống thực tế như điều hướng đúng vai trò, giữ lịch sử sau khi xóa tin, phân biệt CV ảo và CV thật, tránh tải base64 trong danh sách, kiểm soát rich text, xem/in PDF theo A4, quản lý quota AI và ẩn chat theo từng người dùng.
 
-Bộ kiểm thử tự động 13 trường hợp đều đạt và bản build sản xuất hoàn tất. Kết quả này cho thấy phiên bản hiện tại có nền tảng đủ để trình diễn và tiếp tục phát triển. Tuy vậy, đây vẫn là sản phẩm đồ án cá nhân; khả năng chịu tải, bảo mật nâng cao, quan sát vận hành và độ bao phủ kiểm thử chưa đạt mức hệ thống thương mại.
+Bộ kiểm thử tự động 41 trường hợp đều đạt, ESLint sạch và bản build sản xuất hoàn tất mà không còn cảnh báo chunk JavaScript chính vượt 500 kB. Kết quả này cho thấy phiên bản hiện tại có nền tảng đủ để trình diễn và tiếp tục phát triển. Tuy vậy, đây vẫn là sản phẩm đồ án cá nhân; khả năng chịu tải, độ ổn định của realtime trên serverless, quan sát vận hành và độ bao phủ E2E chưa đạt mức hệ thống thương mại.
 
 ## 6.2. Bài học kinh nghiệm
 
-Bài học quan trọng thứ nhất là giao diện sai trạng thái thường phản ánh vấn đề nguồn dữ liệu chứ không chỉ là lỗi CSS. AuthContext và việc tách trạng thái panel chat là ví dụ. Thứ hai, xóa dữ liệu trong hệ thống nhiều bên phải được phân tích theo quyền sở hữu và yêu cầu lưu lịch sử; xóa mềm, ảnh chụp dữ liệu và mốc ẩn có thể phù hợp hơn xóa vật lý. Thứ ba, tài liệu PDF cần kiểm thử theo đơn vị vật lý và quá trình in thực tế. Thứ tư, mỗi cơ chế thời gian thực nên được chọn theo độ trễ và chi phí nghiệp vụ; chat phù hợp Socket.IO, còn thông báo quy mô nhỏ có thể dùng polling.
+Bài học quan trọng thứ nhất là giao diện sai trạng thái thường phản ánh vấn đề nguồn dữ liệu chứ không chỉ là lỗi CSS. AuthContext, TanStack Query và việc tách trạng thái panel chat là ví dụ. Thứ hai, thư viện ngoài có giá trị khi thay một bài toán hoàn chỉnh: Radix xử lý focus/portal, Zod xử lý schema, react-to-print xử lý vòng đời in và CompressorJS xử lý ảnh; việc thêm package chỉ có ý nghĩa khi code thực sự dùng nó. Thứ ba, xóa dữ liệu trong hệ thống nhiều bên phải được phân tích theo quyền sở hữu và yêu cầu lưu lịch sử; xóa mềm, ảnh chụp dữ liệu và mốc ẩn có thể phù hợp hơn xóa vật lý. Thứ tư, tài liệu PDF cần kiểm thử theo đơn vị vật lý và quá trình in thực tế. Thứ năm, LLM cần schema, sanitizer, quota và quyền quyết định cuối cùng của người dùng; prompt tốt không thể thay thế validation sau khi nhận kết quả.
 
 ## 6.3. Hướng phát triển ngắn hạn
 
-- Tách backend thành route, controller, service, repository và middleware độc lập; bổ sung xử lý lỗi tập trung.
-- Mở rộng kiểm thử API, phân quyền và component; bổ sung kiểm thử đầu cuối bằng trình duyệt.
-- Hoàn thiện phân trang, sắp xếp, debounce tìm kiếm và chỉ mục cho danh sách lớn.
+- Tách tiếp backend thành route, controller, service, repository và middleware độc lập; ưu tiên Job, Application, Chat và Admin.
+- Tách `Resume.jsx`, `ResumeForm.jsx`, `CompanyDashboard.jsx` và trang chat thành các feature component nhỏ hơn.
+- Mở rộng kiểm thử API, phân quyền và component; bổ sung kiểm thử đầu cuối tự động bằng trình duyệt và mock nhà cung cấp AI.
+- Hoàn thiện cursor pagination cho chat, phân trang/sắp xếp cho job, debounce tìm kiếm và chỉ mục cho danh sách lớn.
 - Cải thiện khả năng truy cập: điều hướng bàn phím, focus rõ, nhãn cho biểu tượng và độ tương phản.
-- Chuẩn hóa thông báo lỗi, trạng thái tải và màn hình rỗng trên tất cả vai trò.
+- Chuẩn hóa nốt data fetching, mutation, thông báo lỗi, trạng thái tải và màn hình rỗng trên các trang chưa dùng Query.
 - Bổ sung nhật ký thao tác quản trị và lịch sử thay đổi trạng thái hồ sơ.
 
 ## 6.4. Hướng phát triển trung và dài hạn
@@ -797,11 +1039,11 @@ Bài học quan trọng thứ nhất là giao diện sai trạng thái thường
 
 **Hàng đợi và tác vụ nền.** Các tác vụ tạo PDF, gửi thư, quét tệp và xử lý hạn tin có thể đưa vào hàng đợi. Worker độc lập giúp API phản hồi nhanh và retry có kiểm soát.
 
-**Gợi ý việc làm và hỗ trợ CV.** Có thể xây dựng bộ xếp hạng dựa trên kỹ năng, địa điểm, loại hình và lịch sử quan tâm; về sau mở rộng bằng mô hình ngôn ngữ hoặc học máy. Mọi gợi ý cần minh bạch, cho phép người dùng chỉnh sửa và không tự động tạo thông tin sai trong CV.
+**Mở rộng AI có kiểm soát.** Có thể xây dựng bộ xếp hạng việc làm dựa trên kỹ năng, địa điểm, loại hình và lịch sử quan tâm; lưu lịch sử các buổi phỏng vấn để biểu diễn tiến bộ; bổ sung streaming, cache và failover nhà cung cấp. Mọi gợi ý cần minh bạch, cho phép người dùng chỉnh sửa và không tự động tạo thông tin sai trong CV.
 
 **Hệ thống theo dõi ứng viên nâng cao.** Doanh nghiệp có thể tạo pipeline tùy biến, lịch phỏng vấn, phiếu đánh giá, ghi chú nội bộ và phân quyền theo nhân viên tuyển dụng. Phần này cần mô hình tổ chức và quyền phức tạp hơn tài khoản công ty đơn hiện tại.
 
-**Triển khai và quan sát hệ thống.** Bổ sung container, quy trình tích hợp liên tục, kiểm tra sức khỏe, log có cấu trúc, theo dõi lỗi, metric, sao lưu và cảnh báo. Bí mật cần quản lý qua nền tảng triển khai thay vì tệp cục bộ.
+**Triển khai và quan sát hệ thống.** Từ health endpoint và Vercel Cron hiện có, tiếp tục bổ sung container, quy trình tích hợp liên tục, log có cấu trúc, theo dõi lỗi, metric, sao lưu và cảnh báo. Với realtime quy mô lớn, cần một dịch vụ WebSocket chạy lâu dài hoặc nền tảng pub/sub thay vì phụ thuộc serverless function. Bí mật cần quản lý qua nền tảng triển khai thay vì tệp cục bộ.
 
 ## 6.5. Tổng kết
 
@@ -853,35 +1095,37 @@ RabbitCV đáp ứng mục đích của một đồ án tốt nghiệp Khoa họ
 | POST | `/api/login` | Đăng nhập và đặt cookie JWT. |
 | GET | `/api/me` | Lấy người dùng hiện tại. |
 | POST | `/api/logout` | Xóa cookie phiên. |
-| GET | `/api/search-users` | Tìm tài khoản phục vụ chat hoặc quản lý. |
-| GET/PUT | `/api/profile` | Đọc hoặc cập nhật hồ sơ. |
-| POST | `/api/change-password` | Xác nhận mật khẩu cũ và thay mật khẩu mới. |
+| GET | `/api/users/search` | Tìm tài khoản phục vụ chat. |
+| GET | `/api/user/profile/:userId` | Đọc hồ sơ công khai có giới hạn trường. |
+| PUT | `/api/user/profile` | Cập nhật hồ sơ của người hiện tại. |
+| PUT | `/api/user/security` | Cập nhật thông tin bảo mật tài khoản. |
+| PUT | `/api/user/password` | Xác nhận mật khẩu cũ và thay mật khẩu mới. |
 
 ## A.2. CV
 
 | Phương thức | Đường dẫn | Mô tả |
 | --- | --- | --- |
 | GET | `/api/resumes` | Liệt kê CV, không trả `pdfData`. |
-| POST | `/api/resumes` | Tạo CV cấu trúc hoặc tải PDF. |
-| GET | `/api/resumes/:id` | Lấy chi tiết CV có kiểm tra quyền. |
-| PUT | `/api/resumes/:id` | Cập nhật CV. |
-| DELETE | `/api/resumes/:id` | Xóa CV của chủ sở hữu. |
-| GET | `/api/resume/:id/view` | Trả dữ liệu để xem CV trong ngữ cảnh được phép. |
+| POST | `/api/resume` | Tạo hoặc cập nhật CV; kiểm tra tên trùng. |
+| GET | `/api/resume/:id` | Lấy chi tiết CV của chủ sở hữu. |
+| DELETE | `/api/resume/:id` | Xóa CV của chủ sở hữu. |
+| GET | `/api/resumes/view/:id` | Trả dữ liệu để xem CV trong ngữ cảnh được phép. |
 
 ## A.3. Việc làm và ứng tuyển
 
 | Phương thức | Đường dẫn | Mô tả |
 | --- | --- | --- |
 | GET | `/api/jobs` | Danh sách tin khả dụng, hỗ trợ lọc. |
-| GET | `/api/jobs/:id` | Chi tiết tin. |
+| GET | `/api/jobs/my` | Danh sách tin của doanh nghiệp hiện tại. |
+| GET | `/api/jobs/applications` | Doanh nghiệp lấy hồ sơ ứng tuyển vào tin thuộc quyền. |
+| GET | `/api/jobs/applications/mine` | Lịch sử ứng tuyển của ứng viên. |
 | POST | `/api/jobs` | Doanh nghiệp tạo tin. |
+| POST | `/api/jobs/apply` | Ứng tuyển bằng CV trên hệ thống. |
+| POST | `/api/jobs/apply-file` | Ứng tuyển bằng CV PDF tải lên. |
+| GET | `/api/jobs/:id` | Chi tiết tin. |
 | PUT | `/api/jobs/:id` | Doanh nghiệp sửa tin thuộc quyền sở hữu. |
 | DELETE | `/api/jobs/:id` | Đánh dấu tin bị xóa. |
-| PATCH | `/api/jobs/:id/status` | Chuyển trạng thái nhận hồ sơ. |
-| GET | `/api/jobs/mine` | Danh sách tin của doanh nghiệp. |
-| POST | `/api/jobs/:id/apply` | Ứng tuyển bằng CV trên hệ thống. |
-| POST | `/api/jobs/:id/apply-file` | Ứng tuyển bằng CV PDF tải lên. |
-| GET | `/api/applications/mine` | Lịch sử ứng tuyển của ứng viên. |
+| PUT | `/api/jobs/applications/:id` | Doanh nghiệp cập nhật trạng thái hồ sơ. |
 | GET | `/api/saved-jobs` | Danh sách việc đã lưu. |
 | POST | `/api/saved-jobs/:jobId` | Lưu một tin. |
 | DELETE | `/api/saved-jobs/:jobId` | Bỏ lưu một tin. |
@@ -892,30 +1136,50 @@ RabbitCV đáp ứng mục đích của một đồ án tốt nghiệp Khoa họ
 | --- | --- | --- |
 | GET | `/api/notifications` | Danh sách thông báo. |
 | GET | `/api/notifications/unread-count` | Số thông báo chưa đọc. |
-| PATCH | `/api/notifications/:id/read` | Đánh dấu một thông báo đã đọc. |
-| PATCH | `/api/notifications/read-all` | Đánh dấu tất cả đã đọc. |
+| PUT | `/api/notifications/:id/read` | Đánh dấu một thông báo đã đọc. |
+| PUT | `/api/notifications/mark-all-read` | Đánh dấu tất cả đã đọc. |
 | DELETE | `/api/notifications/:id` | Xóa thông báo. |
 | GET | `/api/messages` | Tải tin theo phòng và mốc ẩn. |
 | POST | `/api/messages` | Gửi tin qua HTTP khi cần. |
-| GET | `/api/chat-threads` | Danh sách cuộc trò chuyện. |
+| GET | `/api/chat/users` | Danh sách người dùng có thể trò chuyện. |
+| GET | `/api/chat/threads` | Danh sách cuộc trò chuyện. |
 | GET | `/api/chat/unread-count` | Tổng số tin chưa đọc. |
-| PATCH | `/api/chat/:room/read` | Cập nhật `lastReadAt`. |
-| DELETE | `/api/chat/:room` | Ẩn cuộc trò chuyện cho người hiện tại. |
+| PATCH | `/api/chat/mark-all-read` | Đánh dấu toàn bộ tin nhắn đã đọc. |
+| PATCH | `/api/chat/threads/:room/read` | Cập nhật `lastReadAt` cho một phòng. |
+| PATCH | `/api/chat/threads/:room/hide` | Ẩn cuộc trò chuyện cho người hiện tại. |
 
 ## A.5. Quản trị
 
 | Phương thức | Đường dẫn | Mô tả |
 | --- | --- | --- |
 | GET | `/api/admin/stats` | Số liệu tổng quan. |
-| GET | `/api/admin/users` | Danh sách người dùng. |
-| PATCH | `/api/admin/users/:id/ban` | Khóa hoặc mở tài khoản. |
+| PUT | `/api/admin/users/:id/ban` | Khóa hoặc mở tài khoản. |
 | DELETE | `/api/admin/users/:id` | Xóa tài khoản theo quyền quản trị. |
 | GET | `/api/admin/companies` | Danh sách doanh nghiệp và trạng thái duyệt. |
-| PATCH | `/api/admin/companies/:id/verification` | Duyệt hoặc từ chối doanh nghiệp. |
+| PUT | `/api/admin/companies/:id/verification` | Duyệt hoặc từ chối doanh nghiệp. |
 | GET | `/api/admin/jobs` | Danh sách tin cho quản trị. |
-| PATCH | `/api/admin/jobs/:id/hide` | Ẩn tin. |
-| PATCH | `/api/admin/jobs/:id/unhide` | Hiển thị lại tin. |
+| PUT | `/api/admin/jobs/:id/hide` | Ẩn tin. |
+| PUT | `/api/admin/jobs/:id/unhide` | Hiển thị lại tin. |
 | DELETE | `/api/admin/jobs/:id` | Xóa tin theo quyền quản trị. |
+
+## A.6. Trí tuệ nhân tạo
+
+| Phương thức | Đường dẫn | Mô tả |
+| --- | --- | --- |
+| GET | `/api/ai/status` | Trạng thái cấu hình, model, quota và số lượt còn lại. |
+| POST | `/api/ai/resume/improve` | Viết mới, cải thiện hoặc rút gọn tiểu sử. |
+| POST | `/api/ai/resume/review` | Review toàn bộ CV theo schema. |
+| POST | `/api/ai/resume/fill` | Điền các phần CV còn thiếu. |
+| POST | `/api/ai/resume/score` | Chấm mức phù hợp giữa CV và job. |
+| POST | `/api/ai/interview/turn` | Bắt đầu, trả lời hoặc kết thúc lượt phỏng vấn. |
+
+## A.7. Vận hành
+
+| Phương thức | Đường dẫn | Mô tả |
+| --- | --- | --- |
+| GET | `/api/health` | Health check tối giản, chỉ trả trạng thái `ok`. |
+| GET | `/api/admin/health/details` | Chẩn đoán môi trường và MongoDB cho admin. |
+| GET | `/api/cron/job-expiry` | Vercel Cron cập nhật hạn tin, bảo vệ bằng `CRON_SECRET` ở production. |
 
 [PAGEBREAK]
 
@@ -923,33 +1187,39 @@ RabbitCV đáp ứng mục đích của một đồ án tốt nghiệp Khoa họ
 
 ## B.1. Yêu cầu môi trường
 
-- Node.js và npm tương thích với phiên bản thư viện trong `package-lock.json`.
+- Node.js 20 trở lên và npm tương thích với `package-lock.json`.
 - MongoDB cục bộ hoặc chuỗi kết nối MongoDB hợp lệ.
+- MongoDB Compass chỉ là công cụ giao diện tùy chọn; gỡ Compass không ảnh hưởng hệ thống nếu dịch vụ MongoDB hoặc Atlas vẫn truy cập được.
 - Trình duyệt hiện đại hỗ trợ mô-đun JavaScript, cookie và CSS in.
-- Tệp `.env` chứa chuỗi kết nối, bí mật JWT và các cấu hình cần thiết; không đưa bí mật thật vào kho mã công khai.
+- Tệp `.env` chứa `MONGODB_URI`, `MONGO_DB_NAME`, `JWT_SECRET`, `CLIENT_URL` và cấu hình cổng.
+- Để dùng AI cần `GROQ_API_KEY`; có thể đặt `GROQ_MODEL`, `AI_ENABLED`, `AI_DAILY_LIMIT` và `AI_REQUEST_TIMEOUT_MS`.
+- Production cần `CRON_SECRET`; `VITE_SOCKET_URL` chỉ dùng khi cần ghi đè endpoint Socket.IO. Không đưa bí mật thật vào kho mã công khai.
 
 ## B.2. Các lệnh chính
 
 ```text
-npm install
+npm ci
+npm run start:all
 npm run dev
 npm start
 npm test
 npm run build
+npm run check
 ```
 
-Trong quá trình phát triển, backend phải lắng nghe tại cổng 5000 để proxy trong Vite hoạt động. Frontend mặc định ở cổng 4000. Nếu thay cổng, cần cập nhật đồng thời cấu hình proxy, CORS và biến môi trường liên quan.
+`npm run start:all` là lệnh thuận tiện để chạy cả frontend và backend; `npm run dev` và `npm start` vẫn dùng khi muốn tách hai terminal. Backend phải lắng nghe tại cổng 5000 để proxy trong Vite hoạt động, frontend mặc định ở cổng 4000. Nếu thay cổng, cần cập nhật đồng thời cấu hình proxy, CORS và biến môi trường liên quan.
 
 ## B.3. Quy trình trình diễn đề xuất
 
 1. Mở trang chủ ở trạng thái khách và giới thiệu các nhóm chức năng.
-2. Đăng nhập ứng viên, cập nhật hồ sơ, tạo CV và xuất PDF.
-3. Tải một CV PDF từ máy tính và xem theo khung A4.
-4. Tìm tin, lưu, ứng tuyển và xem “Công việc của tôi”.
-5. Đăng nhập doanh nghiệp, mở hồ sơ ứng viên, cập nhật trạng thái và gửi tin nhắn.
-6. Quay lại ứng viên để quan sát thông báo, chỉ báo chat và trạng thái ứng tuyển.
-7. Đăng nhập quản trị viên, xác minh doanh nghiệp và thử ẩn/hiện tin.
-8. Chạy `npm test` để chứng minh các quy tắc cốt lõi đạt 13/13.
+2. Đăng nhập ứng viên, cập nhật hồ sơ, tạo CV, thử AI viết tiểu sử, AI điền CV và Review toàn bộ CV.
+3. Xuất CV web ra PDF, tải thêm một CV PDF từ máy tính và xem theo khung A4.
+4. Mở Phỏng vấn AI, chọn phiên 5 câu, trả lời hai câu và chọn lại từng câu để xem đánh giá.
+5. Tìm tin, lưu, chấm mức phù hợp CV, ứng tuyển và xem “Công việc của tôi”.
+6. Đăng nhập doanh nghiệp, mở hồ sơ ứng viên, cập nhật trạng thái và gửi tin nhắn.
+7. Quay lại ứng viên để quan sát thông báo, chỉ báo chat và trạng thái ứng tuyển.
+8. Đăng nhập quản trị viên bằng tài khoản test `admin/1111`, xác minh doanh nghiệp và thử ẩn/hiện tin.
+9. Chạy `npm run check` để chứng minh ESLint sạch, 41/41 test đạt và build thành công.
 
 [PAGEBREAK]
 
@@ -974,12 +1244,14 @@ Quy ước sử dụng trong sơ đồ:
 | Phiên đăng nhập | Header đúng ở khách, ứng viên, doanh nghiệp và quản trị viên; logout xóa phiên. |
 | CV web | Nội dung lưu đúng; tải PDF; trang A4; không có trang trắng ngoài ý muốn. |
 | CV tải lên | Chỉ PDF; tối đa 5 MB; xem đúng tỷ lệ; doanh nghiệp có quyền mới xem được. |
+| AI CV | Ba chế độ tiểu sử; điền phần thiếu; review toàn CV; chấm theo job; không tự ghi đè. |
+| Phỏng vấn AI | Thiết lập 5/8/12 câu; feedback từng câu; chọn lại câu; tổng kết; xử lý lỗi nhà cung cấp. |
 | Việc làm | Lọc, chi tiết, lưu, bỏ lưu, ứng tuyển; tin đóng/xóa/hết hạn bị chặn. |
 | Ứng tuyển | Không trùng; trạng thái cập nhật; lịch sử còn khi job bị xóa. |
 | Chat | Hai kênh tách biệt; tên đối tác đúng; tin thời gian thực; chỉ báo đã đọc; ẩn riêng. |
 | Thông báo | Danh sách, số chưa đọc, đánh dấu đọc và thông báo hết hạn. |
 | Doanh nghiệp | Hồ sơ công ty; tạo/sửa tin; công tắc mở/đóng; quản lý ứng viên. |
 | Quản trị | Số liệu; người dùng; xác minh doanh nghiệp; ẩn và hiện lại tin. |
-| Kỹ thuật | `npm test` đạt; `npm run build` thành công; không có lỗi proxy khi backend hoạt động. |
+| Kỹ thuật | `npm run check` đạt 41/41; build thành công; health trả `{ "ok": true }`; build không làm backend restart. |
 
 Kết thúc báo cáo.

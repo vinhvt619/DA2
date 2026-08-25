@@ -7,9 +7,11 @@ import {
   NoSymbolIcon,
 } from "@heroicons/react/24/outline";
 import { useSearchParams } from "react-router-dom";
+import { useConfirmDialog } from "../context/ConfirmDialogContext.jsx";
 
 export default function AdminUsers() {
   const [searchParams] = useSearchParams();
+  const confirmDialog = useConfirmDialog();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -144,7 +146,7 @@ export default function AdminUsers() {
   // Delete user action
   const handleDeleteUser = async (id) => {
     setOpenMenuId(null);
-    if (!window.confirm("Bạn có chắc chắn muốn xóa tài khoản này không?")) return;
+    if (!(await confirmDialog("Bạn có chắc chắn muốn xóa tài khoản này không?"))) return;
     try {
       const res = await fetch(`/api/admin/users/${id}`, {
         method: "DELETE",

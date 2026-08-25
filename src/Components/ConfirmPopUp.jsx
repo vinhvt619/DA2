@@ -1,28 +1,43 @@
+import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import React from "react";
 
 export default function ConfirmPopUp({ message, confirm, cancel }) {
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-xl border-[0.5px] border-slate-200 w-full max-w-sm p-5 shadow-xl animate-in zoom-in-95 duration-200">
-        <h4 className="text-[13px] font-bold text-slate-800">Xác nhận thao tác</h4>
-        <p className="text-xs text-slate-500 mt-2.5 leading-relaxed">
-          {message || "Bạn có chắc chắn muốn thực hiện hành động này không?"}
-        </p>
-        <div className="flex items-center justify-end gap-2.5 mt-5">
-          <button
-            onClick={cancel}
-            className="px-3 py-1.5 border-[0.5px] border-slate-200 rounded-[6px] text-xs font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors cursor-pointer"
-          >
-            Hủy bỏ
-          </button>
-          <button
-            onClick={confirm}
-            className="px-3 py-1.5 bg-red-500 text-white rounded-[6px] text-xs font-semibold hover:bg-red-650 transition-colors cursor-pointer"
-          >
-            Xác nhận
-          </button>
-        </div>
-      </div>
-    </div>
+    <AlertDialog.Root open>
+      <AlertDialog.Portal>
+        <AlertDialog.Overlay className="fixed inset-0 z-[999] bg-black/40 backdrop-blur-xs data-[state=open]:animate-in data-[state=open]:fade-in" />
+        <AlertDialog.Content
+          onEscapeKeyDown={cancel}
+          className="fixed left-1/2 top-1/2 z-[1000] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-5 shadow-xl data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 focus:outline-none"
+        >
+          <AlertDialog.Title className="text-[13px] font-bold text-slate-800">
+            Xác nhận thao tác
+          </AlertDialog.Title>
+          <AlertDialog.Description className="mt-2.5 text-xs leading-relaxed text-slate-500">
+            {message || "Bạn có chắc chắn muốn thực hiện hành động này không?"}
+          </AlertDialog.Description>
+          <div className="mt-5 flex items-center justify-end gap-2.5">
+            <AlertDialog.Cancel asChild>
+              <button
+                type="button"
+                onClick={cancel}
+                className="cursor-pointer rounded-md border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+              >
+                Hủy bỏ
+              </button>
+            </AlertDialog.Cancel>
+            <AlertDialog.Action asChild>
+              <button
+                type="button"
+                onClick={confirm}
+                className="cursor-pointer rounded-md bg-red-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+              >
+                Xác nhận
+              </button>
+            </AlertDialog.Action>
+          </div>
+        </AlertDialog.Content>
+      </AlertDialog.Portal>
+    </AlertDialog.Root>
   );
 }

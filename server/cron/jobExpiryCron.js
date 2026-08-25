@@ -1,4 +1,3 @@
-import cron from 'node-cron';
 import Job from '../models/Job.js';
 import User from '../models/User.js';
 import { createNotificationsBulk } from '../utils/notificationService.js';
@@ -6,6 +5,10 @@ import { createNotificationsBulk } from '../utils/notificationService.js';
 export const runJobExpiryCheck = async () => {
   console.log('--- Bắt đầu chạy Cron Job kiểm tra Job hết hạn ---');
   const now = new Date();
+  const summary = {
+    expiredJobs: 0,
+    expiringJobs: 0,
+  };
   
   try {
     // ==========================================
@@ -56,6 +59,7 @@ export const runJobExpiryCheck = async () => {
       // Chỉ update cờ nếu insert thành công
       if (result1 && result1.length > 0) {
         await Job.updateMany({ _id: { $in: jobIds } }, { $set: { expiryNotifiedAt: now } });
+        summary.expiringJobs = jobIds.length;
         console.log(`Đã gửi thông báo sắp hết hạn cho ${jobIds.length} jobs.`);
       }
     }
@@ -91,14 +95,15 @@ export const runJobExpiryCheck = async () => {
       // Chỉ update cờ và đổi status nếu insert thành công
       if (result2 && result2.length > 0) {
         await Job.updateMany({ _id: { $in: expiredJobIds } }, { $set: { status: 'Expired', expiredNotifiedAt: now } });
+        summary.expiredJobs = expiredJobIds.length;
         console.log(`Đã gửi thông báo hết hạn và đổi status cho ${expiredJobIds.length} jobs.`);
       }
     }
 
     console.log('--- Hoàn tất Cron Job kiểm tra Job hết hạn ---');
+    return summary;
   } catch (error) {
     console.error('Lỗi khi chạy Cron Job kiểm tra Job hết hạn:', error);
+    throw error;
   }
 };
-
-cron.schedule('0 0 * * *', runJobExpiryCheck);

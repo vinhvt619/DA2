@@ -5,6 +5,7 @@ import {
   BriefcaseIcon,
   CalculatorIcon,
   ChartBarIcon,
+  ChatBubbleLeftRightIcon,
   CheckCircleIcon,
   DocumentPlusIcon,
   DocumentTextIcon,
@@ -87,7 +88,7 @@ export default function MainMenu() {
               <DocumentTextIcon className="absolute -bottom-2 right-3 h-24 w-24 text-violet-100" />
             </button>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               <FeatureCard
                 icon={BriefcaseIcon}
                 title="Tìm việc làm"
@@ -99,6 +100,14 @@ export default function MainMenu() {
                 title="Bảng xếp hạng CV"
                 description="Phân tích cạnh tranh và xem vị trí CV của bạn trong thị trường lao động thực tế."
                 onClick={() => navigate("/TopPage")}
+              />
+              <FeatureCard
+                icon={ChatBubbleLeftRightIcon}
+                title="Phỏng vấn với AI"
+                description="Luyện trả lời theo từng câu hỏi và nhận đánh giá sau mỗi lượt."
+                onClick={() =>
+                  navigate(currentUser ? "/ai-interview" : "/login")
+                }
               />
             </div>
           </div>

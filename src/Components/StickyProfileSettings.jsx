@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { useToastContext } from "./Toast.jsx";
+import { showToast } from "../utils/toast.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
   ChatBubbleOvalLeftIcon,
@@ -48,7 +48,6 @@ function isNavActive(currentPath, matchPath) {
 export default function StickyProfileSettings() {
   const navigate = useNavigate();
   const location = useLocation();
-  const showToast = useToastContext();
   const { logout } = useAuth();
   const currentPath = normalizePath(location.pathname);
 

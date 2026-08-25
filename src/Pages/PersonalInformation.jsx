@@ -8,7 +8,7 @@ import {
 } from "@heroicons/react/24/outline";
 import SettingsPageLayout, { SettingsCard } from "../Components/SettingsLayout.jsx";
 import AddActivityPopUp from "../Components/AddActivityPopUp.jsx";
-import { useToastContext } from "../Components/Toast.jsx";
+import { showToast } from "../utils/toast.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const inputClass =
@@ -111,7 +111,6 @@ function EntryCard({ icon: Icon, title, subtitle, meta, onEdit }) {
 }
 
 function PersonalInformation() {
-  const showToast = useToastContext();
   const { currentUser, refreshUser } = useAuth();
   const [formData, setFormData] = useState(initialFormData);
   const [popupState, setPopupState] = useState({ active: false, type: "", index: -1, data: null });

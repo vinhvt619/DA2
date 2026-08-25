@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -6,105 +6,39 @@ import {
   EyeIcon,
   EyeSlashIcon,
 } from "@heroicons/react/24/outline";
+import { useConfirmDialog } from "../context/ConfirmDialogContext.jsx";
+import { showToast } from "../utils/toast.js";
 
 export default function AdminJobs() {
+  const confirmDialog = useConfirmDialog();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [_error, setError] = useState(null);
+  const [error, setError] = useState("");
 
   // Filters state
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all"); // all, active, pending, closed
 
-  // Mock jobs list as a fallback
-  const mockJobs = [
-    {
-      _id: "job1",
-      title: "Senior React Developer",
-      company: { name: "TechCorp JSC" },
-      location: "Hà Nội",
-      type: "Full-time",
-      status: "active",
-      createdAt: "2026-07-01T10:00:00Z",
-      applicantCount: 14,
-    },
-    {
-      _id: "job2",
-      title: "Backend Node.js Engineer",
-      company: { name: "VinaGroup" },
-      location: "TP. Hồ Chí Minh",
-      type: "Full-time",
-      status: "active",
-      createdAt: "2026-07-03T09:30:00Z",
-      applicantCount: 8,
-    },
-    {
-      _id: "job3",
-      title: "UI/UX Designer",
-      company: { name: "FPT Software" },
-      location: "Đà Nẵng",
-      type: "Part-time",
-      status: "pending",
-      createdAt: "2026-07-06T14:20:00Z",
-      applicantCount: 0,
-    },
-    {
-      _id: "job4",
-      title: "Product Owner",
-      company: { name: "Shopee Vietnam" },
-      location: "TP. Hồ Chí Minh",
-      type: "Full-time",
-      status: "closed",
-      createdAt: "2026-06-15T08:00:00Z",
-      applicantCount: 27,
-    },
-    {
-      _id: "job5",
-      title: "DevOps Engineer",
-      company: { name: "Viettel Telecom" },
-      location: "Hà Nội",
-      type: "Full-time",
-      status: "active",
-      createdAt: "2026-07-02T11:00:00Z",
-      applicantCount: 5,
-    },
-    {
-      _id: "job6",
-      title: "Intern Mobile Developer (iOS/Android)",
-      company: { name: "VNG Corporation" },
-      location: "TP. Hồ Chí Minh",
-      type: "Part-time",
-      status: "active",
-      createdAt: "2026-07-05T16:45:00Z",
-      applicantCount: 3,
-    },
-  ];
-
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null);
+      setError("");
       const res = await fetch("/api/admin/jobs", { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setJobs(data.jobs || []);
-      } else {
-        // Fallback to mock data for demo / TODO: replace with real API
-        setJobs(mockJobs);
-        console.warn("Using mock jobs fallback data. Connect to real API later.");
-      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Không thể tải danh sách việc làm.");
+      setJobs(data.jobs || []);
     } catch (err) {
       console.error("Lỗi lấy danh sách việc làm:", err);
-      // Fallback
-      setJobs(mockJobs);
+      setJobs([]);
+      setError(err.message || "Không thể tải danh sách việc làm.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchJobs();
-  }, []);
+    void fetchJobs();
+  }, [fetchJobs]);
 
   // Hide job action
   const handleHideJob = async (id) => {
@@ -114,19 +48,13 @@ export default function AdminJobs() {
         credentials: "include",
       });
       if (res.ok) {
-        fetchJobs();
+        await fetchJobs();
       } else {
-        // Fallback local update
-        setJobs((prev) =>
-          prev.map((job) => (job._id === id ? { ...job, status: "closed" } : job))
-        );
-        console.warn("API hide failed, applied local fallback");
+        showToast("Không thể ẩn tin tuyển dụng.", "error");
       }
     } catch (err) {
       console.error("Lỗi ẩn việc làm:", err);
-      setJobs((prev) =>
-        prev.map((job) => (job._id === id ? { ...job, status: "closed" } : job))
-      );
+      showToast("Không thể ẩn tin tuyển dụng.", "error");
     }
   };
 
@@ -137,31 +65,32 @@ export default function AdminJobs() {
         credentials: "include",
       });
       if (res.ok) {
-        fetchJobs();
+        await fetchJobs();
+      } else {
+        showToast("Không thể khôi phục tin tuyển dụng.", "error");
       }
     } catch (err) {
       console.error("Lỗi hiện lại việc làm:", err);
+      showToast("Không thể khôi phục tin tuyển dụng.", "error");
     }
   };
 
   // Delete job action
   const handleDeleteJob = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa tin tuyển dụng này không?")) return;
+    if (!(await confirmDialog("Bạn có chắc chắn muốn xóa tin tuyển dụng này không?"))) return;
     try {
       const res = await fetch(`/api/admin/jobs/${id}`, {
         method: "DELETE",
         credentials: "include",
       });
       if (res.ok) {
-        fetchJobs();
+        await fetchJobs();
       } else {
-        // Fallback local delete
-        setJobs((prev) => prev.filter((job) => job._id !== id));
-        console.warn("API delete failed, applied local fallback");
+        showToast("Không thể xóa tin tuyển dụng.", "error");
       }
     } catch (err) {
       console.error("Lỗi xóa việc làm:", err);
-      setJobs((prev) => prev.filter((job) => job._id !== id));
+      showToast("Không thể xóa tin tuyển dụng.", "error");
     }
   };
 
@@ -223,6 +152,17 @@ export default function AdminJobs() {
                 <div className="h-3.5 bg-slate-100 rounded w-20"></div>
               </div>
             ))}
+          </div>
+        ) : error ? (
+          <div className="p-12 text-center">
+            <p className="text-sm font-medium text-red-600">{error}</p>
+            <button
+              type="button"
+              onClick={() => void fetchJobs()}
+              className="mt-3 rounded-md border border-violet-200 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50"
+            >
+              Thử lại
+            </button>
           </div>
         ) : filteredJobs.length === 0 ? (
           // Empty State

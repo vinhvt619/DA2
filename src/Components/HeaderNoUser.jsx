@@ -11,6 +11,7 @@ const navLinks = [
   { to: "/ResumeSelection", label: "Tạo CV", protected: true },
   { to: "/TopPage", label: "Bảng xếp hạng" },
   { to: "/News", label: "Tin tức" },
+  { to: "/ai-interview", label: "Phỏng vấn AI", protected: true },
 ];
 
 export default function HeaderNoUser() {

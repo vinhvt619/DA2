@@ -11,6 +11,7 @@ import {
 } from "@heroicons/react/24/outline";
 import Header from "../Components/Header.jsx";
 import StickyProfile from "../Components/SitckyProfile.jsx";
+import { formatDate } from "../utils/dateTime.js";
 
 const ACTIVE_STATUSES = new Set(["Pending", "Reviewing", "Interview", "Offered"]);
 const COMPLETED_STATUSES = new Set(["Accepted", "Rejected"]);
@@ -114,16 +115,6 @@ export default function MyApplications() {
     }
     return applications;
   }, [activeTab, applications]);
-
-  const formatDate = (value) => {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "";
-    return new Intl.DateTimeFormat("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }).format(date);
-  };
 
   return (
     <div className="min-h-screen bg-[var(--page-background)] font-sans text-slate-900 antialiased page-transition">

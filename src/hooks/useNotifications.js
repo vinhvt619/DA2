@@ -1,110 +1,179 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../context/AuthContext';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useCallback, useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { fetchJson } from "../utils/http.js";
+
+const notificationKeys = {
+  all: (userId) => ["notifications", userId],
+  list: (userId, page, limit) => [
+    "notifications",
+    userId,
+    "list",
+    page,
+    limit,
+  ],
+  unread: (userId) => ["notifications", userId, "unread"],
+};
+
+const markNotificationsRead = (data, notificationId) => {
+  if (!data?.notifications) return data;
+  return {
+    ...data,
+    notifications: data.notifications.map((notification) =>
+      !notificationId || notification._id === notificationId
+        ? { ...notification, isRead: true }
+        : notification,
+    ),
+  };
+};
 
 export default function useNotifications() {
   const { currentUser } = useAuth();
   const currentUserId = currentUser?._id;
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const [pagination, setPagination] = useState({ page: 1, limit: 20 });
+  const enabled = Boolean(currentUserId);
 
-  const fetchUnreadCount = useCallback(async () => {
-    if (!currentUserId) return;
-    try {
-      const res = await fetch('/api/notifications/unread-count', {
-        credentials: 'include'
+  const unreadQuery = useQuery({
+    queryKey: notificationKeys.unread(currentUserId),
+    queryFn: () => fetchJson("/api/notifications/unread-count"),
+    enabled,
+    refetchInterval: 30_000,
+  });
+
+  const notificationsQuery = useQuery({
+    queryKey: notificationKeys.list(
+      currentUserId,
+      pagination.page,
+      pagination.limit,
+    ),
+    queryFn: () =>
+      fetchJson(
+        `/api/notifications?page=${pagination.page}&limit=${pagination.limit}`,
+      ),
+    enabled,
+    placeholderData: keepPreviousData,
+  });
+
+  const updateAllLists = useCallback(
+    (updater) => {
+      queryClient.setQueriesData(
+        { queryKey: notificationKeys.all(currentUserId) },
+        updater,
+      );
+    },
+    [currentUserId, queryClient],
+  );
+
+  const snapshotNotifications = useCallback(async () => {
+    await queryClient.cancelQueries({
+      queryKey: notificationKeys.all(currentUserId),
+    });
+    return queryClient.getQueriesData({
+      queryKey: notificationKeys.all(currentUserId),
+    });
+  }, [currentUserId, queryClient]);
+
+  const restoreSnapshot = useCallback(
+    (snapshot = []) => {
+      snapshot.forEach(([key, data]) => queryClient.setQueryData(key, data));
+    },
+    [queryClient],
+  );
+
+  const markAsReadMutation = useMutation({
+    mutationFn: (id) =>
+      fetchJson(`/api/notifications/${id}/read`, { method: "PUT" }),
+    onMutate: async (id) => {
+      const snapshot = await snapshotNotifications();
+      queryClient.setQueryData(
+        notificationKeys.unread(currentUserId),
+        (data) => ({ count: Math.max(0, (data?.count || 0) - 1) }),
+      );
+      updateAllLists((data) => markNotificationsRead(data, id));
+      return { snapshot };
+    },
+    onError: (error, id, context) => {
+      console.error("Lỗi khi đánh dấu đã đọc:", error);
+      restoreSnapshot(context?.snapshot);
+    },
+  });
+
+  const markAllAsReadMutation = useMutation({
+    mutationFn: () =>
+      fetchJson("/api/notifications/mark-all-read", {
+        keepalive: true,
+        method: "PUT",
+      }),
+    onMutate: async () => {
+      const snapshot = await snapshotNotifications();
+      queryClient.setQueryData(notificationKeys.unread(currentUserId), {
+        count: 0,
       });
-      const data = await res.json();
-      if (res.ok) {
-        setUnreadCount(data.count);
-      }
-    } catch (error) {
-      console.error('Lỗi khi fetch unread count:', error);
-    }
-  }, [currentUserId]);
+      updateAllLists((data) => markNotificationsRead(data));
+      return { snapshot };
+    },
+    onError: (error, variables, context) => {
+      console.error("Lỗi khi đánh dấu tất cả thông báo đã đọc:", error);
+      restoreSnapshot(context?.snapshot);
+    },
+  });
 
-  const fetchNotifications = useCallback(async (page = 1, limit = 20) => {
-    if (!currentUserId) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/notifications?page=${page}&limit=${limit}`, {
-        credentials: 'include'
+  const fetchNotifications = useCallback(
+    async (page = 1, limit = 20) => {
+      const nextPagination = { page, limit };
+      setPagination(nextPagination);
+      return queryClient.fetchQuery({
+        queryKey: notificationKeys.list(currentUserId, page, limit),
+        queryFn: () =>
+          fetchJson(`/api/notifications?page=${page}&limit=${limit}`),
       });
-      const data = await res.json();
-      if (res.ok) {
-        setNotifications(data.notifications || []);
-      }
-    } catch (error) {
-      console.error('Lỗi khi fetch notifications:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentUserId]);
+    },
+    [currentUserId, queryClient],
+  );
 
-  const markAsRead = async (id) => {
-    if (!currentUserId) return;
-    
-    // Cập nhật Optimistic UI (UI mượt mà, phản hồi tức thì)
-    setUnreadCount((prev) => Math.max(0, prev - 1));
-    setNotifications((prev) => 
-      prev.map(notif => notif._id === id ? { ...notif, isRead: true } : notif)
+  const notifications = Array.from(
+    { length: pagination.page },
+    (_, index) => index + 1,
+  ).flatMap((page) => {
+    const pageData = queryClient.getQueryData(
+      notificationKeys.list(currentUserId, page, pagination.limit),
     );
+    return pageData?.notifications || [];
+  });
 
-    try {
-      const res = await fetch(`/api/notifications/${id}/read`, {
-        method: 'PUT',
-        credentials: 'include',
-      });
-      if (!res.ok) {
-        // Rollback lại state nếu có lỗi backend
-        fetchUnreadCount();
-        fetchNotifications();
+  const markAsRead = useCallback(
+    async (id) => {
+      try {
+        await markAsReadMutation.mutateAsync(id);
+        return true;
+      } catch {
+        return false;
       }
-    } catch (error) {
-      console.error('Lỗi khi đánh dấu đã đọc:', error);
-      fetchUnreadCount();
-      fetchNotifications();
-    }
-  };
+    },
+    [markAsReadMutation],
+  );
 
   const markAllAsRead = useCallback(async () => {
-    if (!currentUserId) return;
-
-    setUnreadCount(0);
-    setNotifications((prev) => prev.map((notification) => ({ ...notification, isRead: true })));
-
     try {
-      const response = await fetch('/api/notifications/mark-all-read', {
-        method: 'PUT',
-        credentials: 'include',
-        keepalive: true,
-      });
-      if (!response.ok) throw new Error('Không thể đánh dấu thông báo đã đọc');
-    } catch (error) {
-      console.error('Lỗi khi đánh dấu tất cả thông báo đã đọc:', error);
-      fetchUnreadCount();
-      fetchNotifications();
+      await markAllAsReadMutation.mutateAsync();
+      return true;
+    } catch {
+      return false;
     }
-  }, [currentUserId, fetchNotifications, fetchUnreadCount]);
-
-  useEffect(() => {
-    // Không làm gì nếu chưa login
-    if (!currentUserId) return;
-
-    // Lần đầu tiên gọi ngay lập tức để user không phải đợi 30s
-    fetchUnreadCount();
-
-    // Thiết lập interval gọi API nhẹ định kỳ mỗi 30s
-    const interval = setInterval(fetchUnreadCount, 30000);
-
-    // Dọn dẹp an toàn khi component unmount
-    return () => clearInterval(interval);
-  }, [currentUserId, fetchUnreadCount]);
+  }, [markAllAsReadMutation]);
 
   return {
-    unreadCount,
+    unreadCount: unreadQuery.data?.count || 0,
     notifications,
-    loading,
+    hasMoreNotifications:
+      pagination.page < (notificationsQuery.data?.totalPages || 1),
+    loading: notificationsQuery.isFetching,
     fetchNotifications,
     markAsRead,
     markAllAsRead,

@@ -1,13 +1,16 @@
 import {
   PlusIcon,
+  SparklesIcon,
   XMarkIcon,
   TrashIcon,
   PencilIcon,
 } from "@heroicons/react/24/outline";
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import Editor from "./RichText/Editor";
-import Toast, { useToast } from "./Toast";
 import ConfirmPopUp from "./ConfirmPopUp";
+import RichTextContent from "./RichTextContent.jsx";
+import { showToast } from "../utils/toast.js";
 import {
   formatMonthDisplayValue,
   isCurrentDateValue,
@@ -15,6 +18,56 @@ import {
   normalizeResumeDateValue,
   parseMonthDisplayValue,
 } from "../utils/dateInput.js";
+
+const BIO_AI_MODES = [
+  {
+    id: "generate",
+    label: "Viết mới",
+    actionLabel: "Viết tiểu sử mới",
+    resultLabel: "Bản tiểu sử mới",
+    applyLabel: "Dùng bản mới",
+  },
+  {
+    id: "improve",
+    label: "Cải thiện",
+    actionLabel: "Cải thiện tiểu sử",
+    resultLabel: "Bản tiểu sử đã cải thiện",
+    applyLabel: "Dùng bản cải thiện",
+  },
+  {
+    id: "shorten",
+    label: "Rút gọn",
+    actionLabel: "Rút gọn tiểu sử",
+    resultLabel: "Bản tiểu sử đã rút gọn",
+    applyLabel: "Dùng bản rút gọn",
+  },
+];
+
+const REVIEW_CATEGORY_LABELS = {
+  content: "Nội dung",
+  clarity: "Rõ ràng",
+  impact: "Thuyết phục",
+  completeness: "Hoàn thiện",
+  ats: "ATS",
+};
+
+const REVIEW_PRIORITY_STYLES = {
+  high: {
+    label: "Ưu tiên cao",
+    className: "bg-red-50 text-red-700 ring-red-200",
+  },
+  medium: {
+    label: "Ưu tiên vừa",
+    className: "bg-amber-50 text-amber-700 ring-amber-200",
+  },
+  low: {
+    label: "Ưu tiên thấp",
+    className: "bg-slate-100 text-slate-600 ring-slate-200",
+  },
+};
+
+const renderInPortal = (content) =>
+  typeof document === "undefined" ? content : createPortal(content, document.body);
 
 function ResumeMonthInput({ value, onChange, disabled = false }) {
   return (
@@ -57,8 +110,15 @@ export default function ResumeForm({
   setAward,
   hobby,
   setHobby,
+  onImproveBio,
+  isImprovingBio = false,
+  bioSuggestion = null,
+  onApplyBioSuggestion,
+  onDismissBioSuggestion,
+  onReviewResume,
+  isReviewingResume = false,
+  resumeReview = null,
 }) {
-  const { toast, showToast } = useToast();
   const [confirmState, setConfirmState] = useState({
     isOpen: false,
     message: "",
@@ -73,8 +133,15 @@ export default function ResumeForm({
   const [isModalProjectOpen, setIsModalProjectOpen] = useState(false);
   const [isModalAwardOpen, setIsModalAwardOpen] = useState(false);
   const [isModalHobbyOpen, setIsModalHobbyOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [isCurrentExperience, setIsCurrentExperience] = useState(false);
+  const [bioAiMode, setBioAiMode] = useState("improve");
+  const activeBioAiMode =
+    BIO_AI_MODES.find((mode) => mode.id === bioAiMode) || BIO_AI_MODES[1];
+  const resultBioAiMode =
+    BIO_AI_MODES.find((mode) => mode.id === bioSuggestion?.mode) ||
+    activeBioAiMode;
   const [newProfile, setNewProfile] = useState({
     networkName: "",
     username: "",
@@ -353,14 +420,217 @@ export default function ResumeForm({
     });
   };
 
+  const hasBioSource =
+    Boolean(bio?.trim()) ||
+    Boolean(personalInfo?.jobTitle?.trim()) ||
+    experience.length > 0 ||
+    education.length > 0 ||
+    skill.length > 0 ||
+    project.length > 0;
+  const bioActionDisabled =
+    isImprovingBio ||
+    (bioAiMode === "generate" ? !hasBioSource : !bio?.trim());
+  const handleOpenResumeReview = async () => {
+    setIsReviewModalOpen(true);
+    const completed = await onReviewResume?.();
+    if (completed === false) setIsReviewModalOpen(false);
+  };
+
   return (
     <div className="w-full bg-white overflow-y-auto h-full">
-      <Toast toast={toast} />
-
       {/* Form header */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-5 py-3">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Thông tin CV</p>
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-gray-100 bg-white px-5 py-3">
+        <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
+          Thông tin CV
+        </p>
+        <button
+          type="button"
+          onClick={handleOpenResumeReview}
+          disabled={isReviewingResume}
+          className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-2.5 text-[11px] font-bold text-violet-700 transition hover:border-violet-300 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <SparklesIcon className="h-4 w-4" />
+          {isReviewingResume ? "Đang review..." : "Review toàn bộ CV"}
+        </button>
       </div>
+
+      {isReviewModalOpen && renderInPortal(
+        <div
+          className="fixed inset-0 z-[999] grid place-items-center bg-slate-950/45 p-3 sm:p-5"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="resume-review-title"
+        >
+          <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
+              <div className="flex min-w-0 items-center gap-2">
+                <SparklesIcon className="h-5 w-5 shrink-0 text-violet-600" />
+                <h2
+                  id="resume-review-title"
+                  className="truncate text-sm font-bold text-slate-900"
+                >
+                  Review toàn bộ CV
+                </h2>
+              </div>
+              <button
+                type="button"
+                aria-label="Đóng kết quả review"
+                onClick={() => setIsReviewModalOpen(false)}
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {isReviewingResume ? (
+                <div className="grid min-h-[320px] place-items-center px-5 py-12">
+                  <div className="text-center">
+                    <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-violet-200 border-t-violet-600" />
+                    <p className="mt-3 text-sm font-semibold text-slate-700">
+                      Đang phân tích CV...
+                    </p>
+                  </div>
+                </div>
+              ) : resumeReview ? (
+                <div className="px-4 py-4 sm:px-5 sm:py-5">
+                  <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center">
+                    <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-lg bg-violet-700 text-white">
+                      <strong className="text-2xl">
+                        {Math.round(resumeReview.overallScore || 0)}
+                      </strong>
+                      <span className="text-[10px] font-bold uppercase">
+                        Điểm CV
+                      </span>
+                    </div>
+                    <p className="text-sm leading-6 text-slate-600">
+                      {resumeReview.summary}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 border-b border-slate-200 py-4 sm:grid-cols-5">
+                    {Object.entries(REVIEW_CATEGORY_LABELS).map(
+                      ([key, label]) => (
+                        <div
+                          key={key}
+                          className="px-2 py-2 text-center sm:border-r sm:last:border-r-0"
+                        >
+                          <strong className="block text-base text-slate-900">
+                            {Math.round(resumeReview.categories?.[key] || 0)}
+                          </strong>
+                          <span className="text-[10px] font-semibold text-slate-500">
+                            {label}
+                          </span>
+                        </div>
+                      ),
+                    )}
+                  </div>
+
+                  {resumeReview.strengths?.length > 0 && (
+                    <section className="border-b border-slate-200 py-5">
+                      <h3 className="text-xs font-bold uppercase text-emerald-700">
+                        Điểm tốt
+                      </h3>
+                      <ul className="mt-3 space-y-2">
+                        {resumeReview.strengths.map((strength) => (
+                          <li
+                            key={strength}
+                            className="flex gap-2 text-sm leading-5 text-slate-700"
+                          >
+                            <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                            {strength}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+
+                  {resumeReview.improvements?.length > 0 && (
+                    <section className="border-b border-slate-200 py-5">
+                      <h3 className="text-xs font-bold uppercase text-slate-800">
+                        Điểm cần sửa và cách sửa
+                      </h3>
+                      <div className="mt-3 space-y-3">
+                        {resumeReview.improvements.map((item, index) => {
+                          const priority =
+                            REVIEW_PRIORITY_STYLES[item.priority] ||
+                            REVIEW_PRIORITY_STYLES.medium;
+                          return (
+                            <article
+                              key={`${item.section}-${index}`}
+                              className="rounded-lg border border-slate-200 p-3"
+                            >
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h4 className="text-sm font-bold text-slate-900">
+                                  {item.section}
+                                </h4>
+                                <span
+                                  className={`rounded px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-inset ${priority.className}`}
+                                >
+                                  {priority.label}
+                                </span>
+                              </div>
+                              <p className="mt-2 text-xs leading-5 text-slate-600">
+                                <strong className="text-slate-800">
+                                  Cần sửa:
+                                </strong>{" "}
+                                {item.issue}
+                              </p>
+                              <p className="mt-1.5 text-xs leading-5 text-slate-600">
+                                <strong className="text-violet-700">
+                                  Cách sửa:
+                                </strong>{" "}
+                                {item.fix}
+                              </p>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  )}
+
+                  {resumeReview.missingSections?.length > 0 && (
+                    <section className="pt-5">
+                      <h3 className="text-xs font-bold uppercase text-amber-700">
+                        Mục còn thiếu
+                      </h3>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {resumeReview.missingSections.map((section) => (
+                          <span
+                            key={section}
+                            className="rounded bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-200"
+                          >
+                            {section}
+                          </span>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex shrink-0 justify-end gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 sm:px-5">
+              <button
+                type="button"
+                onClick={() => setIsReviewModalOpen(false)}
+                className="h-8 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                onClick={onReviewResume}
+                disabled={isReviewingResume}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md bg-violet-700 px-3 text-xs font-bold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-violet-300"
+              >
+                <SparklesIcon className="h-4 w-4" />
+                Review lại
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="p-5 space-y-6">
       {/* Avatar */}
@@ -450,10 +720,90 @@ export default function ResumeForm({
       </div>
       <div className="border-t border-gray-100" />
       <div>
-        <div className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Tiểu sử</div>
+        <div className="mb-3 flex items-center gap-2">
+          <div className="text-xs font-bold uppercase tracking-widest text-gray-600">Tiểu sử</div>
+          <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-violet-700">
+            Trợ lý AI
+          </span>
+        </div>
+        <div className="mb-3 rounded-lg border border-violet-200 bg-violet-50/50 p-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-violet-800">
+            <SparklesIcon className="h-4 w-4" />
+            Trợ lý viết tiểu sử
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-1.5">
+            {BIO_AI_MODES.map((mode) => {
+              const active = bioAiMode === mode.id;
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setBioAiMode(mode.id)}
+                  disabled={isImprovingBio}
+                  className={`h-8 rounded-md border px-2 text-[11px] font-semibold transition ${
+                    active
+                      ? "border-violet-600 bg-violet-600 text-white"
+                      : "border-violet-200 bg-white text-violet-700 hover:bg-violet-100"
+                  } disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  {mode.label}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => onImproveBio?.(bioAiMode)}
+            disabled={bioActionDisabled}
+            className="mt-2.5 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-violet-700 px-3 text-xs font-bold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-violet-300"
+          >
+            <SparklesIcon className="h-4 w-4" />
+            {isImprovingBio ? "Đang xử lý..." : activeBioAiMode.actionLabel}
+          </button>
+        </div>
         <div className="rounded-xl border border-gray-200 overflow-hidden">
           <Editor content={bio} onChange={setBio} className="min-h-[160px]" />
         </div>
+        {bioSuggestion && (
+          <div className="mt-3 rounded-lg border border-violet-200 bg-violet-50/60 p-3">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-violet-800">
+              <SparklesIcon className="h-4 w-4" />
+              {resultBioAiMode.resultLabel}
+            </div>
+            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">
+              {bioSuggestion.suggestion}
+            </p>
+            {bioSuggestion.changes?.length > 0 && (
+              <div className="mt-3 border-t border-violet-200 pt-2">
+                <p className="text-[11px] font-bold uppercase text-violet-700">
+                  Điểm đã cải thiện
+                </p>
+                <ul className="mt-1.5 space-y-1 text-xs text-slate-500">
+                  {bioSuggestion.changes.map((change) => (
+                    <li key={change}>• {change}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={onApplyBioSuggestion}
+                className="h-8 rounded-lg bg-violet-600 px-3 text-xs font-semibold text-white transition hover:bg-violet-700"
+              >
+                {resultBioAiMode.applyLabel}
+              </button>
+              <button
+                type="button"
+                onClick={onDismissBioSuggestion}
+                className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+              >
+                Bỏ qua
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       <div className="border-t border-gray-100" />
       <div>
@@ -501,7 +851,7 @@ export default function ResumeForm({
         Thêm mục mới
       </div>
 
-      {isModalProfileOpen && (
+      {isModalProfileOpen && renderInPortal(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform animate-in fade-in zoom-in">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
@@ -643,10 +993,10 @@ export default function ResumeForm({
               </button>
             </div>
           </div>
-          <div
+          <RichTextContent
             className="mt-1.5 text-xs text-gray-600"
-            dangerouslySetInnerHTML={{ __html: item.description }}
-          ></div>
+            content={item.description}
+          />
         </div>
       ))}
       <div
@@ -668,7 +1018,7 @@ export default function ResumeForm({
         <PlusIcon className="w-4 h-4" />
         Thêm kinh nghiệm làm việc
       </div>
-      {isModalExperienceOpen && (
+      {isModalExperienceOpen && renderInPortal(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
@@ -886,10 +1236,10 @@ export default function ResumeForm({
               </button>
             </div>
           </div>
-          <div
+          <RichTextContent
             className="mt-1.5 text-xs text-gray-500 line-clamp-2"
-            dangerouslySetInnerHTML={{ __html: item.description }}
-          ></div>
+            content={item.description}
+          />
         </div>
       ))}
 
@@ -913,7 +1263,7 @@ export default function ResumeForm({
         <PlusIcon className="w-4 h-4" />
         Thêm học vấn
       </div>
-      {isModalEducationOpen && (
+      {isModalEducationOpen && renderInPortal(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
@@ -1153,7 +1503,7 @@ export default function ResumeForm({
         <PlusIcon className="w-4 h-4" />
         Thêm kỹ năng
       </div>
-      {isModalSkillOpen && (
+      {isModalSkillOpen && renderInPortal(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
@@ -1337,7 +1687,7 @@ export default function ResumeForm({
         <PlusIcon className="w-4 h-4" />
         Thêm ngoại ngữ
       </div>
-      {isModalLanguageOpen && (
+      {isModalLanguageOpen && renderInPortal(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
@@ -1461,10 +1811,10 @@ export default function ResumeForm({
               </button>
             </div>
           </div>
-          <div
+          <RichTextContent
             className="mt-1.5 text-xs text-gray-500 line-clamp-2"
-            dangerouslySetInnerHTML={{ __html: item.description }}
-          ></div>
+            content={item.description}
+          />
         </div>
       ))}
       <div
@@ -1483,7 +1833,7 @@ export default function ResumeForm({
         <PlusIcon className="w-4 h-4" />
         Thêm chứng chỉ
       </div>
-      {isModalCertificateOpen && (
+      {isModalCertificateOpen && renderInPortal(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
@@ -1645,10 +1995,10 @@ export default function ResumeForm({
               </button>
             </div>
           </div>
-          <div
+          <RichTextContent
             className="mt-1.5 text-xs text-gray-500 line-clamp-2"
-            dangerouslySetInnerHTML={{ __html: item.description }}
-          ></div>
+            content={item.description}
+          />
         </div>
       ))}
       <div
@@ -1667,7 +2017,7 @@ export default function ResumeForm({
         <PlusIcon className="w-4 h-4" />
         Thêm dự án
       </div>
-      {isModalProjectOpen && (
+      {isModalProjectOpen && renderInPortal(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
@@ -1830,10 +2180,10 @@ export default function ResumeForm({
               </button>
             </div>
           </div>
-          <div
+          <RichTextContent
             className="mt-1.5 text-xs text-gray-500 line-clamp-2"
-            dangerouslySetInnerHTML={{ __html: item.description }}
-          ></div>
+            content={item.description}
+          />
         </div>
       ))}
       <div
@@ -1852,7 +2202,7 @@ export default function ResumeForm({
         <PlusIcon className="w-4 h-4" />
         Thêm giải thưởng
       </div>
-      {isModalAwardOpen && (
+      {isModalAwardOpen && renderInPortal(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
@@ -2022,7 +2372,7 @@ export default function ResumeForm({
         <PlusIcon className="w-4 h-4" />
         Thêm sở thích
       </div>
-      {isModalHobbyOpen && (
+      {isModalHobbyOpen && renderInPortal(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform animate-in fade-in zoom-in">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
@@ -2089,7 +2439,7 @@ export default function ResumeForm({
         </div>
         </div>
         </div>
-        {confirmState.isOpen && (
+      {confirmState.isOpen && renderInPortal(
         <ConfirmPopUp
           message={confirmState.message}
           confirm={confirmState.onConfirm}
