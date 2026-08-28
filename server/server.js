@@ -2219,4 +2219,4 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export { app, io, server };
-export default server;
+export default app;
