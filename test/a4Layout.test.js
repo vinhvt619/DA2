@@ -23,6 +23,21 @@ test("CV wrapper and print page use A4 dimensions", async () => {
   assert.ok(Math.abs(A4_WIDTH_MM / A4_HEIGHT_MM - 1 / 1.414) < 0.001);
 });
 
+test("CV column helpers preserve the twelve-column grid used by template spans", async () => {
+  const css = await readFile(
+    new URL("../src/App.css", import.meta.url),
+    "utf8",
+  );
+
+  const basicGrid = css.match(/\.resume-basic-grid\s*{[\s\S]*?}/)?.[0];
+  const twoColumnGrid = css.match(
+    /\.resume-two-column-grid\s*{[\s\S]*?}/,
+  )?.[0];
+
+  assert.match(basicGrid, /grid-template-columns:\s*repeat\(12,/);
+  assert.match(twoColumnGrid, /grid-template-columns:\s*repeat\(12,/);
+});
+
 test("CV editor and library expose PDF download actions backed by shared print hook", async () => {
   const [editor, library, printHook] = await Promise.all([
     readFile(new URL("../src/Pages/Resume.jsx", import.meta.url), "utf8"),
