@@ -1,13 +1,10 @@
 import express from "express";
 import { rateLimit } from "express-rate-limit";
 import mongoose from "mongoose";
-import Job from "../models/Job.js";
 import Resume from "../models/Resume.js";
 import {
   cleanAiText,
   looksLikeExecutableText,
-  looksLikeEditorialBioAdvice,
-  sanitizeJobForAi,
   sanitizeResumeForAi,
 } from "../utils/aiDataSanitizer.js";
 import {
@@ -60,14 +57,6 @@ const findOwnedResume = async (resumeId, userId) => {
     userId,
     isVirtual: { $ne: true },
   }).lean();
-};
-
-const findJob = async (jobId) => {
-  if (!mongoose.isValidObjectId(jobId)) {
-    return null;
-  }
-
-  return Job.findById(jobId).lean();
 };
 
 const cleanGeneratedDate = (value) => {
@@ -149,17 +138,6 @@ const cleanResumeFillResult = (result = {}) => ({
   })),
 });
 
-const BIO_MODE_INSTRUCTIONS = {
-  generate:
-    "Viet moi phan tieu su CV bang tieng Viet, dai 60-100 tu va gom 2-4 cau. Neu ro vai tro muc tieu, kinh nghiem va ky nang noi bat co trong du lieu.",
-  improve:
-    "Viet lai phan tieu su CV bang tieng Viet ro rang, chuyen nghiep, tu nhien va thuyet phuc hon. Giu nguyen y nghia va cac su kien goc.",
-  shorten:
-    "Rut gon phan tieu su CV bang tieng Viet con 40-70 tu. Uu tien thong tin co gia tri cho nha tuyen dung va loai bo cau lap.",
-  ats:
-    "Toi uu phan tieu su CV bang tieng Viet cho he thong ATS. Chen tu khoa lien quan mot cach tu nhien dua tren vai tro, ky nang va kinh nghiem co trong du lieu; khong nhoi nhet tu khoa.",
-};
-
 const removeUngroundedContactReview = (result, resume) => {
   const allContactFieldsPresent = Object.values(
     resume.contactCompleteness || {},
@@ -184,88 +162,6 @@ const removeUngroundedContactReview = (result, resume) => {
 router.get("/status", async (req, res) => {
   try {
     return res.status(200).json(await getAiStatus(req.user.id));
-  } catch (error) {
-    return sendAiError(res, error);
-  }
-});
-
-router.post("/resume/improve", async (req, res) => {
-  try {
-    const {
-      resumeId,
-      mode = "improve",
-      content,
-      targetRole,
-      resumeContext,
-    } = req.body || {};
-    if (!Object.hasOwn(BIO_MODE_INSTRUCTIONS, mode)) {
-      return res.status(400).json({ message: "Che do viet tieu su khong hop le" });
-    }
-
-    let resume = null;
-    if (resumeId) {
-      resume = await findOwnedResume(resumeId, req.user.id);
-      if (!resume) {
-        return res.status(404).json({ message: "Khong tim thay CV" });
-      }
-    }
-
-    const sourceContent = cleanAiText(content || resume?.bio, 5000);
-    const safeResumeContext = sanitizeResumeForAi({
-      ...(resume || {}),
-      ...(resumeContext || {}),
-      personalInfo: {
-        ...(resume?.personalInfo || {}),
-        ...(resumeContext?.personalInfo || {}),
-        jobTitle:
-          targetRole ||
-          resumeContext?.personalInfo?.jobTitle ||
-          resume?.personalInfo?.jobTitle,
-      },
-    });
-    const hasResumeContext =
-      Boolean(safeResumeContext.targetRole) ||
-      safeResumeContext.experience.length > 0 ||
-      safeResumeContext.education.length > 0 ||
-      safeResumeContext.skills.length > 0 ||
-      safeResumeContext.projects.length > 0 ||
-      safeResumeContext.certificates.length > 0;
-
-    if (mode !== "generate" && !sourceContent) {
-      return res.status(400).json({
-        message: "Hay nhap tieu su truoc khi chon che do nay",
-      });
-    }
-    if (mode === "generate" && !sourceContent && !hasResumeContext) {
-      return res.status(400).json({
-        message: "Hay nhap vi tri mong muon, ky nang hoac kinh nghiem truoc",
-      });
-    }
-
-    const aiResponse = await runStructuredAiRequest({
-      userId: req.user.id,
-      feature: "resume_improve",
-      instructions: [
-        "Ban la chuyen gia viet CV. Khong bia them cong ty, ky nang, thanh tich, con so, hoc van hoac kinh nghiem. Chi dung su kien co trong dau vao.",
-        BIO_MODE_INSTRUCTIONS[mode],
-        "Truong suggestion BAT BUOC la noi dung tieu su hoan chinh de dan truc tiep vao CV, khong phai loi khuyen hay huong dan chinh sua.",
-        "Khong bat dau suggestion bang cac cum nhu hay, nen, can, tap trung vao, loai bo, sap xep lai, bo sung hoac de xuat.",
-        "Moi loi giai thich ve cach chinh sua chi duoc dat trong mang changes.",
-      ].join(" "),
-      input: {
-        mode,
-        currentBio: sourceContent,
-        resume: safeResumeContext,
-      },
-      validateResult: (result) =>
-        typeof result?.suggestion === "string" &&
-        result.suggestion.trim().length >= 40 &&
-        !looksLikeEditorialBioAdvice(result.suggestion),
-      retryInstructions:
-        "Ket qua truoc khong hop le vi suggestion van la loi khuyen bien tap. Hay tao lai suggestion thanh doan tieu su CV hoan chinh, chi chua noi dung ma ung vien se hien thi cho nha tuyen dung.",
-    });
-
-    return res.status(200).json(aiResponse);
   } catch (error) {
     return sendAiError(res, error);
   }
@@ -433,42 +329,6 @@ router.post("/interview/turn", async (req, res) => {
         : result,
       disclaimer:
         "Buoi phong van chi dung de luyen tap. Diem va nhan xet khong dai dien cho ket qua tuyen dung that.",
-    });
-  } catch (error) {
-    return sendAiError(res, error);
-  }
-});
-
-router.post("/resume/score", async (req, res) => {
-  try {
-    const { resumeId, jobId } = req.body || {};
-    const [resume, job] = await Promise.all([
-      findOwnedResume(resumeId, req.user.id),
-      findJob(jobId),
-    ]);
-
-    if (!resume) {
-      return res.status(404).json({ message: "Khong tim thay CV" });
-    }
-    if (!job) {
-      return res.status(404).json({ message: "Khong tim thay cong viec" });
-    }
-
-    const aiResponse = await runStructuredAiRequest({
-      userId: req.user.id,
-      feature: "resume_score",
-      instructions:
-        "Danh gia muc do phu hop giua CV va cong viec bang tieng Viet. Cham diem nhat quan theo trong so: ky nang 40%, kinh nghiem 30%, hoc van 15%, tu khoa va do hoan chinh 15%. Chi dua tren du lieu duoc cung cap, khong suy dien thong tin ca nhan. Moi nhan xet phai ngan gon va co the hanh dong.",
-      input: {
-        resume: sanitizeResumeForAi(resume),
-        job: sanitizeJobForAi(job),
-      },
-    });
-
-    return res.status(200).json({
-      ...aiResponse,
-      disclaimer:
-        "Diem so chi mang tinh tham khao va khong dam bao ket qua tuyen dung.",
     });
   } catch (error) {
     return sendAiError(res, error);

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useLayoutEffect, useRef } from "react";
 import {
   EnvelopeIcon,
   PhoneIcon,
@@ -34,6 +34,89 @@ const safeExternalUrl = (value) => {
 };
 
 const formatDateRange = formatResumeDateRange;
+
+const MIN_RESUME_FIT_SCALE = 0.74;
+
+function AutoFitResumePage({ children }) {
+  const pageRef = useRef(null);
+  const contentRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const page = pageRef.current;
+    const content = contentRef.current;
+    const template = content?.firstElementChild;
+    if (!page || !content || !template) return undefined;
+
+    let animationFrame;
+    let cancelled = false;
+
+    const applyScale = (scale) => {
+      const inverseScale = 100 / scale;
+      content.style.zoom = String(scale);
+      content.style.width = `${inverseScale}%`;
+      content.style.height = `${inverseScale}%`;
+    };
+
+    const fitContent = () => {
+      if (cancelled) return;
+
+      applyScale(1);
+      let scale = 1;
+      let attempts = 0;
+
+      const measure = () => {
+        if (cancelled) return;
+
+        const pageHeight = page.clientHeight;
+        const requiredHeight = template.scrollHeight;
+        if (!pageHeight || !requiredHeight) return;
+
+        const renderedHeight = requiredHeight * scale;
+        if (renderedHeight <= pageHeight + 1 || attempts >= 6) return;
+
+        const nextScale = Math.max(
+          MIN_RESUME_FIT_SCALE,
+          Math.min(scale, pageHeight / requiredHeight - 0.003),
+        );
+        if (Math.abs(nextScale - scale) < 0.001) return;
+
+        scale = nextScale;
+        attempts += 1;
+        applyScale(scale);
+        animationFrame = requestAnimationFrame(measure);
+      };
+
+      animationFrame = requestAnimationFrame(measure);
+    };
+
+    fitContent();
+    document.fonts?.ready.then(fitContent);
+
+    const images = Array.from(content.querySelectorAll("img"));
+    images.forEach((image) => image.addEventListener("load", fitContent));
+
+    const resizeObserver = new ResizeObserver(fitContent);
+    resizeObserver.observe(page);
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(animationFrame);
+      resizeObserver.disconnect();
+      images.forEach((image) => image.removeEventListener("load", fitContent));
+    };
+  });
+
+  return (
+    <div ref={pageRef} className="h-full w-full overflow-hidden bg-white">
+      <div
+        ref={contentRef}
+        className="resume-fit-content origin-top-left overflow-visible"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 const ContactItem = ({ icon: _Icon, text, link }) => {
   if (!text) return null;
@@ -1413,13 +1496,13 @@ const ElegantTemplate = ({
     <div className="mt-6 grid grid-cols-12 gap-8">
       <main className="col-span-8 space-y-6">
         <TemplateExperience items={experience} headingClass="border-slate-300 text-slate-950" dateClass="text-slate-500" />
+        <TemplateEducation items={education} headingClass="border-slate-300 text-slate-950" dateClass="text-slate-500" />
         <TemplateProjects items={project} headingClass="border-slate-300 text-slate-950" accentClass="text-slate-700" />
         <TemplateCredentials items={certificate} title="Chứng chỉ" headingClass="border-slate-300 text-slate-950" metaKey="publisher" />
         <TemplateCredentials items={award} title="Giải thưởng" headingClass="border-slate-300 text-slate-950" metaKey="awarder" />
       </main>
       <aside className="col-span-4 space-y-6 border-l border-slate-200 pl-6">
         <TemplatePlainSkills items={skill} headingClass="border-slate-300 text-slate-950" />
-        <TemplateEducation items={education} headingClass="border-slate-300 text-slate-950" dateClass="text-slate-500" />
         <TemplateSimpleList items={language} title="Ngoại ngữ" headingClass="border-slate-300 text-slate-950" dotClass="bg-slate-800" />
         <TemplateSimpleList items={hobby} title="Sở thích" headingClass="border-slate-300 text-slate-950" dotClass="bg-slate-800" />
       </aside>
@@ -1564,7 +1647,7 @@ export default function ResumePreview({
   };
 
   return (
-    <div className="h-full w-full overflow-hidden bg-white">
+    <AutoFitResumePage>
       {template === "classic" && <BasicTemplate {...commonProps} />}
       {template === "modern" && <ModernTemplate {...commonProps} />}
       {template === "professional" && (
@@ -1573,6 +1656,6 @@ export default function ResumePreview({
       {template === "elegant" && <ElegantTemplate {...commonProps} />}
       {template === "creative" && <CreativeTemplate {...commonProps} />}
       {template === "compact" && <CompactTemplate {...commonProps} />}
-    </div>
+    </AutoFitResumePage>
   );
 }

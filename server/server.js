@@ -7,6 +7,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
+import swaggerUi from "swagger-ui-express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
@@ -25,6 +26,7 @@ import { sanitizeRichText } from "./utils/richTextSanitizer.js";
 import { cleanAiText } from "./utils/aiDataSanitizer.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import { runJobExpiryCheck } from "./cron/jobExpiryCron.js";
+import openapiSpec from "./openapi.js";
 
 dotenv.config();
 mongoose.set("bufferCommands", false);
@@ -93,6 +95,9 @@ const cookieOptions = {
   sameSite: "lax",
 };
 
+const realtimeServerUrl = process.env.REALTIME_SERVER_URL?.replace(/\/+$/, "");
+const realtimeSharedSecret = process.env.REALTIME_SHARED_SECRET;
+
 const contentSecurityPolicy = {
   useDefaults: false,
   directives: {
@@ -149,6 +154,24 @@ const registerLimiter = rateLimit({
     message: "Qua nhieu yeu cau dang ky. Vui long thu lai sau.",
   },
 });
+
+app.get("/api-docs.json", (req, res) => {
+  res.json(openapiSpec);
+});
+
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(openapiSpec, {
+    explorer: true,
+    customSiteTitle: "RabbitCV API Docs",
+    swaggerOptions: {
+      displayRequestDuration: true,
+      persistAuthorization: true,
+      tryItOutEnabled: true,
+    },
+  }),
+);
 
 const mongoCache = globalThis.mongoCache || {
   conn: null,
@@ -278,7 +301,7 @@ app.get("/api/health", async (req, res) => {
 });
 
 app.use("/api", async (req, res, next) => {
-  if (req.path === "/health") {
+  if (req.path === "/health" || req.path.startsWith("/realtime/")) {
     return next();
   }
 
@@ -305,6 +328,29 @@ const authMiddleware = (req, res, next) => {
   } catch {
     res.status(401).json({ message: "Phien dang nhap het han" });
   }
+};
+
+const publishRealtimeMessage = async (receiverId, message) => {
+  if (realtimeServerUrl && realtimeSharedSecret) {
+    try {
+      const response = await fetch(`${realtimeServerUrl}/api/realtime/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Realtime-Secret": realtimeSharedSecret,
+        },
+        body: JSON.stringify({ receiverId, message }),
+        signal: AbortSignal.timeout(15_000),
+      });
+
+      if (response.ok) return;
+      console.error(`Realtime relay returned ${response.status}`);
+    } catch (error) {
+      console.error("Khong the gui su kien den realtime server:", error.message);
+    }
+  }
+
+  io.to(`user_${receiverId}`).emit("newMessage", message);
 };
 
 const SELF_USER_FIELDS = [
@@ -918,6 +964,16 @@ app.post("/api/logout", (req, res) => {
   res.status(200).json({ message: "Da dang xuat" });
 });
 
+app.get("/api/socket-ticket", authMiddleware, (req, res) => {
+  const token = jwt.sign(
+    { id: req.user.id, role: req.user.role, purpose: "socket" },
+    jwtSecret,
+    { expiresIn: "5m" },
+  );
+
+  res.status(200).json({ token });
+});
+
 app.get("/api/messages", authMiddleware, async (req, res) => {
   try {
     const room = req.query.room || "general";
@@ -976,7 +1032,7 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
       const ids = room.replace("private_", "").split("_");
       const receiverId = ids.find((id) => id !== senderId);
       if (receiverId) {
-        io.to(`user_${receiverId}`).emit("newMessage", newMessage);
+        await publishRealtimeMessage(receiverId, newMessage.toObject());
       }
     }
 
@@ -2184,10 +2240,31 @@ const io = new Server(server, {
   cors: corsOptions
 });
 
+app.get("/api/realtime/health", (req, res) => {
+  res.status(200).json({ ok: true, service: "rabbitcv-realtime" });
+});
+
+app.post("/api/realtime/messages", (req, res) => {
+  if (
+    !realtimeSharedSecret ||
+    req.get("X-Realtime-Secret") !== realtimeSharedSecret
+  ) {
+    return res.status(401).json({ message: "Realtime secret khong hop le" });
+  }
+
+  const { receiverId, message } = req.body || {};
+  if (!receiverId || !message?.room) {
+    return res.status(400).json({ message: "Du lieu realtime khong hop le" });
+  }
+
+  io.to(`user_${receiverId}`).emit("newMessage", message);
+  return res.status(202).json({ delivered: true });
+});
+
 io.use((socket, next) => {
   try {
     const cookies = parseCookie(socket.handshake.headers.cookie || "");
-    const token = cookies.token;
+    const token = socket.handshake.auth?.token || cookies.token;
     
     if (!token) {
       return next(new Error("Authentication error: No token provided"));
@@ -2212,7 +2289,7 @@ io.on("connection", (socket) => {
   });
 });
 
-if (process.env.NODE_ENV !== "production") {
+if (!process.env.VERCEL) {
   server.listen(PORT, () => {
     console.log(`Server dang chay tai http://localhost:${PORT}`);
   });

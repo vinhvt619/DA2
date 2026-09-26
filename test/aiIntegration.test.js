@@ -31,10 +31,12 @@ test("AI routes are authenticated and Groq requests use structured outputs", asy
   assert.match(usageModel, /"resume_review"/);
   assert.match(usageModel, /"resume_fill"/);
   assert.match(usageModel, /"interview_practice"/);
+  assert.doesNotMatch(usageModel, /"resume_improve"/);
+  assert.doesNotMatch(usageModel, /"resume_score"/);
   assert.match(usageModel, /default:\s*"groq"/);
 });
 
-test("frontend exposes bio assistant, AI fill, and resume scoring workflows", async () => {
+test("frontend exposes the supported resume AI workflows", async () => {
   const [resume, resumeForm, jobDetail, company, aiRoutes, files] = await Promise.all([
     readFile(new URL("../src/Pages/Resume.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/Components/ResumeForm.jsx", import.meta.url), "utf8"),
@@ -47,15 +49,13 @@ test("frontend exposes bio assistant, AI fill, and resume scoring workflows", as
     await Promise.all(files.map((file) => readFile(file, "utf8")))
   ).join("\n");
 
-  assert.match(resume, /requestAi\("\/resume\/improve"/);
   assert.match(resume, /requestAi\("\/resume\/review"/);
   assert.match(resume, /requestAi\("\/resume\/fill"/);
-  assert.match(resumeForm, /Viết mới/);
-  assert.match(resumeForm, /Rút gọn/);
-  assert.doesNotMatch(resumeForm, /Tối ưu ATS|Tối ưu tiểu sử cho ATS/);
-  assert.match(resumeForm, /Cải thiện tiểu sử/);
-  assert.match(resumeForm, /Bản tiểu sử đã cải thiện/);
-  assert.match(resumeForm, /Điểm đã cải thiện/);
+  assert.doesNotMatch(resume, /requestAi\("\/resume\/improve"/);
+  assert.doesNotMatch(
+    resumeForm,
+    /Trợ lý viết tiểu sử|Viết mới|Cải thiện tiểu sử|Rút gọn tiểu sử/,
+  );
   assert.match(resumeForm, /Review toàn bộ CV/);
   assert.match(resumeForm, /Điểm tốt/);
   assert.match(resumeForm, /Điểm cần sửa và cách sửa/);
@@ -63,11 +63,15 @@ test("frontend exposes bio assistant, AI fill, and resume scoring workflows", as
   assert.match(resume, /AI điền CV/);
   assert.doesNotMatch(resume, /handleFillSample|SAMPLE_CVS|>Điền mẫu</);
   assert.doesNotMatch(resumeForm, />Tạo gợi ý</);
-  assert.match(jobDetail, /requestAi\("\/resume\/score"/);
-  assert.match(jobDetail, /"Chấm điểm"/);
-  assert.doesNotMatch(jobDetail, /requestAi\("\/cover-letter"|Viết thư AI/);
+  assert.doesNotMatch(
+    jobDetail,
+    /requestAi\("\/(?:resume\/score|cover-letter)"|Chấm điểm|Mức độ phù hợp|Viết thư AI/,
+  );
   assert.doesNotMatch(company, /requestAi\("\/job-description"|Viết bằng AI/);
-  assert.doesNotMatch(aiRoutes, /router\.post\("\/(?:cover-letter|job-description)"/);
+  assert.doesNotMatch(
+    aiRoutes,
+    /router\.post\("\/(?:resume\/score|resume\/improve|cover-letter|job-description)"/,
+  );
   assert.match(aiRoutes, /router\.post\("\/resume\/review"/);
   assert.match(aiRoutes, /router\.post\("\/resume\/fill"/);
   assert.match(aiRoutes, /router\.post\("\/interview\/turn"/);

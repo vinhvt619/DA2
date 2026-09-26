@@ -26,11 +26,11 @@ Giải pháp được phát triển theo kiến trúc MERN. Giao diện sử d�
 
 Một trọng tâm của đồ án là xử lý CV ở hai nguồn. CV tạo trên web được lưu theo cấu trúc dữ liệu; nội dung rich text được làm sạch, chuyển qua mô hình tài liệu Tiptap và kết xuất bằng static renderer. Luồng in hoặc tải PDF được dùng chung qua `react-to-print` và giữ tỷ lệ A4. CV tải từ máy tính phải là PDF, được kiểm tra kiểu và dung lượng, lưu dưới dạng base64, sau đó hiển thị bằng PDF.js theo từng trang A4 thay vì sử dụng khung xem PDF mặc định. Cơ chế `isVirtual` giúp phân biệt hồ sơ ảo với hồ sơ thực; truy vấn danh sách loại bỏ trường `pdfData` để tránh truyền khối dữ liệu lớn không cần thiết.
 
-Các chức năng AI được gọi hoàn toàn từ backend qua Groq bằng giao thức tương thích OpenAI và đầu ra JSON có schema. Ứng viên có thể viết mới, cải thiện hoặc rút gọn tiểu sử; điền các phần CV còn thiếu; review toàn bộ CV; chấm mức phù hợp giữa CV và công việc; và luyện phỏng vấn theo phiên 5, 8 hoặc 12 câu. Dữ liệu đầu vào được giới hạn, loại thông tin liên hệ không cần thiết và làm sạch trước khi gửi. Collection `AiUsage` lưu loại chức năng, model, số token, độ trễ và trạng thái để áp dụng hạn mức 100 lượt mỗi tài khoản trong ngày mà không lưu nguyên văn CV hay hội thoại vào bản ghi thống kê.
+Các chức năng AI được gọi hoàn toàn từ backend qua Groq bằng giao thức tương thích OpenAI và đầu ra JSON có schema. Ứng viên có thể viết mới, cải thiện hoặc rút gọn tiểu sử; điền các phần CV còn thiếu; review toàn bộ CV; và luyện phỏng vấn theo phiên 5, 8 hoặc 12 câu. Dữ liệu đầu vào được giới hạn, loại thông tin liên hệ không cần thiết và làm sạch trước khi gửi. Collection `AiUsage` lưu loại chức năng, model, số token, độ trễ và trạng thái để áp dụng hạn mức 100 lượt mỗi tài khoản trong ngày mà không lưu nguyên văn CV hay hội thoại vào bản ghi thống kê.
 
 Hệ thống cũng giải quyết tình huống tin tuyển dụng bị đóng hoặc xóa sau khi đã được lưu hay đã có ứng viên. Thông tin tóm tắt được giữ trong ảnh chụp dữ liệu tại thời điểm ứng tuyển, nhờ đó lịch sử ứng tuyển vẫn có ý nghĩa dù tin gốc không còn khả dụng. Đối với cuộc trò chuyện, thao tác xóa được triển khai theo hướng ẩn riêng cho từng người dùng bằng mốc `hiddenAt`, không làm mất dữ liệu của bên còn lại.
 
-Kết quả kiểm thử tự động hiện tại gồm 41 trường hợp và đều đạt. Các trường hợp bao phủ kích thước A4, luồng in chung, tải PDF, chuẩn hóa ngày tháng, trạng thái tin tuyển dụng, trạng thái đã đọc, làm sạch rich text, dữ liệu AI, điền CV bằng AI, phỏng vấn AI, điều hướng theo vai trò và khả năng tích hợp của các giao diện chính. ESLint không còn cảnh báo và bản build production hoàn tất mà không có bundle JavaScript chính vượt ngưỡng cảnh báo 500 kB. Kết quả cho thấy sản phẩm đáp ứng các mục tiêu chính của đồ án; tuy nhiên, lưu PDF base64 trong MongoDB, phạm vi kiểm thử đầu cuối, khả năng giám sát vận hành và mức độ hoàn thiện khi triển khai quy mô lớn vẫn là các hạn chế cần tiếp tục xử lý.
+Kết quả kiểm thử tự động hiện tại gồm 43 trường hợp và đều đạt. Các trường hợp bao phủ kích thước A4, luồng in chung, tải PDF, chuẩn hóa ngày tháng, trạng thái tin tuyển dụng, trạng thái đã đọc, làm sạch rich text, dữ liệu AI, điền CV bằng AI, phỏng vấn AI, điều hướng theo vai trò, tài liệu OpenAPI và khả năng tích hợp của các giao diện chính. ESLint không còn cảnh báo và bản build production hoàn tất mà không có bundle JavaScript chính vượt ngưỡng cảnh báo 500 kB. Kết quả cho thấy sản phẩm đáp ứng các mục tiêu chính của đồ án; tuy nhiên, lưu PDF base64 trong MongoDB, phạm vi kiểm thử đầu cuối, khả năng giám sát vận hành và mức độ hoàn thiện khi triển khai quy mô lớn vẫn là các hạn chế cần tiếp tục xử lý.
 
 **Từ khóa:** CV, tuyển dụng, React, Node.js, MongoDB, Socket.IO, PDF, trí tuệ nhân tạo, Groq, ứng dụng web toàn ngăn xếp.
 
@@ -94,7 +94,7 @@ Mục tiêu tổng quát là xây dựng nguyên mẫu có khả năng vận hà
 - Cung cấp chức năng tìm kiếm, lọc, xem chi tiết, lưu và nộp tin tuyển dụng.
 - Theo dõi trạng thái ứng tuyển kể cả khi tin gốc đã đóng hoặc bị xóa.
 - Cung cấp nhắn tin thời gian thực giữa các bên và thông báo chưa đọc.
-- Hỗ trợ ứng viên viết tiểu sử, điền nội dung còn thiếu, review toàn bộ CV, chấm mức phù hợp với công việc và luyện phỏng vấn bằng AI.
+- Hỗ trợ ứng viên viết tiểu sử, điền nội dung còn thiếu, review toàn bộ CV và luyện phỏng vấn bằng AI.
 - Xây dựng cổng doanh nghiệp và khu vực quản trị với các thao tác phù hợp vai trò.
 - Kiểm thử các quy tắc kỹ thuật quan trọng và ghi nhận các hạn chế còn tồn tại.
 
@@ -238,7 +238,6 @@ Hệ thống có bốn trạng thái tác nhân chính: khách, ứng viên, doa
 - Tạo, chỉnh sửa, xem, in và tải CV tạo trên web dưới dạng PDF.
 - Tải CV PDF từ máy tính, xem lại theo từng trang và dùng để ứng tuyển.
 - Dùng AI để viết mới, cải thiện hoặc rút gọn tiểu sử; điền mục còn thiếu và review toàn bộ CV trước khi người dùng quyết định áp dụng.
-- Chấm mức phù hợp giữa CV đã lưu và một tin tuyển dụng.
 - Luyện phỏng vấn AI theo vị trí, cấp độ, loại phỏng vấn và số lượng 5, 8 hoặc 12 câu; xem điểm tốt và nội dung cần cải thiện của từng câu.
 - Tìm kiếm, lọc và xem chi tiết tin tuyển dụng; lưu hoặc bỏ lưu tin.
 - Ứng tuyển bằng một CV, xem lịch sử và trạng thái xử lý.
@@ -815,13 +814,11 @@ ChatReadState lưu `lastReadAt`. Tin chưa đọc là tin trong phòng có thờ
 
 Nhóm `/api/ai` yêu cầu JWT và có rate limit riêng. `aiService.js` khởi tạo OpenAI SDK với endpoint Groq, model mặc định `openai/gpt-oss-120b`, timeout 20 giây và tối đa một lần retry của SDK. Mỗi lời gọi tạo một `AiUsage` ở trạng thái pending; khi hoàn tất, bản ghi được cập nhật token đầu vào, token đầu ra, độ trễ và trạng thái. Hạn mức mặc định là 100 lượt/tài khoản/ngày, có thể thay bằng `AI_DAILY_LIMIT`.
 
-Năm luồng AI hiện có gồm:
+Ba luồng AI hiện có gồm:
 
-1. `/api/ai/resume/improve`: viết mới, cải thiện hoặc rút gọn tiểu sử; kết quả phải là đoạn tiểu sử hoàn chỉnh thay vì lời khuyên biên tập.
-2. `/api/ai/resume/fill`: dùng hồ sơ và phần CV đã nhập để điền trường còn thiếu. Thuật toán merge giữ dữ kiện có sẵn, chỉ bổ sung khoảng trống và loại mô tả kỹ năng có dấu hiệu HTML hoặc mã thực thi.
-3. `/api/ai/resume/review`: chấm điểm tổng thể và theo nhóm, liệt kê điểm mạnh, vấn đề, cách sửa cùng mức ưu tiên; kết quả xuất hiện trong modal giữa viewport.
-4. `/api/ai/resume/score`: so sánh CV đã lưu với tin tuyển dụng theo kỹ năng, kinh nghiệm, học vấn, từ khóa và độ hoàn thiện.
-5. `/api/ai/interview/turn`: bắt đầu, xử lý từng câu trả lời hoặc kết thúc buổi phỏng vấn; trả câu hỏi, feedback, điểm và bản tổng kết theo JSON Schema.
+1. `/api/ai/resume/fill`: dùng hồ sơ và phần CV đã nhập để điền trường còn thiếu. Thuật toán merge giữ dữ kiện có sẵn, chỉ bổ sung khoảng trống và loại mô tả kỹ năng có dấu hiệu HTML hoặc mã thực thi.
+2. `/api/ai/resume/review`: chấm điểm tổng thể và theo nhóm, liệt kê điểm mạnh, vấn đề, cách sửa cùng mức ưu tiên; kết quả xuất hiện trong modal giữa viewport.
+3. `/api/ai/interview/turn`: bắt đầu, xử lý từng câu trả lời hoặc kết thúc buổi phỏng vấn; trả câu hỏi, feedback, điểm và bản tổng kết theo JSON Schema.
 
 `sanitizeResumeForAi` tạo payload rút gọn, thay dữ liệu liên hệ bằng cờ đã điền/chưa điền và giới hạn độ dài từng trường. `sanitizeInterviewRequest` chỉ giữ lịch sử cần thiết cho tối đa 12 câu, chặn yêu cầu thay đổi vai trò nằm trong nội dung hội thoại và giới hạn độ dài câu trả lời. Output tiếp tục đi qua hàm clean tương ứng trước khi tới client. Nếu Groq chưa cấu hình, hết quota, rate limit hoặc lỗi mạng, API trả code riêng để toast có thông báo phù hợp; dữ liệu đang soạn không bị xóa.
 
@@ -916,7 +913,7 @@ Tại thời điểm cập nhật báo cáo ngày 09-08-2026, lệnh `npm run ch
 | Sanitizer phỏng vấn | 3 | Giới hạn settings, giữ lịch sử 12 câu và giới hạn feedback. | Đạt |
 | **Tổng** | **41** | **Toàn bộ test Node hiện có.** | **Đạt** |
 
-ESLint hoàn thành không lỗi và không cảnh báo. Vite build 1.906 module thành công; các chunk JavaScript chính đều dưới 500 kB, trong đó nhóm PDF, rich text và React được tách riêng. Kết quả 41/41 không có nghĩa hệ thống không còn lỗi. Bộ test tập trung vào các quy tắc đã từng gây lỗi hoặc có khả năng hồi quy cao; chưa có đo độ bao phủ mã, bộ E2E chạy tự động trong CI hoặc kiểm thử tải.
+ESLint hoàn thành không lỗi và không cảnh báo. Vite build 1.906 module thành công; các chunk JavaScript chính đều dưới 500 kB, trong đó nhóm PDF, rich text và React được tách riêng. Kết quả 43/43 không có nghĩa hệ thống không còn lỗi. Bộ test tập trung vào các quy tắc đã từng gây lỗi hoặc có khả năng hồi quy cao; chưa có đo độ bao phủ mã, bộ E2E chạy tự động trong CI hoặc kiểm thử tải.
 
 ## 5.4. Kịch bản kiểm thử thủ công
 
@@ -945,9 +942,8 @@ ESLint hoàn thành không lỗi và không cảnh báo. Vite build 1.906 module
 1. Chọn Viết mới, Cải thiện và Rút gọn trong trợ lý tiểu sử; xác nhận nút hành động đổi đúng nhãn và kết quả chưa ghi đè trước khi chọn áp dụng.
 2. Mở AI điền CV khi hồ sơ cá nhân đã có dữ liệu; xác nhận trường có sẵn được giữ, phần thiếu được bổ sung và modal nằm giữa viewport.
 3. Chạy Review toàn bộ CV; xác nhận có điểm tổng thể, điểm theo nhóm, điểm mạnh, mục cần sửa và cách sửa theo ưu tiên.
-4. Chọn một CV tại trang chi tiết job và thực hiện chấm điểm; xác nhận chỉ còn chức năng Chấm điểm, không có Viết thư AI.
-5. Tạo buổi phỏng vấn 5, 8 và 12 câu; trả lời ít nhất hai câu, chọn lại câu cũ ở sidebar và xác nhận panel phải đổi đúng feedback của câu đó.
-6. Thử khi thiếu `GROQ_API_KEY`, hết quota hoặc gửi quá nhanh; xác nhận có thông báo lỗi và nội dung CV/câu trả lời đang nhập không mất.
+4. Tạo buổi phỏng vấn 5, 8 và 12 câu; trả lời ít nhất hai câu, chọn lại câu cũ ở sidebar và xác nhận panel phải đổi đúng feedback của câu đó.
+5. Thử khi thiếu `GROQ_API_KEY`, hết quota hoặc gửi quá nhanh; xác nhận có thông báo lỗi và nội dung CV/câu trả lời đang nhập không mất.
 
 ### 5.4.4. Việc làm và lịch sử ứng tuyển
 
@@ -1015,7 +1011,7 @@ Ngoài ra, chất lượng AI phụ thuộc Groq, model, quota và độ chính 
 
 Các mục tiêu kỹ thuật chính đã được hiện thực hóa bằng React, Vite, Tailwind CSS, TanStack Query, React Hook Form, Zod, Tiptap, Radix UI, Express, MongoDB, JWT, Socket.IO, Groq Structured Outputs, Vercel Cron, react-to-print và PDF.js. Hệ thống xử lý được một số tình huống thực tế như điều hướng đúng vai trò, giữ lịch sử sau khi xóa tin, phân biệt CV ảo và CV thật, tránh tải base64 trong danh sách, kiểm soát rich text, xem/in PDF theo A4, quản lý quota AI và ẩn chat theo từng người dùng.
 
-Bộ kiểm thử tự động 41 trường hợp đều đạt, ESLint sạch và bản build sản xuất hoàn tất mà không còn cảnh báo chunk JavaScript chính vượt 500 kB. Kết quả này cho thấy phiên bản hiện tại có nền tảng đủ để trình diễn và tiếp tục phát triển. Tuy vậy, đây vẫn là sản phẩm đồ án cá nhân; khả năng chịu tải, độ ổn định của realtime trên serverless, quan sát vận hành và độ bao phủ E2E chưa đạt mức hệ thống thương mại.
+Bộ kiểm thử tự động 43 trường hợp đều đạt, ESLint sạch và bản build sản xuất hoàn tất mà không còn cảnh báo chunk JavaScript chính vượt 500 kB. Kết quả này cho thấy phiên bản hiện tại có nền tảng đủ để trình diễn và tiếp tục phát triển. Tuy vậy, đây vẫn là sản phẩm đồ án cá nhân; khả năng chịu tải, độ ổn định của realtime trên serverless, quan sát vận hành và độ bao phủ E2E chưa đạt mức hệ thống thương mại.
 
 ## 6.2. Bài học kinh nghiệm
 
@@ -1167,10 +1163,8 @@ RabbitCV đáp ứng mục đích của một đồ án tốt nghiệp Khoa họ
 | Phương thức | Đường dẫn | Mô tả |
 | --- | --- | --- |
 | GET | `/api/ai/status` | Trạng thái cấu hình, model, quota và số lượt còn lại. |
-| POST | `/api/ai/resume/improve` | Viết mới, cải thiện hoặc rút gọn tiểu sử. |
 | POST | `/api/ai/resume/review` | Review toàn bộ CV theo schema. |
 | POST | `/api/ai/resume/fill` | Điền các phần CV còn thiếu. |
-| POST | `/api/ai/resume/score` | Chấm mức phù hợp giữa CV và job. |
 | POST | `/api/ai/interview/turn` | Bắt đầu, trả lời hoặc kết thúc lượt phỏng vấn. |
 
 ## A.7. Vận hành
@@ -1215,11 +1209,11 @@ npm run check
 2. Đăng nhập ứng viên, cập nhật hồ sơ, tạo CV, thử AI viết tiểu sử, AI điền CV và Review toàn bộ CV.
 3. Xuất CV web ra PDF, tải thêm một CV PDF từ máy tính và xem theo khung A4.
 4. Mở Phỏng vấn AI, chọn phiên 5 câu, trả lời hai câu và chọn lại từng câu để xem đánh giá.
-5. Tìm tin, lưu, chấm mức phù hợp CV, ứng tuyển và xem “Công việc của tôi”.
+5. Tìm tin, lưu, ứng tuyển và xem “Công việc của tôi”.
 6. Đăng nhập doanh nghiệp, mở hồ sơ ứng viên, cập nhật trạng thái và gửi tin nhắn.
 7. Quay lại ứng viên để quan sát thông báo, chỉ báo chat và trạng thái ứng tuyển.
 8. Đăng nhập quản trị viên bằng tài khoản test `admin/1111`, xác minh doanh nghiệp và thử ẩn/hiện tin.
-9. Chạy `npm run check` để chứng minh ESLint sạch, 41/41 test đạt và build thành công.
+9. Chạy `npm run check` để chứng minh ESLint sạch, 43/43 test đạt và build thành công.
 
 [PAGEBREAK]
 
@@ -1252,6 +1246,6 @@ Quy ước sử dụng trong sơ đồ:
 | Thông báo | Danh sách, số chưa đọc, đánh dấu đọc và thông báo hết hạn. |
 | Doanh nghiệp | Hồ sơ công ty; tạo/sửa tin; công tắc mở/đóng; quản lý ứng viên. |
 | Quản trị | Số liệu; người dùng; xác minh doanh nghiệp; ẩn và hiện lại tin. |
-| Kỹ thuật | `npm run check` đạt 41/41; build thành công; health trả `{ "ok": true }`; build không làm backend restart. |
+| Kỹ thuật | `npm run check` đạt 43/43; build thành công; health trả `{ "ok": true }`; build không làm backend restart. |
 
 Kết thúc báo cáo.

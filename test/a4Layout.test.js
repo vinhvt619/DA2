@@ -6,11 +6,20 @@ const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
 
 test("CV wrapper and print page use A4 dimensions", async () => {
-  const css = await readFile(new URL("../src/App.css", import.meta.url), "utf8");
+  const [css, preview] = await Promise.all([
+    readFile(new URL("../src/App.css", import.meta.url), "utf8"),
+    readFile(
+      new URL("../src/Components/ResumePreview.jsx", import.meta.url),
+      "utf8",
+    ),
+  ]);
 
   assert.match(css, /@page\s*{[\s\S]*?size:\s*A4\s*;/);
   assert.match(css, /\.cv-wrapper\s*{[\s\S]*?width:\s*210mm\s*;/);
   assert.match(css, /\.cv-wrapper\s*{[\s\S]*?height:\s*297mm\s*;/);
+  assert.match(preview, /function AutoFitResumePage/);
+  assert.match(preview, /requiredHeight\s*=\s*template\.scrollHeight/);
+  assert.match(preview, /<AutoFitResumePage>/);
   assert.ok(Math.abs(A4_WIDTH_MM / A4_HEIGHT_MM - 1 / 1.414) < 0.001);
 });
 
@@ -42,4 +51,26 @@ test("uploaded PDF resumes render as clean A4 pages without a native iframe view
   assert.doesNotMatch(viewer, /<iframe/);
   assert.match(pdfPreview, /getDocument\(source\)/);
   assert.match(pdfPreview, /className="cv-wrapper pdf-resume-page/);
+});
+
+test("elegant CV keeps education in the wider left column", async () => {
+  const preview = await readFile(
+    new URL("../src/Components/ResumePreview.jsx", import.meta.url),
+    "utf8",
+  );
+  const elegantTemplate = preview.match(
+    /const ElegantTemplate = \([\s\S]*?\n\);\n\nconst CreativeTemplate/,
+  )?.[0];
+
+  assert.ok(elegantTemplate, "ElegantTemplate should exist");
+
+  const mainColumn = elegantTemplate.match(
+    /<main className="col-span-8[\s\S]*?<\/main>/,
+  )?.[0];
+  const sidebarColumn = elegantTemplate.match(
+    /<aside className="col-span-4[\s\S]*?<\/aside>/,
+  )?.[0];
+
+  assert.match(mainColumn, /<TemplateEducation items={education}/);
+  assert.doesNotMatch(sidebarColumn, /<TemplateEducation items={education}/);
 });

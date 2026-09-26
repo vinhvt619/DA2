@@ -28,3 +28,8 @@ dist-ssr
 .agents/skills/ui-ux-pro-max-skill/
 
 .vercel
+
+# Playwright
+playwright-report/
+test-results/
+blob-report/

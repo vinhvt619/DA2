@@ -25,7 +25,6 @@ import {
   EyeIcon,
   DocumentArrowUpIcon,
   ExclamationTriangleIcon,
-  SparklesIcon,
 } from "@heroicons/react/24/outline";
 import { BookmarkIcon as BookmarkSolid } from "@heroicons/react/24/solid";
 import { useSavedJobs } from "../context/SavedJobsContext";
@@ -35,7 +34,6 @@ import {
   isJobExpired,
   isJobUnavailable,
 } from "../utils/jobAvailability.js";
-import { requestAi } from "../utils/aiApi.js";
 
 const normalizeJobDetails = (data) => ({
   ...data,
@@ -59,8 +57,6 @@ export default function JobDetail() {
   const [job, setJob] = useState(null);
   const [loadingJob, setLoadingJob] = useState(true);
   const [applying, setApplying] = useState(false);
-  const [aiAction, setAiAction] = useState("");
-  const [aiScore, setAiScore] = useState(null);
   const [similarJobs, setSimilarJobs] = useState([]);
   const { isSaved, toggleSave, pendingIds } = useSavedJobs();
   const jobIsDeleted = isJobDeleted(job);
@@ -180,31 +176,6 @@ export default function JobDetail() {
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
       showToast("Đã sao chép liên kết tuyển dụng vào bộ nhớ tạm!", "success");
-  };
-
-  const handleScoreResume = async () => {
-    if (!currentUser) {
-      showToast("Vui lòng đăng nhập để chấm điểm CV.", "info");
-      return navigate("/login");
-    }
-    if (!selectedCv || !job?._id) {
-      showToast("Hãy chọn một CV đã lưu.", "error");
-      return;
-    }
-
-    setAiAction("score");
-    setAiScore(null);
-    try {
-      const data = await requestAi("/resume/score", {
-        resumeId: selectedCv,
-        jobId: job._id,
-      });
-      setAiScore({ ...data.result, disclaimer: data.disclaimer });
-    } catch (error) {
-      showToast(error.message, "error");
-    } finally {
-      setAiAction("");
-    }
   };
 
   const handleApply = async () => {
@@ -519,48 +490,12 @@ export default function JobDetail() {
                 <select
                   id="saved-cv"
                   value={selectedCv}
-                  onChange={(event) => {
-                    setSelectedCv(event.target.value);
-                    setAiScore(null);
-                  }}
+                  onChange={(event) => setSelectedCv(event.target.value)}
                   className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
                 >
                   <option value="">-- Chọn CV đã lưu --</option>
                   {savedResumes.map((cv) => <option key={cv._id} value={cv._id}>{cv.title || cv.name || "CV không tên"}</option>)}
                 </select>
-              )}
-              <div className="mt-2.5">
-                <button
-                  type="button"
-                  onClick={handleScoreResume}
-                  disabled={Boolean(aiAction) || !selectedCv || !job._id}
-                  className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 text-[11px] font-bold text-violet-700 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <SparklesIcon className="h-3.5 w-3.5" />
-                  {aiAction === "score" ? "Đang chấm..." : "Chấm điểm"}
-                </button>
-              </div>
-              {aiScore && (
-                <div className="mt-3 rounded-lg border border-violet-200 bg-violet-50/60 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs font-bold text-violet-800">Mức độ phù hợp</span>
-                    <strong className="text-xl text-violet-700">{Math.round(aiScore.overallScore)}%</strong>
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-1.5 text-[10px] text-slate-600">
-                    <span>Kỹ năng: {Math.round(aiScore.categories?.skills || 0)}%</span>
-                    <span>Kinh nghiệm: {Math.round(aiScore.categories?.experience || 0)}%</span>
-                    <span>Học vấn: {Math.round(aiScore.categories?.education || 0)}%</span>
-                    <span>Từ khóa: {Math.round(aiScore.categories?.keywords || 0)}%</span>
-                  </div>
-                  {aiScore.recommendations?.length > 0 && (
-                    <ul className="mt-2 space-y-1 text-[11px] leading-4 text-slate-600">
-                      {aiScore.recommendations.slice(0, 3).map((item) => (
-                        <li key={item}>• {item}</li>
-                      ))}
-                    </ul>
-                  )}
-                  <p className="mt-2 text-[9px] leading-4 text-slate-400">{aiScore.disclaimer}</p>
-                </div>
               )}
               <button type="button" onClick={handleApply} disabled={applying || !selectedCv} className="mt-2.5 w-full rounded-lg bg-violet-700 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300">
                 {applying ? "Đang gửi hồ sơ..." : "Ứng tuyển bằng CV đã lưu"}

@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import {
   cleanAiText,
   looksLikeExecutableText,
-  looksLikeEditorialBioAdvice,
   sanitizeResumeForAi,
 } from "../server/utils/aiDataSanitizer.js";
 
@@ -29,32 +28,11 @@ test("AI sanitizer recognizes executable code stored as CV text", () => {
   );
 });
 
-test("bio result validator separates editorial advice from final CV content", () => {
-  assert.equal(
-    looksLikeEditorialBioAdvice(
-      "Tập trung vào kỹ năng Frontend. Loại bỏ thông tin không liên quan và sắp xếp lại phần mô tả.",
-    ),
-    true,
-  );
-  assert.equal(
-    looksLikeEditorialBioAdvice(
-      "Cập nhật phần Tiểu sử ngắn gọn hơn, nhấn mạnh kinh nghiệm và thêm từ khóa phù hợp.",
-    ),
-    true,
-  );
-  assert.equal(
-    looksLikeEditorialBioAdvice(
-      "Frontend Developer có kinh nghiệm phát triển giao diện với ReactJS, chú trọng UI/UX và khả năng phối hợp trong dự án.",
-    ),
-    false,
-  );
-});
-
 test("resume AI payload excludes direct contact information", () => {
   const payload = sanitizeResumeForAi({
     personalInfo: {
       fullName: "Nguyen Van A",
-      email: "candidate@example.com",
+      email: "a@example.com",
       phone: "0900000000",
       address: "Ho Chi Minh City",
       jobTitle: "Frontend Developer",
@@ -70,7 +48,7 @@ test("resume AI payload excludes direct contact information", () => {
     skill: [
       {
         title: "ReactJS",
-        description: "Hooks, Context API",
+        description: "Hooks, API",
         performance: "Xuất sắc",
       },
     ],

@@ -11,10 +11,8 @@ const AiUsageSchema = new mongoose.Schema(
     feature: {
       type: String,
       enum: [
-        "resume_improve",
         "resume_fill",
         "resume_review",
-        "resume_score",
         "interview_practice",
         "cover_letter",
         "job_description",

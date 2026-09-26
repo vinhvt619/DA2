@@ -104,7 +104,7 @@ const templates = [
             <div className="border-b border-slate-300 font-bold text-slate-800">KINH NGHIỆM</div>
             <div className="h-1 rounded bg-slate-200" />
             <div className="h-1 w-4/5 rounded bg-slate-100" />
-            <div className="border-b border-slate-300 pt-1 font-bold text-slate-800">DỰ ÁN</div>
+            <div className="border-b border-slate-300 pt-1 font-bold text-slate-800">HỌC VẤN</div>
             <div className="h-1 rounded bg-slate-200" />
           </div>
           <div className="col-span-2 border-l border-stone-200 pl-1.5">

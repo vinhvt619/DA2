@@ -127,8 +127,6 @@ export default function CreateResume() {
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [lastSaved, setLastSaved] = useState(null);
   const [savedSignature, setSavedSignature] = useState(null);
-  const [isImprovingBio, setIsImprovingBio] = useState(false);
-  const [bioSuggestion, setBioSuggestion] = useState(null);
   const [isReviewingResume, setIsReviewingResume] = useState(false);
   const [resumeReview, setResumeReview] = useState(null);
   const [isAiFillingResume, setIsAiFillingResume] = useState(false);
@@ -453,52 +451,6 @@ export default function CreateResume() {
       showToast(error.message, "error");
     } finally {
       setIsAiFillingResume(false);
-    }
-  };
-
-  const handleImproveBio = async (mode = "improve") => {
-    const hasResumeContext =
-      Boolean(personalInfo.jobTitle?.trim()) ||
-      experience.length > 0 ||
-      education.length > 0 ||
-      skill.length > 0 ||
-      project.length > 0;
-
-    if (mode !== "generate" && !bio.trim()) {
-      showToast("Hãy nhập phần tiểu sử trước khi chọn chế độ này.", "error");
-      return;
-    }
-    if (mode === "generate" && !bio.trim() && !hasResumeContext) {
-      showToast(
-        "Hãy nhập vị trí mong muốn, kỹ năng hoặc kinh nghiệm trước.",
-        "error",
-      );
-      return;
-    }
-
-    setIsImprovingBio(true);
-    setBioSuggestion(null);
-    try {
-      const data = await requestAi("/resume/improve", {
-        resumeId: _id || undefined,
-        mode,
-        content: bio,
-        targetRole: personalInfo.jobTitle,
-        resumeContext: {
-          personalInfo: { jobTitle: personalInfo.jobTitle },
-          bio,
-          experience,
-          education,
-          skill,
-          project,
-          certificate,
-        },
-      });
-      setBioSuggestion({ ...data.result, mode });
-    } catch (error) {
-      showToast(error.message, "error");
-    } finally {
-      setIsImprovingBio(false);
     }
   };
 
@@ -932,15 +884,6 @@ export default function CreateResume() {
               setAward={setAward}
               hobby={hobby}
               setHobby={setHobby}
-              onImproveBio={handleImproveBio}
-              isImprovingBio={isImprovingBio}
-              bioSuggestion={bioSuggestion}
-              onApplyBioSuggestion={() => {
-                setBio(bioSuggestion?.suggestion || bio);
-                setBioSuggestion(null);
-                showToast("Đã áp dụng bản tiểu sử. Hãy kiểm tra trước khi lưu.");
-              }}
-              onDismissBioSuggestion={() => setBioSuggestion(null)}
               onReviewResume={handleReviewResume}
               isReviewingResume={isReviewingResume}
               resumeReview={resumeReview}

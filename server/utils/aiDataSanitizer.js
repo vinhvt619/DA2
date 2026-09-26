@@ -32,38 +32,6 @@ export const looksLikeExecutableText = (value) => {
   );
 };
 
-export const looksLikeEditorialBioAdvice = (value) => {
-  const text = cleanAiText(value, 5000).toLocaleLowerCase("vi-VN");
-  if (!text) return true;
-
-  const directAdviceMarkers = [
-    "hãy ",
-    "bạn nên ",
-    "ứng viên nên ",
-    "cần bổ sung ",
-    "cập nhật ",
-    "đề xuất ",
-    "gợi ý ",
-    "viết lại ",
-  ];
-  const editorialMarkers = [
-    "loại bỏ ",
-    "sắp xếp lại ",
-    "phần mô tả",
-    "nhấn mạnh ",
-    "thay thế ",
-  ];
-
-  const startsWithAdvice = directAdviceMarkers.some((marker) =>
-    text.startsWith(marker),
-  );
-  const editorialMarkerCount = editorialMarkers.filter((marker) =>
-    text.includes(marker),
-  ).length;
-
-  return startsWithAdvice || editorialMarkerCount >= 2;
-};
-
 const sanitizeList = (items, mapper) =>
   (Array.isArray(items) ? items : [])
     .slice(0, MAX_ARRAY_ITEMS)

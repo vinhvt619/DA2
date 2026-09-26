@@ -10,27 +10,6 @@ const score = {
 };
 
 export const AI_RESPONSE_SCHEMAS = {
-  resume_improve: {
-    name: "resume_improvement",
-    schema: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        suggestion: {
-          type: "string",
-          description:
-            "Noi dung tieu su CV hoan chinh bang tieng Viet, san sang dan truc tiep vao CV. Khong duoc viet loi khuyen, huong dan hay nhan xet.",
-        },
-        changes: {
-          type: "array",
-          description:
-            "Danh sach ngan gon giai thich nhung diem da duoc cai thien trong suggestion.",
-          items: { type: "string" },
-        },
-      },
-      required: ["suggestion", "changes"],
-    },
-  },
   resume_review: {
     name: "resume_review",
     schema: {
@@ -290,37 +269,6 @@ export const AI_RESPONSE_SCHEMAS = {
         "projects",
         "awards",
         "hobbies",
-      ],
-    },
-  },
-  resume_score: {
-    name: "resume_job_score",
-    schema: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        overallScore: score,
-        categories: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            skills: score,
-            experience: score,
-            education: score,
-            keywords: score,
-          },
-          required: ["skills", "experience", "education", "keywords"],
-        },
-        strengths: stringArray,
-        missingSkills: stringArray,
-        recommendations: stringArray,
-      },
-      required: [
-        "overallScore",
-        "categories",
-        "strengths",
-        "missingSkills",
-        "recommendations",
       ],
     },
   },

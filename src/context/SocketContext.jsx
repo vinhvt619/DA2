@@ -82,29 +82,79 @@ export const SocketProvider = ({ children }) => {
   }, [currentUser?._id, refreshUnreadMessages]);
 
   useEffect(() => {
-    if (currentUser) {
-      const newSocket = io(getSocketUrl(), {
-        path: "/socket.io",
-        withCredentials: true,
-        transports: import.meta.env.PROD
-          ? ["websocket"]
-          : ["polling", "websocket"],
-        reconnection: true,
-      });
-
-      newSocket.on("newMessage", () => setHasNewMessage(true));
-
-      setSocket(newSocket);
-      refreshUnreadMessages();
-
-      return () => {
-        newSocket.off("newMessage");
-        newSocket.disconnect();
-      };
-    } else {
+    if (!currentUser) {
       setSocket(null);
       setHasNewMessage(false);
+      return undefined;
     }
+
+    let cancelled = false;
+    let newSocket;
+    let isRefreshingTicket = false;
+
+    const getSocketTicket = async () => {
+      const response = await fetch("/api/socket-ticket", {
+        credentials: "include",
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data?.token || null;
+    };
+
+    const connectSocket = async () => {
+      try {
+        const ticket = await getSocketTicket();
+        if (cancelled) return;
+
+        newSocket = io(getSocketUrl(), {
+          path: "/socket.io",
+          withCredentials: true,
+          auth: ticket ? { token: ticket } : undefined,
+          transports: ["websocket", "polling"],
+          tryAllTransports: true,
+          reconnection: true,
+        });
+
+        newSocket.on("newMessage", () => setHasNewMessage(true));
+        newSocket.on("connect_error", async (error) => {
+          console.error("Khong the ket noi realtime:", error.message);
+          if (
+            cancelled ||
+            isRefreshingTicket ||
+            !error.message?.startsWith("Authentication error")
+          ) {
+            return;
+          }
+
+          isRefreshingTicket = true;
+          try {
+            const refreshedTicket = await getSocketTicket();
+            if (refreshedTicket && !cancelled) {
+              newSocket.auth = { token: refreshedTicket };
+              newSocket.connect();
+            }
+          } finally {
+            isRefreshingTicket = false;
+          }
+        });
+
+        setSocket(newSocket);
+        refreshUnreadMessages();
+      } catch (error) {
+        console.error("Khong the tao ket noi realtime:", error.message);
+      }
+    };
+
+    void connectSocket();
+
+    return () => {
+      cancelled = true;
+      if (newSocket) {
+        newSocket.off("newMessage");
+        newSocket.off("connect_error");
+        newSocket.disconnect();
+      }
+    };
   }, [currentUser, refreshUnreadMessages]);
 
   return (

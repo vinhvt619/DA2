@@ -19,30 +19,6 @@ import {
   parseMonthDisplayValue,
 } from "../utils/dateInput.js";
 
-const BIO_AI_MODES = [
-  {
-    id: "generate",
-    label: "Viết mới",
-    actionLabel: "Viết tiểu sử mới",
-    resultLabel: "Bản tiểu sử mới",
-    applyLabel: "Dùng bản mới",
-  },
-  {
-    id: "improve",
-    label: "Cải thiện",
-    actionLabel: "Cải thiện tiểu sử",
-    resultLabel: "Bản tiểu sử đã cải thiện",
-    applyLabel: "Dùng bản cải thiện",
-  },
-  {
-    id: "shorten",
-    label: "Rút gọn",
-    actionLabel: "Rút gọn tiểu sử",
-    resultLabel: "Bản tiểu sử đã rút gọn",
-    applyLabel: "Dùng bản rút gọn",
-  },
-];
-
 const REVIEW_CATEGORY_LABELS = {
   content: "Nội dung",
   clarity: "Rõ ràng",
@@ -110,11 +86,6 @@ export default function ResumeForm({
   setAward,
   hobby,
   setHobby,
-  onImproveBio,
-  isImprovingBio = false,
-  bioSuggestion = null,
-  onApplyBioSuggestion,
-  onDismissBioSuggestion,
   onReviewResume,
   isReviewingResume = false,
   resumeReview = null,
@@ -136,12 +107,6 @@ export default function ResumeForm({
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [isCurrentExperience, setIsCurrentExperience] = useState(false);
-  const [bioAiMode, setBioAiMode] = useState("improve");
-  const activeBioAiMode =
-    BIO_AI_MODES.find((mode) => mode.id === bioAiMode) || BIO_AI_MODES[1];
-  const resultBioAiMode =
-    BIO_AI_MODES.find((mode) => mode.id === bioSuggestion?.mode) ||
-    activeBioAiMode;
   const [newProfile, setNewProfile] = useState({
     networkName: "",
     username: "",
@@ -420,16 +385,6 @@ export default function ResumeForm({
     });
   };
 
-  const hasBioSource =
-    Boolean(bio?.trim()) ||
-    Boolean(personalInfo?.jobTitle?.trim()) ||
-    experience.length > 0 ||
-    education.length > 0 ||
-    skill.length > 0 ||
-    project.length > 0;
-  const bioActionDisabled =
-    isImprovingBio ||
-    (bioAiMode === "generate" ? !hasBioSource : !bio?.trim());
   const handleOpenResumeReview = async () => {
     setIsReviewModalOpen(true);
     const completed = await onReviewResume?.();
@@ -720,90 +675,10 @@ export default function ResumeForm({
       </div>
       <div className="border-t border-gray-100" />
       <div>
-        <div className="mb-3 flex items-center gap-2">
-          <div className="text-xs font-bold uppercase tracking-widest text-gray-600">Tiểu sử</div>
-          <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-violet-700">
-            Trợ lý AI
-          </span>
-        </div>
-        <div className="mb-3 rounded-lg border border-violet-200 bg-violet-50/50 p-3">
-          <div className="flex items-center gap-2 text-xs font-bold text-violet-800">
-            <SparklesIcon className="h-4 w-4" />
-            Trợ lý viết tiểu sử
-          </div>
-          <div className="mt-3 grid grid-cols-3 gap-1.5">
-            {BIO_AI_MODES.map((mode) => {
-              const active = bioAiMode === mode.id;
-              return (
-                <button
-                  key={mode.id}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setBioAiMode(mode.id)}
-                  disabled={isImprovingBio}
-                  className={`h-8 rounded-md border px-2 text-[11px] font-semibold transition ${
-                    active
-                      ? "border-violet-600 bg-violet-600 text-white"
-                      : "border-violet-200 bg-white text-violet-700 hover:bg-violet-100"
-                  } disabled:cursor-not-allowed disabled:opacity-50`}
-                >
-                  {mode.label}
-                </button>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            onClick={() => onImproveBio?.(bioAiMode)}
-            disabled={bioActionDisabled}
-            className="mt-2.5 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-violet-700 px-3 text-xs font-bold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-violet-300"
-          >
-            <SparklesIcon className="h-4 w-4" />
-            {isImprovingBio ? "Đang xử lý..." : activeBioAiMode.actionLabel}
-          </button>
-        </div>
+        <div className="mb-3 text-xs font-bold uppercase tracking-widest text-gray-600">Tiểu sử</div>
         <div className="rounded-xl border border-gray-200 overflow-hidden">
           <Editor content={bio} onChange={setBio} className="min-h-[160px]" />
         </div>
-        {bioSuggestion && (
-          <div className="mt-3 rounded-lg border border-violet-200 bg-violet-50/60 p-3">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-violet-800">
-              <SparklesIcon className="h-4 w-4" />
-              {resultBioAiMode.resultLabel}
-            </div>
-            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">
-              {bioSuggestion.suggestion}
-            </p>
-            {bioSuggestion.changes?.length > 0 && (
-              <div className="mt-3 border-t border-violet-200 pt-2">
-                <p className="text-[11px] font-bold uppercase text-violet-700">
-                  Điểm đã cải thiện
-                </p>
-                <ul className="mt-1.5 space-y-1 text-xs text-slate-500">
-                  {bioSuggestion.changes.map((change) => (
-                    <li key={change}>• {change}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                onClick={onApplyBioSuggestion}
-                className="h-8 rounded-lg bg-violet-600 px-3 text-xs font-semibold text-white transition hover:bg-violet-700"
-              >
-                {resultBioAiMode.applyLabel}
-              </button>
-              <button
-                type="button"
-                onClick={onDismissBioSuggestion}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
-              >
-                Bỏ qua
-              </button>
-            </div>
-          </div>
-        )}
       </div>
       <div className="border-t border-gray-100" />
       <div>

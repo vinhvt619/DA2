@@ -83,7 +83,7 @@ Kết quả build đáng chú ý:
 | AI viết tiểu sử | Có thể dùng | Cần preview thay đổi, undo và lỗi/retry nhất quán |
 | AI điền CV | Có thể dùng | Cần cho người dùng chọn mục nào được điền, chỉ điền phần thiếu và xem trước trước khi áp dụng |
 | AI review toàn bộ CV | Có thể dùng | Cần liên kết từng gợi ý với đúng section và cho áp dụng/chỉnh sửa từng ý |
-| Chấm điểm CV theo job | Có thể dùng | Cần history hoặc ít nhất giữ kết quả trong phiên và giải thích tiêu chí rõ ràng |
+| Chấm điểm CV theo job | Đã loại bỏ | Không còn giao diện, API hoặc schema AI cho chức năng này |
 | Phỏng vấn AI | Có thể dùng | Trang lớn; cần giữ phiên, retry câu lỗi, composer mượt và xem đánh giá từng câu rõ hơn |
 | Hồ sơ cá nhân/công khai | Có thể dùng | Form dài, trạng thái lưu chưa thống nhất; dữ liệu profile và CV chưa đồng bộ thành một luồng rõ ràng |
 | Dashboard ứng viên | Có thể dùng | Dữ liệu application bị lặp với trang My Applications; nên dùng chung query/component |
