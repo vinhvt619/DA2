@@ -139,7 +139,10 @@ export default function ChatBox({ activeRoom = "general", currentUser, partner, 
 
   const loadMessages = useCallback(async () => {
     try {
-      const res = await fetch(`/api/messages?room=${activeRoom}`);
+      const res = await fetch(
+        `/api/messages?room=${encodeURIComponent(activeRoom)}&limit=50`,
+        { credentials: "include" },
+      );
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) setMessages(data);

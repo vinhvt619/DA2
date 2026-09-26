@@ -26,4 +26,9 @@ const MessageSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+// Chat history and thread summaries both read messages by room and time.
+// Keeping this compound index also lets MongoDB satisfy the latest-message
+// sort without scanning and sorting the whole messages collection.
+MessageSchema.index({ room: 1, createdAt: -1 });
+
 export default mongoose.model("Message", MessageSchema);

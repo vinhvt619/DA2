@@ -1,5 +1,5 @@
 import "../App.css";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import Header from "../Components/Header.jsx";
 import ShowMenuChatHook from "../hooks/ShowMenuChatBoxHook.jsx";
 import {
@@ -64,6 +64,11 @@ function Messenger() {
   const [activeRoom, setActiveRoom] = useState("");
   const [allUsers, setAllUsers] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState("");
+  const threadsRef = useRef([]);
+
+  useEffect(() => {
+    threadsRef.current = threads;
+  }, [threads]);
 
   const fetchThreads = useCallback(async () => {
     try {
@@ -137,7 +142,27 @@ function Messenger() {
   useEffect(() => {
     if (!socket) return;
     const handleNewMessage = (message) => {
-      fetchThreads();
+      if (!message?.room) return;
+
+      if (threadsRef.current.some((thread) => thread.room === message.room)) {
+        setThreads((previousThreads) => previousThreads
+          .map((thread) => (
+            thread.room === message.room
+              ? {
+                  ...thread,
+                  lastMessage: message.content || "Đã gửi một hình ảnh",
+                  lastMessageAt: message.createdAt || new Date().toISOString(),
+                  senderId: message.senderId,
+                  senderName: message.senderName,
+                }
+              : thread
+          ))
+          .sort((first, second) => new Date(second.lastMessageAt) - new Date(first.lastMessageAt)));
+      } else {
+        // Only rebuild the server-side thread list for a brand-new room.
+        void fetchThreads();
+      }
+
       if (message?.room === activeRoom) {
         void markRoomAsRead(activeRoom);
       }

@@ -99,6 +99,10 @@ const realtimeServerUrl = process.env.REALTIME_SERVER_URL?.replace(/\/+$/, "");
 const realtimeSharedSecret = process.env.REALTIME_SHARED_SECRET;
 const socketJwtSecret =
   process.env.REALTIME_JWT_SECRET || realtimeSharedSecret || jwtSecret;
+const realtimeRelayTimeoutMs = Math.min(
+  Math.max(Number.parseInt(process.env.REALTIME_RELAY_TIMEOUT_MS || "5000", 10), 1000),
+  5000,
+);
 
 const contentSecurityPolicy = {
   useDefaults: false,
@@ -156,6 +160,16 @@ const registerLimiter = rateLimit({
     message: "Qua nhieu yeu cau dang ky. Vui long thu lai sau.",
   },
 });
+
+const escapeRegExp = (value) =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const privateRoomPattern = (userId) => {
+  const escapedUserId = escapeRegExp(userId);
+  // Private room ids are stored as private_<sortedUserId>_<sortedUserId>.
+  // Matching either position avoids the old broad `.*userId` scan.
+  return new RegExp(`^private_(?:${escapedUserId}_|[^_]+_${escapedUserId}$)`);
+};
 
 app.get("/api-docs.json", (req, res) => {
   res.json(openapiSpec);
@@ -303,7 +317,11 @@ app.get("/api/health", async (req, res) => {
 });
 
 app.use("/api", async (req, res, next) => {
-  if (req.path === "/health" || req.path.startsWith("/realtime/")) {
+  if (
+    req.path === "/health" ||
+    req.path === "/socket-ticket" ||
+    req.path.startsWith("/realtime/")
+  ) {
     return next();
   }
 
@@ -342,7 +360,7 @@ const publishRealtimeMessage = async (receiverId, message) => {
           "X-Realtime-Secret": realtimeSharedSecret,
         },
         body: JSON.stringify({ receiverId, message }),
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(realtimeRelayTimeoutMs),
       });
 
       if (response.ok) return;
@@ -978,7 +996,7 @@ app.get("/api/socket-ticket", authMiddleware, (req, res) => {
 
 app.get("/api/messages", authMiddleware, async (req, res) => {
   try {
-    const room = req.query.room || "general";
+    const room = String(req.query.room || "general");
     const userId = req.user.id;
 
     if (room !== "general") {
@@ -992,18 +1010,24 @@ app.get("/api/messages", authMiddleware, async (req, res) => {
       }
     }
 
+    const requestedLimit = Number.parseInt(req.query.limit, 10);
+    const messageLimit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(requestedLimit, 1), 100)
+      : 50;
     let query = { room };
     
     if (room !== "general") {
-      const hiddenRecord = await HiddenChat.findOne({ userId, room });
+      const hiddenRecord = await HiddenChat.findOne({ userId, room }).lean();
       if (hiddenRecord) {
         query.createdAt = { $gt: hiddenRecord.hiddenAt };
       }
     }
 
     const messages = await Message.find(query)
+      .select("_id senderId senderName content image room createdAt updatedAt")
       .sort({ createdAt: -1 })
-      .limit(100);
+      .limit(messageLimit)
+      .lean();
     messages.reverse();
     res.status(200).json(messages);
   } catch (error) {
@@ -1049,7 +1073,7 @@ app.get("/api/chat/users", authMiddleware, async (req, res) => {
   try {
     const users = await User.find({ _id: { $ne: req.user.id } }).select(
       "fullName username role",
-    );
+    ).lean();
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1060,18 +1084,17 @@ app.get("/api/chat/users", authMiddleware, async (req, res) => {
 app.get("/api/chat/threads", authMiddleware, async (req, res) => {
   try {
     const currentUserId = String(req.user.id);
+    const roomPattern = privateRoomPattern(currentUserId);
 
-    // 1. Dung Aggregation lay tin nhan cuoi moi phong
+    // Read only private rooms. Sorting by room + createdAt matches the
+    // Message compound index and lets $group take the newest message per room.
     const aggregatedMessages = await Message.aggregate([
       {
         $match: {
-          $or: [
-            { room: "general" },
-            { room: { $regex: `^private_.*${currentUserId}` } },
-          ],
+          room: roomPattern,
         },
       },
-      { $sort: { createdAt: -1 } },
+      { $sort: { room: 1, createdAt: -1 } },
       {
         $group: {
           _id: "$room",
@@ -1084,26 +1107,32 @@ app.get("/api/chat/threads", authMiddleware, async (req, res) => {
       { $sort: { lastMessageAt: -1 } },
     ]);
 
-    // 2. Gom danh sach partnerId
-    const partnerIds = [];
+    // Gom danh sach partnerId, loai bo trung lap truoc khi query User.
+    const partnerIds = new Set();
     for (const msg of aggregatedMessages) {
-      if (msg._id.startsWith("private_")) {
-        const parts = msg._id.replace("private_", "").split("_");
-        const partnerId = parts.find((id) => id !== currentUserId);
-        if (partnerId) partnerIds.push(partnerId);
-      }
+      const parts = msg._id.replace("private_", "").split("_");
+      const partnerId = parts.find((id) => id !== currentUserId);
+      if (partnerId) partnerIds.add(partnerId);
     }
 
-    // 3. Query 1 lan lay tat ca Partner info (dung $in)
+    // Partner data and hidden-room data are independent queries.
     let partnersMap = {};
-    if (partnerIds.length > 0) {
-      const partners = await User.find({ _id: { $in: partnerIds } }).select("fullName username role");
+    const [partners, hiddenRecords] = await Promise.all([
+      partnerIds.size > 0
+        ? User.find({ _id: { $in: [...partnerIds] } })
+            .select("fullName username role")
+            .lean()
+        : [],
+      HiddenChat.find({ userId: currentUserId }).lean(),
+    ]);
+
+    if (partners.length > 0) {
       partners.forEach(p => {
         partnersMap[p._id.toString()] = p;
       });
     }
 
-    // 4. Map du lieu thanh mang threads cuoi cung
+    // Map du lieu thanh mang threads cuoi cung.
     const threadsMap = new Map();
     for (const msg of aggregatedMessages) {
       const room = msg._id;
@@ -1132,34 +1161,15 @@ app.get("/api/chat/threads", authMiddleware, async (req, res) => {
       });
     }
 
-    if (!threadsMap.has("general")) {
-      const lastGeneralMsg = await Message.findOne({ room: "general" }).sort({
-        createdAt: -1,
-      });
-      threadsMap.set("general", {
-        room: "general",
-        lastMessage: lastGeneralMsg
-          ? lastGeneralMsg.content
-          : "Chưa có tin nhắn",
-        lastMessageAt: lastGeneralMsg ? lastGeneralMsg.createdAt : new Date(),
-        senderName: lastGeneralMsg ? lastGeneralMsg.senderName : "",
-        senderId: lastGeneralMsg ? lastGeneralMsg.senderId : "",
-        partner: null,
-      });
-    }
-
     const threads = Array.from(threadsMap.values()).sort(
       (a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt),
     );
 
     // Lọc bỏ những phòng bị ẩn và chưa có tin nhắn mới
-    const hiddenRecords = await HiddenChat.find({ userId: currentUserId });
     const hiddenMap = {};
     hiddenRecords.forEach(h => hiddenMap[h.room] = new Date(h.hiddenAt));
 
     const visibleThreads = threads.filter(t => {
-      // General room cannot be hidden
-      if (t.room === "general") return true;
       if (!hiddenMap[t.room]) return true; // Chưa bị ẩn
       
       const lastMsgTime = new Date(t.lastMessageAt);
@@ -1170,7 +1180,7 @@ app.get("/api/chat/threads", authMiddleware, async (req, res) => {
     });
 
     res.status(200).json(
-      visibleThreads.filter((thread) => thread.room.startsWith("private_")),
+      visibleThreads,
     );
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1181,24 +1191,35 @@ app.get("/api/chat/threads", authMiddleware, async (req, res) => {
 // has not opened yet. This persists the message badge across refreshes/logins.
 app.get("/api/chat/unread-count", authMiddleware, async (req, res) => {
   try {
-    const currentUserId = req.user.id;
+    const currentUserId = String(req.user.id);
+    const roomPattern = privateRoomPattern(currentUserId);
     const readStates = await ChatReadState.find({ userId: currentUserId }).lean();
     const readAtByRoom = new Map(
       readStates.map((state) => [state.room, new Date(state.lastReadAt)]),
     );
 
-    const receivedMessages = await Message.find({
-      room: { $regex: `^private_.*${currentUserId}` },
-      senderId: { $ne: currentUserId },
-    })
-      .select("room createdAt")
-      .lean();
+    // Return one latest received message per room instead of transferring and
+    // iterating through the complete message history in the Node function.
+    const latestReceivedMessages = await Message.aggregate([
+      {
+        $match: {
+          room: roomPattern,
+          senderId: { $ne: currentUserId },
+        },
+      },
+      {
+        $group: {
+          _id: "$room",
+          lastMessageAt: { $max: "$createdAt" },
+        },
+      },
+    ]);
 
     const unreadRooms = new Set();
-    for (const message of receivedMessages) {
-      const lastReadAt = readAtByRoom.get(message.room);
-      if (!lastReadAt || new Date(message.createdAt) > lastReadAt) {
-        unreadRooms.add(message.room);
+    for (const message of latestReceivedMessages) {
+      const lastReadAt = readAtByRoom.get(message._id);
+      if (!lastReadAt || new Date(message.lastMessageAt) > lastReadAt) {
+        unreadRooms.add(message._id);
       }
     }
 
