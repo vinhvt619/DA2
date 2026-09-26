@@ -97,6 +97,8 @@ const cookieOptions = {
 
 const realtimeServerUrl = process.env.REALTIME_SERVER_URL?.replace(/\/+$/, "");
 const realtimeSharedSecret = process.env.REALTIME_SHARED_SECRET;
+const socketJwtSecret =
+  process.env.REALTIME_JWT_SECRET || realtimeSharedSecret || jwtSecret;
 
 const contentSecurityPolicy = {
   useDefaults: false,
@@ -967,7 +969,7 @@ app.post("/api/logout", (req, res) => {
 app.get("/api/socket-ticket", authMiddleware, (req, res) => {
   const token = jwt.sign(
     { id: req.user.id, role: req.user.role, purpose: "socket" },
-    jwtSecret,
+    socketJwtSecret,
     { expiresIn: "5m" },
   );
 
@@ -2270,7 +2272,7 @@ io.use((socket, next) => {
       return next(new Error("Authentication error: No token provided"));
     }
     
-    const decoded = jwt.verify(token, jwtSecret);
+    const decoded = jwt.verify(token, socketJwtSecret);
     socket.user = decoded;
     next();
   } catch {
