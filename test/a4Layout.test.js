@@ -19,6 +19,8 @@ test("CV wrapper and print page use A4 dimensions", async () => {
   assert.match(css, /\.cv-wrapper\s*{[\s\S]*?height:\s*297mm\s*;/);
   assert.match(preview, /function AutoFitResumePage/);
   assert.match(preview, /requiredHeight\s*=\s*template\.scrollHeight/);
+  assert.match(preview, /content\.style\.transform\s*=\s*`scale\(\$\{scale\}\)`/);
+  assert.doesNotMatch(preview, /content\.style\.zoom/);
   assert.match(preview, /<AutoFitResumePage>/);
   assert.ok(Math.abs(A4_WIDTH_MM / A4_HEIGHT_MM - 1 / 1.414) < 0.001);
 });

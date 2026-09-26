@@ -52,7 +52,7 @@ function AutoFitResumePage({ children }) {
 
     const applyScale = (scale) => {
       const inverseScale = 100 / scale;
-      content.style.zoom = String(scale);
+      content.style.transform = `scale(${scale})`;
       content.style.width = `${inverseScale}%`;
       content.style.height = `${inverseScale}%`;
     };
