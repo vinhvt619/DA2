@@ -178,7 +178,7 @@ const BasicTemplate = ({
   language,
   certificate,
 }) => (
-  <div className="cv-print-layout cv-basic-layout h-full min-h-0 overflow-hidden bg-white p-10 font-sans text-gray-800 print:p-6">
+  <div className="cv-print-layout cv-basic-layout h-full min-h-0 min-w-0 w-full overflow-hidden bg-white p-10 font-sans text-gray-800 print:p-6">
     <div className="flex flex-col items-center text-center mb-8">
       {image && (
         <img
@@ -214,8 +214,8 @@ const BasicTemplate = ({
       </div>
     </div>
 
-    <div className="grid grid-cols-12 gap-8 print:gap-4">
-      <div className="col-span-4 flex flex-col gap-6 print:gap-3">
+    <div className="resume-basic-grid grid grid-cols-12 gap-8 print:gap-4">
+      <div className="col-span-4 min-w-0 flex flex-col gap-6 print:gap-3">
         {skill?.length > 0 && (
           <section>
             <h3 className="text-xs font-bold uppercase tracking-widest border-b border-gray-300 pb-1 mb-3 text-gray-900">
@@ -319,7 +319,7 @@ const BasicTemplate = ({
         )}
       </div>
 
-      <div className="col-span-8 flex flex-col gap-6 print:gap-3">
+      <div className="col-span-8 min-w-0 flex flex-col gap-6 print:gap-3">
         {bio && (
           <section>
             <h3 className="text-xs font-bold uppercase tracking-widest border-b border-gray-300 pb-1 mb-3 text-gray-900">
@@ -484,9 +484,9 @@ const ModernTemplate = ({
   language,
   certificate,
 }) => (
-  <div className="cv-print-layout flex h-full min-h-0 flex-col overflow-hidden bg-white font-sans text-gray-800">
-    <div className="grid h-full min-h-0 grid-cols-12">
-      <div className="cv-modern-main col-span-8 p-10 print:p-6 bg-white flex flex-col gap-6 print:gap-3">
+  <div className="cv-print-layout min-w-0 w-full flex h-full min-h-0 flex-col overflow-hidden bg-white font-sans text-gray-800">
+    <div className="resume-two-column-grid grid h-full min-h-0 grid-cols-12">
+      <div className="cv-modern-main col-span-8 min-w-0 p-10 print:p-6 bg-white flex flex-col gap-6 print:gap-3">
         <div className="mb-4 print:mb-2 text-center md:text-left">
           <h1 className="text-4xl print:text-3xl font-extrabold tracking-tight text-gray-900 mb-1">
             {personalInfo.fullName}
@@ -662,7 +662,7 @@ const ModernTemplate = ({
         )}
       </div>
 
-      <div className="cv-modern-sidebar col-span-4 bg-gray-50 p-10 print:p-6 flex flex-col gap-8 print:gap-4.5 border-l border-gray-200">
+      <div className="cv-modern-sidebar col-span-4 min-w-0 bg-gray-50 p-10 print:p-6 flex flex-col gap-8 print:gap-4.5 border-l border-gray-200">
         <div className="flex justify-center mb-2 print:mb-0">
           {image && (
             <img
@@ -1471,7 +1471,7 @@ const ElegantTemplate = ({
   language,
   certificate,
 }) => (
-  <div className="cv-print-layout cv-basic-layout h-full min-h-0 overflow-hidden bg-white p-10 font-sans text-slate-800 print:p-8">
+  <div className="cv-print-layout cv-basic-layout min-w-0 w-full h-full min-h-0 overflow-hidden bg-white p-10 font-sans text-slate-800 print:p-8">
     <header className="border-b-2 border-slate-900 pb-6">
       <div className="flex items-start justify-between gap-8">
         <div className="min-w-0 flex-1">
@@ -1493,15 +1493,15 @@ const ElegantTemplate = ({
       <TemplateBio bio={bio} headingClass="border-slate-300 text-slate-950" />
     </div>
 
-    <div className="mt-6 grid grid-cols-12 gap-8">
-      <main className="col-span-8 space-y-6">
+    <div className="resume-two-column-grid mt-6 grid grid-cols-12 gap-8">
+      <main className="col-span-8 min-w-0 space-y-6">
         <TemplateExperience items={experience} headingClass="border-slate-300 text-slate-950" dateClass="text-slate-500" />
         <TemplateEducation items={education} headingClass="border-slate-300 text-slate-950" dateClass="text-slate-500" />
         <TemplateProjects items={project} headingClass="border-slate-300 text-slate-950" accentClass="text-slate-700" />
         <TemplateCredentials items={certificate} title="Chứng chỉ" headingClass="border-slate-300 text-slate-950" metaKey="publisher" />
         <TemplateCredentials items={award} title="Giải thưởng" headingClass="border-slate-300 text-slate-950" metaKey="awarder" />
       </main>
-      <aside className="col-span-4 space-y-6 border-l border-slate-200 pl-6">
+      <aside className="col-span-4 min-w-0 space-y-6 border-l border-slate-200 pl-6">
         <TemplatePlainSkills items={skill} headingClass="border-slate-300 text-slate-950" />
         <TemplateSimpleList items={language} title="Ngoại ngữ" headingClass="border-slate-300 text-slate-950" dotClass="bg-slate-800" />
         <TemplateSimpleList items={hobby} title="Sở thích" headingClass="border-slate-300 text-slate-950" dotClass="bg-slate-800" />
@@ -1524,7 +1524,7 @@ const CreativeTemplate = ({
   language,
   certificate,
 }) => (
-  <div className="cv-print-layout flex h-full min-h-0 flex-col overflow-hidden bg-white font-sans text-slate-800">
+  <div className="cv-print-layout min-w-0 w-full flex h-full min-h-0 flex-col overflow-hidden bg-white font-sans text-slate-800">
     <header className="bg-teal-800 px-10 py-8 text-white print:py-7">
       <div className="flex items-center gap-7">
         {image ? (
@@ -1545,15 +1545,15 @@ const CreativeTemplate = ({
       </div>
     </header>
 
-    <div className="grid min-h-0 flex-1 grid-cols-12">
-      <main className="col-span-8 space-y-6 px-10 py-7 print:py-6">
+    <div className="resume-two-column-grid grid min-h-0 flex-1 grid-cols-12">
+      <main className="col-span-8 min-w-0 space-y-6 px-10 py-7 print:py-6">
         <TemplateBio bio={bio} headingClass="border-teal-200 text-teal-800" />
         <TemplateExperience items={experience} headingClass="border-teal-200 text-teal-800" dateClass="text-teal-700" />
         <TemplateProjects items={project} headingClass="border-teal-200 text-teal-800" accentClass="text-teal-700" />
         <TemplateCredentials items={certificate} title="Chứng chỉ" headingClass="border-teal-200 text-teal-800" metaKey="publisher" />
         <TemplateCredentials items={award} title="Giải thưởng" headingClass="border-teal-200 text-teal-800" metaKey="awarder" />
       </main>
-      <aside className="col-span-4 space-y-6 bg-teal-50 px-7 py-7 print:py-6">
+      <aside className="col-span-4 min-w-0 space-y-6 bg-teal-50 px-7 py-7 print:py-6">
         <TemplatePlainSkills items={skill} headingClass="border-teal-300 text-teal-900" secondaryClass="text-teal-700" dividerClass="border-teal-200" />
         <TemplateEducation items={education} headingClass="border-teal-300 text-teal-900" dateClass="text-teal-700" />
         <TemplateSimpleList items={language} title="Ngoại ngữ" headingClass="border-teal-300 text-teal-900" dotClass="bg-teal-700" />
