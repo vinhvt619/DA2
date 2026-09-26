@@ -10,7 +10,7 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { useSocket } from "../context/SocketContext.jsx";
-import { formatDateTime } from "../utils/dateTime.js";
+import { formatChatDateLabel, formatDateTime } from "../utils/dateTime.js";
 import { showToast } from "../utils/toast.js";
 
 const emojis = [
@@ -23,6 +23,27 @@ const emojis = [
 const formatMessageTime = (value) => {
   return formatDateTime(value, "HH:mm");
 };
+
+const getMessageDateKey = (value) => {
+  return formatDateTime(value, "yyyy-MM-dd", "unknown");
+};
+
+function MessageDateDivider({ value }) {
+  return (
+    <div className="py-3 first:pt-0">
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-slate-200/80" />
+        <time
+          dateTime={formatDateTime(value, "yyyy-MM-dd") || undefined}
+          className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-[9px] font-medium text-slate-400"
+        >
+          {formatChatDateLabel(value)}
+        </time>
+        <div className="h-px flex-1 bg-slate-200/80" />
+      </div>
+    </div>
+  );
+}
 
 const blobToDataUrl = (blob) =>
   new Promise((resolve, reject) => {
@@ -319,17 +340,18 @@ export default function ChatBox({ activeRoom = "general", currentUser, partner, 
       {/* Message List */}
       <div className="w-full flex-1 overflow-y-auto bg-slate-50/70 p-4">
         <div className="mt-auto w-full pt-1">
-          <div className="mb-5 flex items-center justify-center">
-            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[9px] font-medium text-slate-400">
-              Hôm nay
-            </span>
-          </div>
-          
           <div className="space-y-2">
             {messages.map((msg, i) => {
               const isMyMsg = String(msg.senderId) === String(currentUser?._id || currentUser?.id);
+              const currentDateKey = getMessageDateKey(msg.createdAt);
+              const previousDateKey = i > 0
+                ? getMessageDateKey(messages[i - 1]?.createdAt)
+                : null;
+              const showDateDivider = currentDateKey !== previousDateKey;
+
               return (
                 <div key={msg._id || i}>
+                  {showDateDivider && <MessageDateDivider value={msg.createdAt} />}
                   {!isMyMsg && isGeneral && (
                     <div className="ml-5 flex justify-start pb-0.5 text-[9px] font-bold text-violet-600">
                       {msg.senderName}

@@ -60,6 +60,20 @@ export function formatRelativeDay(value, fallback = "Không rõ") {
   return formatDate(date, "dd/MM/yyyy", fallback);
 }
 
+export function formatChatDateLabel(
+  value,
+  referenceDate = new Date(),
+  fallback = "Không rõ ngày",
+) {
+  const date = toDate(value);
+  if (!date) return fallback;
+
+  const days = differenceInCalendarDays(referenceDate, date);
+  if (days === 0) return "Hôm nay";
+  if (days === 1) return "Hôm qua";
+  return formatDate(date, "dd/MM/yyyy", fallback);
+}
+
 export function formatResumeDate(value) {
   if (!value || typeof value !== "string") return "";
   if (/^\d{4}-\d{2}$/.test(value)) {

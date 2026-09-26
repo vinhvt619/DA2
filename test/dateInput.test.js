@@ -9,6 +9,7 @@ import {
   normalizeResumeDateValue,
   parseMonthDisplayValue,
 } from "../src/utils/dateInput.js";
+import { formatChatDateLabel } from "../src/utils/dateTime.js";
 
 test("normalizes legacy date strings for native date inputs", () => {
   assert.equal(normalizeDateInputValue("Sat Feb 01 2020 07:00:00 GMT+0700"), "2020-02-01");
@@ -44,4 +45,22 @@ test("converts resume months between storage and numeric display formats", () =>
   assert.equal(parseMonthDisplayValue("09/2017"), "2017-09");
   assert.equal(parseMonthDisplayValue("7/2019"), "2019-07");
   assert.equal(normalizeMonthInputValue("07/2019"), "2019-07");
+});
+
+test("formats chat date separators from each message timestamp", () => {
+  const now = new Date("2026-09-26T12:00:00+07:00");
+
+  assert.equal(
+    formatChatDateLabel("2026-09-26T08:30:00+07:00", now),
+    "Hôm nay",
+  );
+  assert.equal(
+    formatChatDateLabel("2026-09-25T21:30:00+07:00", now),
+    "Hôm qua",
+  );
+  assert.equal(
+    formatChatDateLabel("2026-08-10T09:00:00+07:00", now),
+    "10/08/2026",
+  );
+  assert.equal(formatChatDateLabel("", now), "Không rõ ngày");
 });
