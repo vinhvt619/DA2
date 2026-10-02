@@ -83,11 +83,7 @@ const cleanResumeFillResult = (result = {}) => ({
     const description = cleanAiText(item?.description, 500);
     if (looksLikeExecutableText(`${title} ${description}`)) return null;
 
-    return {
-      title,
-      description,
-      performance: cleanAiText(item?.performance, 80),
-    };
+    return { title };
   }),
   experiences: cleanGeneratedItems(result.experiences, (item) => ({
     title: cleanAiText(item?.title, 160),
@@ -194,7 +190,7 @@ router.post("/resume/review", async (req, res) => {
       safeResume.education.length > 0 ||
       safeResume.skills.length > 0 ||
       safeResume.projects.length > 0 ||
-      safeResume.certificates.length > 0;
+      safeResume.certificates.length > 0 || safeResume.customSections.some((item) => item.items.length > 0);
 
     if (!hasReviewableContent) {
       return res.status(400).json({
@@ -260,7 +256,7 @@ router.post("/resume/fill", async (req, res) => {
         "Giu nguyen cac su kien co san. Voi moi muc da co, tra lai day du va chi bo sung truong dang trong hoac mo ta can viet lai.",
         "Neu mot nhom dang trong, tao noi dung mau phu hop voi vai tro de nguoi dung sua lai truoc khi luu.",
         "Khong dung ten cong ty, truong hoc, chung chi, giai thuong hoac moc thoi gian cu the neu dau vao khong co; dung nhan chung nhu Du an ca nhan, Tu hoc chuyen mon, hoac de chuoi rong.",
-        "Tao 5-8 ky nang co mo ta ngan gon, dung nghiep vu. Bo qua moi ky nang hoac mo ta chua ma nguon, HTML, JavaScript thuc thi, lenh DOM, noi dung XSS hoac noi dung khong lien quan den CV.",
+        "Tao 5-8 ky nang, chi liet ke ten ky nang, khong tao mo ta hay trinh do. Bo qua ky nang chua ma nguon, HTML, JavaScript thuc thi, lenh DOM, noi dung XSS hoac khong lien quan den CV.",
         "Tao toi da 2 muc cho moi nhom kinh nghiem, hoc van, ngoai ngu, chung chi, du an va giai thuong; tao 2-4 so thich.",
         "Bio phai la noi dung hoan chinh de dan truc tiep vao CV, khong phai loi khuyen hay huong dan.",
         "Moi mo ta phai la van ban thuan, khong HTML, khong Markdown, khong ma nguon va khong huong dan nguoi dung.",

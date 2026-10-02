@@ -138,6 +138,7 @@ export default function News() {
             <span className="sr-only">Tìm bài viết</span>
             <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
+              name="articleSearch"
               type="search"
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
@@ -233,6 +234,7 @@ export default function News() {
               <label>
                 <span className="sr-only">Sắp xếp bài viết</span>
                 <select
+                  name="articleSort"
                   value={sortMode}
                   onChange={(event) => setSortMode(event.target.value)}
                   className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-[10px] font-medium text-slate-600 outline-none focus:border-violet-400"

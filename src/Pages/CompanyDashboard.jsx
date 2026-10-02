@@ -85,7 +85,7 @@ function AppStatusBadge({ status }) {
     Interview: "Phỏng vấn",
     Offered: "Đã đề nghị",
     Accepted: "Đã nhận",
-    Rejected: "Từ chối",
+    Rejected: "Đã từ chối",
   };
   return <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold ${map[status] || "bg-slate-100 text-slate-600"}`}>{labels[status] || "Chờ duyệt"}</span>;
 }
@@ -95,13 +95,14 @@ const applicationStatusOptions = [
   { value: "Reviewing", label: "Đang xem xét", dot: "bg-violet-500" },
   { value: "Interview", label: "Phỏng vấn", dot: "bg-sky-500" },
   { value: "Offered", label: "Đã đề nghị", dot: "bg-emerald-500" },
-  { value: "Rejected", label: "Từ chối", dot: "bg-rose-500" },
+  { value: "Rejected", label: "Đã từ chối", dot: "bg-rose-500" },
 ];
 
-function ApplicationStatusSelect({ value = "Pending", onChange }) {
+function ApplicationStatusSelect({ value = "Pending", onChange, disabled = false }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const selected = applicationStatusOptions.find((option) => option.value === value) || applicationStatusOptions[0];
+  const locked = value === "Rejected";
 
   useEffect(() => {
     const closeOnOutsideClick = (event) => {
@@ -113,11 +114,11 @@ function ApplicationStatusSelect({ value = "Pending", onChange }) {
 
   return (
     <div ref={rootRef} className="relative">
-      <button type="button" onClick={() => setOpen((current) => !current)} aria-haspopup="listbox" aria-expanded={open} className="flex h-8 w-full items-center justify-between rounded-[8px] border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-700 transition hover:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-100">
+      <button type="button" disabled={disabled || locked} title={locked ? "Hồ sơ đã bị từ chối; không thể đổi trạng thái." : "Cập nhật trạng thái ứng tuyển"} onClick={() => setOpen((current) => !current)} aria-haspopup="listbox" aria-expanded={open && !disabled && !locked} className="flex h-8 w-full items-center justify-between rounded-[8px] border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-700 transition hover:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50">
         <span className="flex items-center gap-2"><span className={`h-1.5 w-1.5 rounded-full ${selected.dot}`} />{selected.label}</span>
         <ChevronDownIcon className={`h-3.5 w-3.5 text-slate-400 transition ${open ? "rotate-180" : ""}`} />
       </button>
-      {open && (
+      {open && !disabled && !locked && (
         <div role="listbox" className="absolute right-0 top-[36px] z-40 w-full min-w-[150px] overflow-hidden rounded-[8px] border border-slate-200 bg-white p-1 shadow-lg shadow-slate-200/60">
           {applicationStatusOptions.map((option) => (
             <button key={option.value} type="button" role="option" aria-selected={value === option.value} onClick={() => { onChange(option.value); setOpen(false); }} className={`flex w-full items-center gap-2 rounded-[6px] px-2.5 py-2 text-left text-[11px] font-semibold transition ${value === option.value ? "bg-violet-50 text-violet-700" : "text-slate-600 hover:bg-slate-50"}`}>
@@ -224,7 +225,7 @@ function CompanyOverview({ currentUser, stats, jobs, applications, getJobStatus,
                     <td className="px-3 py-2.5"><AppStatusBadge status={app.status} /></td>
                     <td className="px-4 py-2.5 text-right">
                       <div className="flex justify-end gap-1.5">
-                        <button type="button" onClick={() => app.resumeId && navigate(`/resume/view/${app.resumeId}`)} disabled={!app.resumeId} className="rounded-[7px] bg-violet-100 px-2 py-1 text-[10px] font-bold text-violet-700 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:opacity-40">Xem CV</button>
+                        <button type="button" onClick={() => navigate(`/resume/view/application/${app._id}`)} className="rounded-[7px] bg-violet-100 px-2 py-1 text-[10px] font-bold text-violet-700 transition hover:bg-violet-200">Xem CV</button>
                         {app.coverLetter && <button type="button" onClick={() => onViewCoverLetter(app)} className="rounded-[7px] border border-sky-200 px-2 py-1 text-[10px] font-bold text-sky-700 transition hover:bg-sky-50">Thư ứng tuyển</button>}
                         <button type="button" onClick={() => (app.candidateId?._id || app.candidateId) && navigate(`/profile/${app.candidateId?._id || app.candidateId}`)} disabled={!(app.candidateId?._id || app.candidateId)} className="rounded-[7px] border border-slate-200 px-2 py-1 text-[10px] font-bold text-slate-600 transition hover:border-violet-200 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40">Trang cá nhân</button>
                       </div>
@@ -292,6 +293,8 @@ export default function CompanyDashboard() {
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || "overview");
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState([]);
+  const [updatingApplicationIds, setUpdatingApplicationIds] = useState([]);
+  const statusUpdateIdsRef = useRef(new Set());
   const [loading, setLoading] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
   const [selectedCoverLetter, setSelectedCoverLetter] = useState(null);
@@ -559,19 +562,32 @@ export default function CompanyDashboard() {
   };
 
   const handleUpdateStatus = async (appId, status) => {
+    const current = applications.find((app) => app._id === appId);
+    if (!current || current.status === "Rejected" || current.status === status || statusUpdateIdsRef.current.has(appId)) return;
+    statusUpdateIdsRef.current.add(appId);
+    setUpdatingApplicationIds((ids) => [...ids, appId]);
     try {
+      if (status === "Rejected" && !(await confirmDialog("Bạn có chắc chắn muốn từ chối hồ sơ này? Sau khi xác nhận, hồ sơ sẽ không thể chuyển sang trạng thái khác."))) return;
       const res = await fetch(`/api/jobs/applications/${appId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ status }),
       });
-      if (res.ok) {
-        showToast("Đã cập nhật trạng thái hồ sơ!", "success");
-        fetchDashboardData();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.message || "Không thể cập nhật trạng thái hồ sơ.", "error");
+        if (res.status === 409) await fetchDashboardData();
+        return;
       }
+      setApplications((items) => items.map((app) => app._id === appId
+        ? { ...app, status: data.application?.status || status } : app));
+      showToast("Đã cập nhật trạng thái hồ sơ!", "success");
     } catch {
       showToast("Lỗi kết nối đến máy chủ", "error");
+    } finally {
+      statusUpdateIdsRef.current.delete(appId);
+      setUpdatingApplicationIds((ids) => ids.filter((id) => id !== appId));
     }
   };
 
@@ -874,10 +890,10 @@ export default function CompanyDashboard() {
                               </div>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
-                              <button type="button" onClick={() => app.resumeId && navigate(`/resume/view/${app.resumeId}`)} disabled={!app.resumeId} className="rounded-[8px] bg-violet-100 px-2 py-1.5 text-[11px] font-black text-violet-700 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:opacity-40">Xem CV</button>
+                              <button type="button" onClick={() => navigate(`/resume/view/application/${app._id}`)} className="rounded-[8px] bg-violet-100 px-2 py-1.5 text-[11px] font-black text-violet-700 transition hover:bg-violet-200">Xem CV</button>
                               <button type="button" onClick={() => (app.candidateId?._id || app.candidateId) && navigate(`/profile/${app.candidateId?._id || app.candidateId}`)} disabled={!(app.candidateId?._id || app.candidateId)} className="rounded-[8px] border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-600 transition hover:border-violet-200 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40">Trang cá nhân</button>
                               {app.coverLetter && <button type="button" onClick={() => setSelectedCoverLetter(app)} className="col-span-2 rounded-[8px] border border-sky-200 bg-sky-50 px-2 py-1.5 text-[11px] font-bold text-sky-700 transition hover:bg-sky-100">Xem thư ứng tuyển</button>}
-                              <div className="col-span-2"><ApplicationStatusSelect value={app.status} onChange={(nextStatus) => handleUpdateStatus(app._id, nextStatus)} /></div>
+                              <div className="col-span-2"><ApplicationStatusSelect value={app.status} disabled={updatingApplicationIds.includes(app._id)} onChange={(nextStatus) => handleUpdateStatus(app._id, nextStatus)} /></div>
                             </div>
                           </div>
                         </PortalCard>

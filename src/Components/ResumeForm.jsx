@@ -8,6 +8,7 @@ import {
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import Editor from "./RichText/Editor";
+import ResumeCustomSections from "./ResumeCustomSections.jsx";
 import ConfirmPopUp from "./ConfirmPopUp";
 import RichTextContent from "./RichTextContent.jsx";
 import { showToast } from "../utils/toast.js";
@@ -86,6 +87,8 @@ export default function ResumeForm({
   setAward,
   hobby,
   setHobby,
+  customSections,
+  setCustomSections,
   onReviewResume,
   isReviewingResume = false,
   resumeReview = null,
@@ -131,11 +134,7 @@ export default function ResumeForm({
     description: "",
   });
 
-  const [newSkill, setNewSkill] = useState({
-    title: "",
-    description: "",
-    performance: "Trung bình",
-  });
+const [newSkill, setNewSkill] = useState({ title: "" });
   const [newLanguage, setNewLanguage] = useState({
     title: "",
     description: "",
@@ -215,11 +214,7 @@ export default function ResumeForm({
   };
   const handleEditSkill = (item) => {
     setEditingId(item.id);
-    setNewSkill({
-      title: item.title,
-      description: item.description,
-      performance: item.performance,
-    });
+setNewSkill({ title: item.title });
     setIsModalSkillOpen(true);
   };
   const handleDeleteSkill = (e, id) => {
@@ -1349,8 +1344,7 @@ export default function ResumeForm({
           <div className="flex justify-between items-start">
             <div>
               <div className="font-semibold text-sm text-gray-800">{item.title}</div>
-              <div className="text-sm text-gray-500">{item.description}</div>
-              <div className="text-xs text-gray-500">{item.performance}</div>
+
             </div>
             <div className="opacity-0 group-hover:opacity-100">
               <button
@@ -1367,11 +1361,7 @@ export default function ResumeForm({
         className="mt-3 w-full flex items-center justify-center gap-1.5 border border-dashed border-gray-200 hover:border-[#9346F5] text-gray-400 hover:text-[#9346F5] py-2 cursor-pointer rounded-xl text-xs font-semibold hover:bg-violet-50/30 transition-all"
         onClick={() => {
           setEditingId(null);
-          setNewSkill({
-            title: "",
-            description: "",
-            performance: "Trung bình",
-          });
+setNewSkill({ title: "" });
           setIsModalSkillOpen(true);
         }}
       >
@@ -1380,147 +1370,36 @@ export default function ResumeForm({
       </div>
       {isModalSkillOpen && renderInPortal(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="text-base font-bold text-gray-900">
-                {editingId ? "Chỉnh Sửa Kỹ Năng" : "Thêm Kỹ Năng Mới"}
+          <div role="dialog" aria-modal="true" aria-labelledby="skill-dialog-title" className="bg-white rounded-lg shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
+              <h3 id="skill-dialog-title" className="text-base font-bold text-gray-900">
+                {editingId ? "Chỉnh sửa kỹ năng" : "Thêm kỹ năng mới"}
               </h3>
-              <button
-                onClick={() => setIsModalSkillOpen(false)}
-                className="p-1.5 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-              >
+              <button type="button" aria-label="Đóng kỹ năng" title="Đóng" onClick={() => setIsModalSkillOpen(false)} className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100">
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
-
-            <div className="p-6 space-y-4">
-              <div className="flex gap-4">
-                <div className="w-1/2">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
-                    Tên kỹ năng <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ví dụ: ReactJS, Lãnh đạo"
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#9346F5] focus:ring-2 focus:ring-[#9346F5]/10 outline-none transition-all"
-                    value={newSkill.title}
-                    onChange={(e) =>
-                      setNewSkill({
-                        ...newSkill,
-                        title: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div className="w-1/2">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
-                    Mô tả (Tùy chọn)
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#9346F5] focus:ring-2 focus:ring-[#9346F5]/10 outline-none transition-all"
-                    value={newSkill.description}
-                    onChange={(e) =>
-                      setNewSkill({
-                        ...newSkill,
-                        description: e.target.value,
-                      })
-                    }
-                  />
-                </div>
+            <form onSubmit={(event) => {
+              event.preventDefault();
+              const title = newSkill.title.trim();
+              if (!title) return;
+              setSkill(editingId ? skill.map((item) => item.id === editingId ? { title, id: editingId } : item)
+                : [...skill, { title, id: crypto.randomUUID() }]);
+              setIsModalSkillOpen(false);
+            }}>
+              <div className="p-5">
+                <label htmlFor="skill-name" className="block text-sm font-semibold text-gray-600">Tên kỹ năng</label>
+                <input id="skill-name" autoFocus required maxLength={200} placeholder="Ví dụ: ReactJS, Lãnh đạo"
+                  className="mt-2 w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-[#9346F5] focus:ring-2 focus:ring-[#9346F5]/10 outline-none"
+                  value={newSkill.title} onChange={(event) => setNewSkill({ title: event.target.value })} />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
-                  Trình độ:{" "}
-                  <span className="text-blue-600 font-bold">
-                    {newSkill.performance || "Trung bình"}
-                  </span>
-                </label>
-                <input
-                  type="range"
-                  min="1"
-                  max="5"
-                  step="1"
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                  value={
-                    newSkill.performance === "Tệ"
-                      ? 1
-                      : newSkill.performance === "Trung bình"
-                        ? 2
-                        : newSkill.performance === "Tạm được"
-                          ? 3
-                          : newSkill.performance === "Tốt"
-                            ? 4
-                            : newSkill.performance === "Xuất sắc"
-                              ? 5
-                              : 2
-                  }
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value);
-                    let textVal = "Trung bình";
-                    if (val === 1) textVal = "Tệ";
-                    if (val === 2) textVal = "Trung bình";
-                    if (val === 3) textVal = "Tạm được";
-                    if (val === 4) textVal = "Tốt";
-                    if (val === 5) textVal = "Xuất sắc";
-
-                    setNewSkill({
-                      ...newSkill,
-                      performance: textVal,
-                    });
-                  }}
-                />
-                <div className="flex justify-between text-xs text-gray-500 mt-1 px-1">
-                  <span>Tệ</span>
-                  <span>Trung bình</span>
-                  <span>Tạm được</span>
-                  <span>Tốt</span>
-                  <span>Xuất sắc</span>
-                </div>
+              <div className="px-5 py-3 border-t border-gray-100 flex justify-end gap-2">
+                <button type="button" onClick={() => setIsModalSkillOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-md border border-gray-200">Hủy</button>
+                <button type="submit" disabled={!newSkill.title.trim()} className="px-4 py-2 text-sm font-medium text-white rounded-md bg-[#9346F5] hover:bg-[#7e39d1] disabled:opacity-50 disabled:cursor-not-allowed">
+                  {editingId ? "Lưu thay đổi" : "Thêm mới"}
+                </button>
               </div>
-            </div>
-
-            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
-              <button
-                onClick={() => setIsModalSkillOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-xl border border-gray-200"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={() => {
-                  if (!newSkill.title) {
-                    alert("Vui lòng điền tên kỹ năng!");
-                    return;
-                  }
-
-                  if (editingId) {
-                    setSkill(
-                      skill.map((item) =>
-                        item.id === editingId
-                          ? { ...newSkill, id: editingId }
-                          : item,
-                      ),
-                    );
-                  } else {
-                    setSkill([...skill, { ...newSkill, id: Date.now() }]);
-                  }
-
-                  setIsModalSkillOpen(false);
-                }}
-                className={`
-                  px-4 py-2 text-sm font-medium text-white rounded-lg shadow-md
-                  ${
-                    !newSkill.title
-                      ? "bg-purple-300 cursor-not-allowed"
-                      : "bg-[#9346F5] hover:bg-[#7e39d1]"
-                  }
-                `}
-                disabled={!newSkill.title}
-              >
-                {editingId ? "Lưu thay đổi" : "Thêm mới"}
-              </button>
-            </div>
+            </form>
           </div>
         </div>
       )}
@@ -2314,6 +2193,9 @@ export default function ResumeForm({
         </div>
         </div>
         </div>
+      <div className="px-5 pb-5">
+        <ResumeCustomSections sections={customSections} onChange={setCustomSections} />
+      </div>
       {confirmState.isOpen && renderInPortal(
         <ConfirmPopUp
           message={confirmState.message}

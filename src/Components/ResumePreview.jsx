@@ -10,6 +10,8 @@ import {
   formatResumeDateRange,
 } from "../utils/dateTime.js";
 import RichTextContent from "./RichTextContent.jsx";
+import { normalizeCustomSections, normalizeSkillNames } from "../../shared/resumeCustomSections.js";
+import { getTemplateLayout, isTemplateLayoutCustomized, customSectionKey } from "../utils/resumeLayout.js";
 
 const safeExternalUrl = (value) => {
   if (typeof value !== "string" || !value.trim()) return undefined;
@@ -216,35 +218,7 @@ const BasicTemplate = ({
 
     <div className="resume-basic-grid grid grid-cols-12 gap-8 print:gap-4">
       <div className="col-span-4 min-w-0 flex flex-col gap-6 print:gap-3">
-        {skill?.length > 0 && (
-          <section>
-            <h3 className="text-xs font-bold uppercase tracking-widest border-b border-gray-300 pb-1 mb-3 text-gray-900">
-              Kỹ năng
-            </h3>
-            <div className="flex flex-col gap-3 text-xs text-gray-700">
-              {skill.map((item) => (
-                <div key={item.id} className="break-inside-avoid">
-                  <div className="flex flex-wrap gap-1.5 items-center">
-                    <span className="font-semibold text-gray-900">
-                      {item.title}
-                    </span>
-                    {item.performance && (
-                      <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-sm">
-                        {item.performance}
-                      </span>
-                    )}
-                  </div>
-                  {item.description && (
-                    <RichTextContent
-                      className="mt-1 text-gray-600"
-                      content={item.description}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+<TemplatePlainSkills items={skill} headingClass="border-gray-300 text-gray-900" titleClass="text-slate-900" />
 
         {language?.length > 0 && (
           <section>
@@ -673,35 +647,7 @@ const ModernTemplate = ({
           )}
         </div>
 
-        {skill?.length > 0 && (
-          <section>
-            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 mb-4 print:mb-2 pb-1 border-b-2 border-gray-200">
-              Kỹ năng
-            </h3>
-            <div className="flex flex-col gap-3 print:gap-1.5">
-              {skill.map((i) => (
-                <div key={i.id} className="break-inside-avoid">
-                  <div className="flex flex-wrap gap-1.5 items-center">
-                    <span className="font-semibold text-gray-900 text-xs">
-                      {i.title}
-                    </span>
-                    {i.performance && (
-                      <span className="text-[10px] bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-sm">
-                        {i.performance}
-                      </span>
-                    )}
-                  </div>
-                  {i.description && (
-                    <RichTextContent
-                      className="mt-1 print:mt-0.5 text-xs text-gray-600 print:leading-normal"
-                      content={i.description}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+<TemplatePlainSkills items={skill} headingClass="border-gray-300 text-gray-900" titleClass="text-slate-900" />
 
         {language?.length > 0 && (
           <section>
@@ -846,52 +792,7 @@ const ProfessionalTemplate = ({
         </section>
       )}
 
-      {skill?.length > 0 && (
-        <section>
-          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 border-b border-gray-700 pb-1">
-            Kỹ năng
-          </h3>
-          <div className="flex flex-col gap-3">
-            {skill.map((i) => (
-              <div key={i.id} className="break-inside-avoid">
-                <div className="flex justify-between items-center mb-1">
-                  <div className="text-xs font-medium text-gray-300">
-                    {i.title}
-                  </div>
-                  {i.performance && (
-                    <div className="text-[10px] text-gray-500">
-                      {i.performance}
-                    </div>
-                  )}
-                </div>
-                <div className="w-full bg-gray-800 h-1 rounded-full overflow-hidden">
-                  <div
-                    className="bg-gray-400 h-full"
-                    style={{
-                      width:
-                        i.performance === "Xuất sắc"
-                          ? "100%"
-                          : i.performance === "Tốt"
-                            ? "80%"
-                            : i.performance === "Tạm được"
-                              ? "60%"
-                              : i.performance === "Trung bình"
-                                ? "40%"
-                                : "20%",
-                    }}
-                  ></div>
-                </div>
-                {i.description && (
-                  <RichTextContent
-                    className="mt-1.5 text-[10px] text-gray-400"
-                    content={i.description}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+<TemplatePlainSkills items={skill} headingClass="border-gray-700 text-gray-400" titleClass="text-gray-300" />
 
       {language?.length > 0 && (
         <section>
@@ -1272,34 +1173,14 @@ const TemplateSimpleList = ({
   );
 };
 
-const TemplatePlainSkills = ({
-  items,
-  headingClass,
-  titleClass = "text-slate-900",
-  secondaryClass = "text-slate-500",
-  dividerClass = "border-slate-200",
-}) => {
+const TemplatePlainSkills = ({ items, headingClass, titleClass = "text-slate-900" }) => {
   if (!items?.length) return null;
-
   return (
     <section>
       <TemplateSectionTitle className={headingClass}>Kỹ năng</TemplateSectionTitle>
-      <div className={`divide-y ${dividerClass}`}>
-        {items.map((item, index) => (
-          <div key={item.id || `${item.title}-${index}`} className="break-inside-avoid py-2 first:pt-0">
-            <div className="flex items-baseline justify-between gap-3">
-              <span className={`text-[11px] font-bold ${titleClass}`}>{item.title}</span>
-              {item.performance && <span className={`shrink-0 text-[9px] font-semibold ${secondaryClass}`}>{item.performance}</span>}
-            </div>
-            {item.description && (
-              <RichTextContent
-                className={`mt-0.5 text-[9px] leading-4 ${secondaryClass}`}
-                content={item.description}
-              />
-            )}
-          </div>
-        ))}
-      </div>
+      <ul className={`list-disc space-y-1.5 pl-3.5 text-[11px] leading-[1.5] ${titleClass}`}>
+        {items.map((item, index) => <li key={item.id || `${item.title}-${index}`} className="break-inside-avoid break-words">{item.title}</li>)}
+      </ul>
     </section>
   );
 };
@@ -1373,21 +1254,12 @@ const CompactEducation = ({ items }) => {
 
 const AtsSkills = ({ items }) => {
   if (!items?.length) return null;
-
   return (
     <section>
       <AtsSectionTitle>Kỹ năng</AtsSectionTitle>
-      <div className="space-y-1">
-        {items.map((item, index) => (
-          <div key={item.id || `${item.title}-${index}`} className="break-inside-avoid text-[10px] leading-[1.4] text-slate-700">
-            <span className="font-bold text-slate-900">{item.title}</span>
-            {item.performance && <span> — {item.performance}</span>}
-            {item.description && (
-              <RichTextContent className="text-[9px] text-slate-600" content={item.description} />
-            )}
-          </div>
-        ))}
-      </div>
+      <ul className="list-disc space-y-1 pl-3.5 text-[10px] leading-[1.4] text-slate-700">
+        {items.map((item, index) => <li key={item.id || `${item.title}-${index}`} className="break-inside-avoid break-words">{item.title}</li>)}
+      </ul>
     </section>
   );
 };
@@ -1605,8 +1477,182 @@ const CompactTemplate = ({
   </div>
 );
 
+const CUSTOM_TEMPLATE_THEMES = {
+  classic: {
+    accent: "border-slate-300 text-slate-900",
+    secondary: "text-slate-600",
+    sidebar: "border-l border-slate-200 pl-6",
+  },
+  modern: {
+    accent: "border-blue-200 text-blue-800",
+    secondary: "text-blue-700",
+    sidebar: "rounded-xl bg-slate-50 p-5",
+  },
+  professional: {
+    accent: "border-indigo-200 text-indigo-900",
+    secondary: "text-indigo-700",
+    sidebar: "border-l-2 border-indigo-100 pl-6",
+  },
+  elegant: {
+    accent: "border-slate-300 text-slate-950",
+    secondary: "text-slate-500",
+    sidebar: "border-l border-slate-200 pl-6",
+  },
+  creative: {
+    accent: "border-teal-200 text-teal-800",
+    secondary: "text-teal-700",
+    sidebar: "rounded-xl bg-teal-50 p-5",
+  },
+  compact: {
+    accent: "border-slate-400 text-slate-950",
+    secondary: "text-slate-600",
+    sidebar: "",
+  },
+};
+
+const DynamicResumeSection = ({ section, data, theme, compact }) => {
+  if (section.startsWith("custom:")) {
+    const item = data.customSections?.find((entry) => customSectionKey(entry.id) === section);
+    if (!item) return null;
+    return (
+      <section data-custom-section={item.id}>
+        <h3 className={`mb-3 border-b pb-1 text-xs font-bold uppercase break-words ${theme.accent}`}>{item.title}</h3>
+<div className="space-y-3 text-[10px] leading-[1.55] text-slate-700">
+          {item.items.map((entry) => <article key={entry.id} className="break-inside-avoid break-words">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+              {entry.title && <h4 className="min-w-0 font-bold text-slate-900">{entry.title}</h4>}
+              {item.fields.dates && (entry.startDate || entry.endDate) && <span className="text-[9px]">{formatDateRange(entry.startDate, entry.endDate)}</span>}
+            </div>
+            {(item.fields.organization || item.fields.location) && <p>{[item.fields.organization && entry.organization, item.fields.location && entry.location].filter(Boolean).join(" · ")}</p>}
+            {item.fields.link && safeExternalUrl(entry.link) && <a href={safeExternalUrl(entry.link)} target="_blank" rel="noopener noreferrer" className="block break-all text-blue-700 underline">{entry.link}</a>}
+            {item.fields.description && entry.description && <RichTextContent content={entry.description} className="mt-1" />}
+            {entry.details.filter((detail) => detail.label && detail.value).map((detail, index) => <p key={`${detail.id}-${index}`} className="mt-0.5 whitespace-pre-wrap"><span className="font-semibold">{detail.label}: </span>{detail.value}</p>)}
+          </article>)}
+        </div>
+      </section>
+    );
+  }
+  if (compact) {
+    switch (section) {
+      case "bio":
+        return data.bio ? (
+          <section>
+            <AtsSectionTitle>Tóm tắt nghề nghiệp</AtsSectionTitle>
+            <RichTextContent className="text-[10px] leading-[1.55] text-slate-700" content={data.bio} />
+          </section>
+        ) : null;
+      case "experience": return <CompactExperience items={data.experience} />;
+      case "education": return <CompactEducation items={data.education} />;
+      case "skill": return <AtsSkills items={data.skill} />;
+      case "project": return <AtsProjects items={data.project} />;
+      case "certificate": return <AtsCredentials items={data.certificate} title="Chứng chỉ" metaKey="publisher" />;
+      case "award": return <AtsCredentials items={data.award} title="Giải thưởng" metaKey="awarder" />;
+      case "language": return <AtsInlineList items={data.language} title="Ngoại ngữ" />;
+      case "hobby": return <AtsInlineList items={data.hobby} title="Sở thích" />;
+      default: return null;
+    }
+  }
+
+  switch (section) {
+    case "bio":
+      return <TemplateBio bio={data.bio} headingClass={theme.accent} />;
+    case "experience":
+      return <TemplateExperience items={data.experience} headingClass={theme.accent} dateClass={theme.secondary} />;
+    case "education":
+      return <TemplateEducation items={data.education} headingClass={theme.accent} dateClass={theme.secondary} />;
+    case "project":
+      return <TemplateProjects items={data.project} headingClass={theme.accent} accentClass={theme.secondary} />;
+    case "certificate":
+      return <TemplateCredentials items={data.certificate} title="Chứng chỉ" headingClass={theme.accent} metaKey="publisher" />;
+    case "award":
+      return <TemplateCredentials items={data.award} title="Giải thưởng" headingClass={theme.accent} metaKey="awarder" />;
+    case "skill":
+      return <TemplatePlainSkills items={data.skill} headingClass={theme.accent} secondaryClass={theme.secondary} />;
+    case "language":
+      return <TemplateSimpleList items={data.language} title="Ngoại ngữ" headingClass={theme.accent} secondaryClass={theme.secondary} />;
+    case "hobby":
+      return <TemplateSimpleList items={data.hobby} title="Sở thích" headingClass={theme.accent} secondaryClass={theme.secondary} />;
+    default:
+      return null;
+  }
+};
+
+const CustomizableTemplate = ({ selectedTemplate, layout, ...data }) => {
+  const zones = getTemplateLayout(layout, selectedTemplate, data.customSections);
+  const theme = CUSTOM_TEMPLATE_THEMES[selectedTemplate] || CUSTOM_TEMPLATE_THEMES.modern;
+  const compact = selectedTemplate === "compact";
+  const creative = selectedTemplate === "creative";
+
+  const header = (
+    <header className={creative ? "bg-teal-800 px-10 py-7 text-white" : "border-b-2 border-slate-900 pb-5"}>
+      <div className="flex items-center gap-6">
+        {data.image && (
+          <img
+            src={data.image}
+            alt="Profile"
+            className={`h-20 w-20 shrink-0 object-cover ${creative ? "rounded-full border-4 border-white/30" : "rounded-md"}`}
+          />
+        )}
+        <div className="min-w-0 flex-1">
+          <h1 className={`text-[32px] font-black leading-tight ${creative ? "text-white" : "text-slate-950"}`}>
+            {data.personalInfo.fullName}
+          </h1>
+          <h2 className={`mt-1 text-[12px] font-semibold uppercase tracking-[0.14em] ${creative ? "text-teal-100" : theme.secondary}`}>
+            {data.personalInfo.jobTitle}
+          </h2>
+        </div>
+      </div>
+      <div className={`mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-[10px] ${creative ? "text-teal-50" : "text-slate-600"}`}>
+        {[data.personalInfo.email, data.personalInfo.phone, data.personalInfo.location, data.personalInfo.website]
+          .filter(Boolean)
+          .map((item) => <span key={item}>{item}</span>)}
+        {data.profile?.map((item, index) => (
+          <a key={item.id || index} href={safeExternalUrl(item.link)} target="_blank" rel="noopener noreferrer" className="break-words">
+            {[item.networkName, item.username].filter(Boolean).join(": ") || item.link}
+          </a>
+        ))}
+      </div>
+    </header>
+  );
+
+  if (compact) {
+    return (
+      <div className="cv-print-layout cv-basic-layout h-full min-h-0 overflow-hidden bg-white p-8 font-sans text-slate-800 print:p-6">
+        {header}
+        <main className="mt-4 space-y-4">
+          {zones.main.map((section) => (
+            <DynamicResumeSection key={section} section={section} data={data} theme={theme} compact />
+          ))}
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="cv-print-layout cv-basic-layout h-full min-h-0 overflow-hidden bg-white font-sans text-slate-800">
+      {creative ? header : <div className="px-10 pt-9">{header}</div>}
+      <div className="resume-two-column-grid grid grid-cols-12 gap-8 px-10 py-7 print:gap-5 print:px-7 print:py-5">
+        <main className={`${zones.sidebar.length ? "col-span-8" : "col-span-12"} min-w-0 space-y-6`}>
+          {zones.main.map((section) => (
+            <DynamicResumeSection key={section} section={section} data={data} theme={theme} />
+          ))}
+        </main>
+        {zones.sidebar.length > 0 && (
+          <aside className={`col-span-4 min-w-0 space-y-6 ${theme.sidebar}`}>
+            {zones.sidebar.map((section) => (
+              <DynamicResumeSection key={section} section={section} data={data} theme={theme} />
+            ))}
+          </aside>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default function ResumePreview({
   selectedTemplate = "modern",
+  layout,
+  customSections = [],
   image,
   personalInfo,
   bio,
@@ -1632,13 +1678,14 @@ export default function ResumePreview({
     : "modern";
 
   const commonProps = {
+    customSections: normalizeCustomSections(customSections),
     image,
     personalInfo,
     bio,
     profile,
     experience,
     education,
-    skill,
+    skill: normalizeSkillNames(skill),
     project,
     award,
     hobby,
@@ -1648,6 +1695,9 @@ export default function ResumePreview({
 
   return (
     <AutoFitResumePage>
+      {isTemplateLayoutCustomized(layout, template) || customSections.length > 0 ? (
+        <CustomizableTemplate selectedTemplate={template} layout={layout} {...commonProps} />
+      ) : <>
       {template === "classic" && <BasicTemplate {...commonProps} />}
       {template === "modern" && <ModernTemplate {...commonProps} />}
       {template === "professional" && (
@@ -1656,6 +1706,7 @@ export default function ResumePreview({
       {template === "elegant" && <ElegantTemplate {...commonProps} />}
       {template === "creative" && <CreativeTemplate {...commonProps} />}
       {template === "compact" && <CompactTemplate {...commonProps} />}
+      </>}
     </AutoFitResumePage>
   );
 }

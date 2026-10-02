@@ -101,6 +101,8 @@ function getPreviewData(cv) {
 
   return {
     image: source.image || null,
+    layout: source.layout,
+    customSections: source.customSections || [],
     personalInfo: { ...PREVIEW_PLACEHOLDER, ...(source.personalInfo || {}) },
     bio: source.bio || "",
     profile: preparePreviewItems(source.profile, 2),
@@ -392,6 +394,8 @@ export default function ResumeSelection() {
           <div ref={printContentRef} className="cv-wrapper bg-white">
             <ResumePreview
               selectedTemplate={resumeToPrint.selectedTemplate || "modern"}
+              layout={resumeToPrint.layout}
+              customSections={resumeToPrint.customSections || []}
               image={resumeToPrint.image || ""}
               personalInfo={resumeToPrint.personalInfo || {}}
               bio={resumeToPrint.bio || ""}

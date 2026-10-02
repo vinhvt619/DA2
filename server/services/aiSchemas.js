@@ -120,13 +120,8 @@ export const AI_RESPONSE_SCHEMAS = {
             additionalProperties: false,
             properties: {
               title: { type: "string" },
-              description: { type: "string" },
-              performance: {
-                type: "string",
-                enum: ["Tệ", "Trung bình", "Tạm được", "Tốt", "Xuất sắc"],
-              },
             },
-            required: ["title", "description", "performance"],
+            required: ["title"],
           },
         },
         experiences: {

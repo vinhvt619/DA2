@@ -87,32 +87,16 @@ export const mergeAiSection = (
   return appendGenerated ? [...mergedExisting, ...additions] : mergedExisting;
 };
 
-const SKILL_LEVELS = new Set([
-  "Tệ",
-  "Trung bình",
-  "Tạm được",
-  "Tốt",
-  "Xuất sắc",
-]);
-
 export const mergeAiSkills = (existingItems, generatedItems) => {
-  const safeExisting = (Array.isArray(existingItems) ? existingItems : []).filter(
-    (item) =>
-      cleanGeneratedText(item?.title, 120) &&
-      !isSuspiciousResumeText(`${item?.title || ""} ${item?.description || ""}`),
-  );
-  const merged = mergeAiSection(
-    safeExisting,
-    generatedItems,
-    ["title", "description", "performance"],
-    "skill",
-    { appendGenerated: true },
-  );
-
-  return merged.slice(0, 8).map((item) => ({
-    ...item,
-    performance: SKILL_LEVELS.has(item.performance)
-      ? item.performance
-      : "Tốt",
-  }));
+  const safe = (items) => (Array.isArray(items) ? items : []).filter((item) =>
+    cleanGeneratedText(item?.title, 200) &&
+    !isSuspiciousResumeText(`${item?.title || ""} ${item?.description || ""}`));
+  const seen = new Set();
+  return [...safe(existingItems), ...safe(generatedItems).slice(0, 8)].flatMap((item) => {
+    const title = cleanGeneratedText(item.title, 200);
+    const key = normalizeTitle(title);
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [{ id: item.id || crypto.randomUUID(), title }];
+  });
 };

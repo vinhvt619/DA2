@@ -1,11 +1,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
+import { viteHmrHeartbeat } from "./scripts/viteHmrHeartbeat.mjs";
+import { viteHmrBfcache } from "./scripts/viteHmrBfcache.mjs";
 
 // https://vite.dev/config/
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), viteHmrHeartbeat(), viteHmrBfcache()],
   build: {
     rollupOptions: {
       output: {
@@ -66,6 +68,10 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 4000,
     strictPort: true,
+    hmr: {
+      path: "/__vite_hmr",
+      timeout: 10_000,
+    },
     proxy: {
       "/api": { target: "http://localhost:5000", changeOrigin: true },
       "/socket.io": { target: "http://localhost:5000", ws: true },

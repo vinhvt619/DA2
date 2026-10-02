@@ -4,9 +4,7 @@ import {
   FaceSmileIcon,
   InformationCircleIcon,
   PaperAirplaneIcon,
-  PhoneIcon,
   PhotoIcon,
-  VideoCameraIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { useSocket } from "../context/SocketContext.jsx";
@@ -167,8 +165,12 @@ export default function ChatBox({ activeRoom = "general", currentUser, partner, 
       }
     };
     socket.on("newMessage", handleNewMessage);
-    return () => socket.off("newMessage", handleNewMessage);
-  }, [socket, activeRoom]);
+    socket.on("connect", loadMessages);
+    return () => {
+      socket.off("newMessage", handleNewMessage);
+      socket.off("connect", loadMessages);
+    };
+  }, [socket, activeRoom, loadMessages]);
 
   useEffect(() => {
     endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -300,18 +302,8 @@ export default function ChatBox({ activeRoom = "general", currentUser, partner, 
         <div className="flex items-center gap-0.5">
           <button
             type="button"
-            className="text-gray-500 hover:bg-gray-50 rounded-lg p-1.5 border border-transparent hover:border-gray-200"
-          >
-            <PhoneIcon className="size-4.5" />
-          </button>
-          <button
-            type="button"
-            className="text-gray-500 hover:bg-gray-50 rounded-lg p-1.5 border border-transparent hover:border-gray-200"
-          >
-            <VideoCameraIcon className="size-4.5" />
-          </button>
-          <button
-            type="button"
+            aria-label="Thông tin cuộc trò chuyện"
+            title="Thông tin cuộc trò chuyện"
             onClick={onToggleMenu}
             className="text-gray-500 hover:bg-gray-50 rounded-lg p-1.5 border border-transparent hover:border-gray-200"
           >
@@ -407,6 +399,8 @@ export default function ChatBox({ activeRoom = "general", currentUser, partner, 
             <PhotoIcon className="size-4.5" />
           </button>
           <input
+            name="chatAttachment"
+            aria-label="Đính kèm hình ảnh"
             type="file"
             ref={fileInputRef}
             onChange={handleImageChange}
@@ -447,6 +441,8 @@ export default function ChatBox({ activeRoom = "general", currentUser, partner, 
           )}
 
           <input
+            name="chatMessage"
+            aria-label="Tin nhắn"
             ref={inputRef}
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}

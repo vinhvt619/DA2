@@ -33,7 +33,7 @@ const seedData = {
       description: "",
     },
   ],
-  skill: [{ title: "", description: "", performance: "" }],
+  skill: [{ title: "" }],
   language: [{ title: "", description: "" }],
   certificate: [{ title: "", date: "", publisher: "", description: "" }],
   project: [

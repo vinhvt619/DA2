@@ -1,3 +1,5 @@
+import { normalizeCustomSections } from "../../shared/resumeCustomSections.js";
+
 const MAX_ARRAY_ITEMS = 20;
 
 export const cleanAiText = (value, maxLength = 4000) => {
@@ -59,6 +61,18 @@ export const sanitizeResumeForAi = (resume = {}) => ({
     website: Boolean(cleanAiText(resume.personalInfo?.website, 500)),
   },
   summary: cleanAiText(resume.bio, 2500),
+  customSections: sanitizeList(normalizeCustomSections(resume.customSections), (item) => ({
+    title: cleanAiText(item?.title, 120),
+    items: sanitizeList(item.items, (entry) => ({
+      title: cleanAiText(entry.title, 200),
+      ...(item.fields.organization ? { organization: cleanAiText(entry.organization, 200) } : {}),
+      ...(item.fields.location ? { location: cleanAiText(entry.location, 200) } : {}),
+      ...(item.fields.dates ? { period: formatAiPeriod(entry.startDate, entry.endDate) } : {}),
+      ...(item.fields.link ? { hasLink: Boolean(entry.link) } : {}),
+      ...(item.fields.description ? { description: cleanAiText(entry.description, 2500) } : {}),
+      details: entry.details.filter((detail) => detail.label && detail.value).map((detail) => ({ label: cleanAiText(detail.label, 100), value: cleanAiText(detail.value, 1000) })),
+    })),
+  })),
   experience: sanitizeList(resume.experience, (item) => ({
     title: cleanAiText(item?.title, 160),
     company: cleanAiText(item?.company, 160),
@@ -77,12 +91,11 @@ export const sanitizeResumeForAi = (resume = {}) => ({
   skills: sanitizeList(resume.skill, (item) => ({
     title: cleanAiText(item?.title, 120),
     description: cleanAiText(item?.description, 500),
-    level: cleanAiText(item?.performance, 80),
   })).filter(
     (item) =>
       item.title &&
       !looksLikeExecutableText(`${item.title} ${item.description}`),
-  ),
+  ).map((item) => ({ title: item.title })),
   projects: sanitizeList(resume.project, (item) => ({
     title: cleanAiText(item?.title, 160),
     period: formatAiDate(item?.date),

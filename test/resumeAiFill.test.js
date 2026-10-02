@@ -39,10 +39,8 @@ test("AI skill merge removes executable descriptions and keeps useful skills", (
 
   assert.equal(result.some((item) => item.title === "XSS Test"), false);
   assert.equal(result.length, 2);
-  assert.equal(
-    result.find((item) => item.title === "React")?.description,
-    "Xây dựng component tái sử dụng và quản lý state.",
-  );
+  assert.deepEqual(result.find((item) => item.title === "React"), { id: "react", title: "React" });
+  assert.ok(result.every((item) => !Object.hasOwn(item, "description") && !Object.hasOwn(item, "performance")));
 });
 
 test("AI section merge fills blanks without adding facts to an existing section", () => {
@@ -68,6 +66,15 @@ test("AI section merge fills blanks without adding facts to an existing section"
     "Nền tảng tạo CV và tìm việc trực tuyến.",
   );
   assert.equal(result.length, 1);
+});
+
+test("AI skills append new names without consuming unrelated suggestions or truncating existing skills", () => {
+  const existing = Array.from({ length: 10 }, (_, index) => ({ id: `existing-${index}`, title: `Skill ${index}` }));
+  const result = mergeAiSkills(existing, [{ title: "React" }, { title: "react" }, { title: "DOMParser" }]);
+  assert.equal(result.length, 11);
+  assert.equal(result.at(-1).title, "React");
+  assert.ok(result.at(-1).id);
+  assert.deepEqual(result.slice(0, 10), existing);
 });
 
 test("AI section merge fills a completely empty section", () => {

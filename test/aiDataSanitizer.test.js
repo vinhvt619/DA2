@@ -71,6 +71,7 @@ test("resume AI payload excludes direct contact information", () => {
     "targetRole",
     "contactCompleteness",
     "summary",
+    "customSections",
     "experience",
     "education",
     "skills",
@@ -91,7 +92,7 @@ test("resume AI payload excludes direct contact information", () => {
   });
   assert.equal(payload.summary, "Ba năm kinh nghiệm React.");
   assert.equal(payload.experience[0].description, "Xây dựng giao diện tuyển dụng.");
-  assert.equal(payload.skills[0].level, "Xuất sắc");
+  assert.deepEqual(Object.keys(payload.skills[0]), ["title"]);
   assert.equal(payload.certificates[0].date, "10/2022");
   assert.equal(payload.education[0].score, "3.2/4.0");
   assert.doesNotMatch(JSON.stringify(payload), /candidate@example\.com|0900000000/);
@@ -116,8 +117,6 @@ test("resume AI payload removes skills containing executable code", () => {
   assert.deepEqual(payload.skills, [
     {
       title: "React",
-      description: "Xây dựng component và quản lý state.",
-      level: "Tốt",
     },
   ]);
 });

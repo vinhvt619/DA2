@@ -58,6 +58,8 @@ export default function useNotifications() {
       ),
     enabled,
     placeholderData: keepPreviousData,
+    // Reconcile persisted notifications even when the realtime connection is unavailable.
+    refetchInterval: 30_000,
   });
 
   const updateAllLists = useCallback(

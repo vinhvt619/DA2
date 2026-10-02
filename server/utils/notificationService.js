@@ -1,5 +1,20 @@
 import Notification from '../models/Notification.js';
 
+let publishNotification = async () => {};
+
+export function setNotificationPublisher(publisher) {
+  publishNotification = publisher;
+}
+
+async function publishSavedNotification(notification) {
+  try {
+    await publishNotification(notification);
+  } catch (error) {
+    // A delivery failure must not discard a notification already saved in MongoDB.
+    console.error('Error publishing notification:', error);
+  }
+}
+
 /**
  * Tạo mới 1 thông báo
  * @param {Object} data 
@@ -14,6 +29,7 @@ export const createNotification = async (data) => {
   try {
     const notification = new Notification(data);
     await notification.save();
+    await publishSavedNotification(notification);
     return notification;
   } catch (error) {
     console.error('Error creating notification:', error);
@@ -30,6 +46,9 @@ export const createNotificationsBulk = async (dataArray) => {
   if (!dataArray || dataArray.length === 0) return [];
   try {
     const result = await Notification.insertMany(dataArray);
+    for (let index = 0; index < result.length; index += 20) {
+      await Promise.all(result.slice(index, index + 20).map(publishSavedNotification));
+    }
     return result;
   } catch (error) {
     console.error('Error in createNotificationsBulk:', error);

@@ -15,7 +15,7 @@
     "check": "npm run lint && npm run test && npm run build",
     "check:all": "npm run check && npm run test:e2e",
     "preview": "vite preview",
-    "start": "nodemon --watch server --watch .env --ext js,json,env --ignore dist --ignore src server/server.js",
+    "start": "nodemon --watch server --watch shared --watch .env --ext js,json,env --ignore dist --ignore src server/server.js",
     "start:all": "node scripts/start-all.mjs",
     "migrate:mongo": "node scripts/migrate-mongo.js",
     "migrate:mongo:apply": "node scripts/migrate-mongo.js --apply",
@@ -23,6 +23,9 @@
     "seed:companies": "node scripts/seed-company-accounts.js"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^5.7.1",
     "@radix-ui/react-alert-dialog": "^1.1.23",

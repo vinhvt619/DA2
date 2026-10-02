@@ -5,12 +5,11 @@ import PdfResumePreview from "../Components/PdfResumePreview";
 import ResumePreview from "../Components/ResumePreview";
 import useCvZoom from "../hooks/useCvZoom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { SAMPLE_CVS } from "../data/sampleCV";
 import { ArrowLeftIcon, PrinterIcon, ChatBubbleLeftEllipsisIcon } from "@heroicons/react/24/outline";
 import useResumePrint from "../hooks/useResumePrint.js";
 
 export default function ViewResume() {
-  const { resumeId } = useParams();
+  const { resumeId, applicationId } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const previewRef = useCvZoom();
@@ -45,11 +44,18 @@ export default function ViewResume() {
   }, [resumeData]);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchResume = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/resumes/view/${resumeId}`, {
+        setError("");
+        setResumeData(null);
+        const endpoint = applicationId
+          ? `/api/jobs/applications/${applicationId}/resume`
+          : `/api/resumes/view/${resumeId}`;
+        const res = await fetch(endpoint, {
           credentials: "include",
+          signal: controller.signal,
         });
         const data = await res.json();
         if (res.ok) {
@@ -57,15 +63,17 @@ export default function ViewResume() {
         } else {
           setError(data.message || "Không thể tải hồ sơ này.");
         }
-      } catch {
+      } catch (err) {
+        if (err.name === "AbortError") return;
         setError("Lỗi kết nối đến máy chủ.");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
     fetchResume();
-  }, [resumeId]);
+    return () => controller.abort();
+  }, [resumeId, applicationId]);
 
   const handleDownloadFile = () => {
     if (!pdfBlobUrl) return;
@@ -95,6 +103,13 @@ export default function ViewResume() {
       {currentUser?.role !== "company" && <div className="print:hidden"><Header /></div>}
 
       <div ref={previewRef} className="flex-1 overflow-y-auto py-8 px-4 flex flex-col items-center print:py-0 print:px-0 view-resume-scroll print:overflow-visible print:h-auto print:flex-none">
+        {!loading && !error && resumeData?.applicationId && (
+          <p className="mb-4 w-full max-w-5xl text-center text-xs text-gray-500 print:hidden">
+            {resumeData.resumeSnapshotOrigin === "legacy"
+              ? "Hồ sơ cũ: bản CV được lưu từ phiên bản còn tồn tại, không phải bản gốc tại thời điểm ứng tuyển."
+              : "CV đã nộp khi ứng tuyển"}
+          </p>
+        )}
         <div className="w-full max-w-5xl flex items-center justify-between mb-6 print:hidden">
           <button
             onClick={handleBack}
@@ -193,6 +208,8 @@ export default function ViewResume() {
             <div ref={printContentRef} className="cv-wrapper bg-white shadow-lg print:shadow-none print:w-full rounded-sm mb-10">
               <ResumePreview
                 selectedTemplate={resumeData.selectedTemplate || "modern"}
+                layout={resumeData.layout}
+                customSections={resumeData.customSections || []}
                 image={resumeData.image || ""}
                 personalInfo={resumeData.personalInfo || {}}
                 bio={resumeData.bio || ""}

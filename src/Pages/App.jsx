@@ -90,6 +90,7 @@ function App() {
                 <Route path="/AdminDashboard" element={<Navigate to="/admin" replace />} />
                 <Route path="/CompanyDashboard" element={<CompanyDashboard />} />
                 <Route path="/resume/view/:resumeId" element={<CompanyAwarePage activeItem="applications"><ViewResume /></CompanyAwarePage>} />
+                <Route path="/resume/view/application/:applicationId" element={<CompanyAwarePage activeItem="applications"><ViewResume /></CompanyAwarePage>} />
                 <Route path="/profile/:userId" element={<CompanyAwarePage activeItem="applications"><PublicProfile /></CompanyAwarePage>} />
                 <Route path="/user-profile/:userId" element={<CompanyAwarePage activeItem="applications"><PublicProfile /></CompanyAwarePage>} />
                 <Route path="/News" element={<News />} />

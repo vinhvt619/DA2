@@ -30,7 +30,7 @@ function Editor({ content = "", onChange, className = "" }) {
     const nextContent = content || "";
     const currentHTML = editor.getHTML();
     if (nextContent !== currentHTML) {
-      editor.commands.setContent(nextContent, false);
+      editor.commands.setContent(nextContent, { emitUpdate: false });
     }
   }, [content, editor]);
 

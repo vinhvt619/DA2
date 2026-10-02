@@ -168,7 +168,11 @@ function Messenger() {
       }
     };
     socket.on("newMessage", handleNewMessage);
-    return () => socket.off("newMessage", handleNewMessage);
+    socket.on("connect", fetchThreads);
+    return () => {
+      socket.off("newMessage", handleNewMessage);
+      socket.off("connect", fetchThreads);
+    };
   }, [socket, fetchThreads, activeRoom, markRoomAsRead]);
 
   useEffect(() => {
@@ -343,6 +347,8 @@ function Messenger() {
           <div className="relative px-3 pb-2 pt-3">
             <MagnifyingGlassIcon className="size-4.5 text-gray-400 absolute left-7 top-1/2 -translate-y-1/2" />
             <input
+              name="conversationSearch"
+              aria-label="Tìm cuộc trò chuyện"
               type="search"
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}

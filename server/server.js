@@ -7,6 +7,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
+import { createApiLimiter } from "./utils/apiRateLimiter.js";
 import swaggerUi from "swagger-ui-express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -19,11 +20,17 @@ import Application from "./models/Application.js";
 import Notification from "./models/Notification.js";
 import HiddenChat from "./models/HiddenChat.js";
 import ChatReadState from "./models/ChatReadState.js";
-import { createNotification, createNotificationsBulk } from "./utils/notificationService.js";
+import { createNotification, createNotificationsBulk, setNotificationPublisher } from "./utils/notificationService.js";
+import { createNotificationPublisher, createNotificationRelayHandler } from "./services/notificationRealtime.js";
 import { validatePdfUpload } from "./utils/pdfValidation.js";
 import { isJobDeleted, isJobUnavailable } from "./utils/jobAvailability.js";
 import { sanitizeRichText } from "./utils/richTextSanitizer.js";
 import { cleanAiText } from "./utils/aiDataSanitizer.js";
+import { sanitizeResumeLayout } from "./utils/resumeLayout.js";
+import { sanitizeCustomSections } from "./utils/resumeCustomSections.js";
+import { normalizeSkillNames } from "../shared/resumeCustomSections.js";
+import { updateApplicationStatus, ApplicationStatusLockedError } from "./services/applicationStatusService.js";
+import { captureApplicationResume, freezeLegacyResumeApplications, ensureApplicationResumeSnapshot, applicationResumeData, createApplicationResumeHandler } from "./services/applicationResumeService.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import { runJobExpiryCheck } from "./cron/jobExpiryCron.js";
 import openapiSpec from "./openapi.js";
@@ -132,13 +139,7 @@ const contentSecurityPolicy = {
   },
 };
 
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 300,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  message: { message: "Qua nhieu yeu cau. Vui long thu lai sau." },
-});
+const apiLimiter = createApiLimiter();
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -541,6 +542,7 @@ const cleanDescriptions = (items) =>
 
 const sanitizeResumeData = (source) => {
   const data = source?.toObject ? source.toObject() : source || {};
+  const customSections = sanitizeCustomSections(data.customSections);
 
   return {
     ...data,
@@ -557,7 +559,7 @@ const sanitizeResumeData = (source) => {
       : [],
     experience: cleanDescriptions(data.experience),
     education: cleanDescriptions(data.education),
-    skill: cleanDescriptions(data.skill),
+    skill: normalizeSkillNames(data.skill),
     language: cleanDescriptions(data.language),
     certificate: cleanDescriptions(data.certificate),
     project: cleanDescriptions(data.project).map((item) => ({
@@ -565,6 +567,8 @@ const sanitizeResumeData = (source) => {
       link: cleanExternalUrl(item?.link),
     })),
     award: cleanDescriptions(data.award),
+    customSections,
+    layout: sanitizeResumeLayout(data.layout, customSections),
   };
 };
 
@@ -653,6 +657,7 @@ app.post("/api/resume", authMiddleware, async (req, res) => {
         return res.status(404).json({ message: "Khong tim thay CV de cap nhat." });
       }
 
+      await freezeLegacyResumeApplications(Application, resume);
       Object.assign(resume, data);
       await resume.save();
       return res.status(200).json({
@@ -674,14 +679,17 @@ app.post("/api/resume", authMiddleware, async (req, res) => {
 
 app.delete("/api/resume/:id", authMiddleware, async (req, res) => {
   try {
-    const deleted = await Resume.findOneAndDelete({
+    const resume = await Resume.findOne({
       _id: req.params.id,
       userId: req.user.id,
     });
 
-    if (!deleted) {
+    if (!resume) {
       return res.status(404).json({ message: "Khong tim thay CV de xoa" });
     }
+
+    await freezeLegacyResumeApplications(Application, resume);
+    await Resume.deleteOne({ _id: resume._id, userId: req.user.id });
 
     res.status(200).json({ message: "Da xoa CV thanh cong" });
   } catch (error) {
@@ -892,7 +900,7 @@ app.put("/api/user/profile", authMiddleware, async (req, res) => {
         experiences,
         activities,
       },
-      { new: true, runValidators: true },
+      { returnDocument: 'after', runValidators: true },
     ).select(SELF_USER_FIELDS);
 
     res.status(200).json({
@@ -944,7 +952,7 @@ app.put("/api/user/security", authMiddleware, async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       req.user.id,
       updateData,
-      { new: true, runValidators: true },
+      { returnDocument: 'after', runValidators: true },
     ).select(SELF_USER_FIELDS);
 
     res.status(200).json({
@@ -1275,7 +1283,7 @@ app.patch("/api/chat/threads/:room/read", authMiddleware, async (req, res) => {
     await ChatReadState.findOneAndUpdate(
       { userId: currentUserId, room },
       { lastReadAt: new Date() },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     );
 
     res.status(200).json({ message: "Da danh dau da doc" });
@@ -1295,7 +1303,7 @@ app.patch("/api/chat/threads/:room/hide", authMiddleware, async (req, res) => {
     await HiddenChat.findOneAndUpdate(
       { userId: req.user.id, room },
       { hiddenAt: new Date() },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
     res.status(200).json({ message: "Đã ẩn đoạn chat" });
   } catch (error) {
@@ -1370,6 +1378,10 @@ app.get("/api/jobs/applications/mine", authMiddleware, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+app.get("/api/jobs/applications/:id/resume", authMiddleware, createApplicationResumeHandler({
+  Application, Resume, Job, sanitizeResumeData,
+}));
 
 // Post a new job
 app.post("/api/jobs", authMiddleware, async (req, res) => {
@@ -1495,6 +1507,7 @@ app.post("/api/jobs/apply", authMiddleware, async (req, res) => {
       jobId,
       candidateId: req.user.id,
       resumeId,
+      ...captureApplicationResume(resume),
       fullName: resume.personalInfo?.fullName || user.fullName || user.username,
       email: resume.personalInfo?.email || user.email,
       phone: resume.personalInfo?.phone || user.phoneNumber || "",
@@ -1597,6 +1610,7 @@ app.post("/api/jobs/apply-file", authMiddleware, async (req, res) => {
       jobId,
       candidateId: req.user.id,
       resumeId: virtualResume._id,
+      ...captureApplicationResume(virtualResume),
       fullName: user.fullName || user.username,
       email: user.email,
       phone: user.phoneNumber || "",
@@ -1825,8 +1839,7 @@ app.put("/api/jobs/applications/:id", authMiddleware, async (req, res) => {
       }
     }
 
-    application.status = status;
-    await application.save();
+    const updatedApplication = await updateApplicationStatus(Application, application._id, status);
 
     const jobTitleMsg = job ? job.title : "một công việc";
     await createNotification({
@@ -1840,8 +1853,11 @@ app.put("/api/jobs/applications/:id", authMiddleware, async (req, res) => {
 
     res
       .status(200)
-      .json({ message: "Cap nhat trang thai ho so thanh cong", application });
+      .json({ message: "Cap nhat trang thai ho so thanh cong", application: updatedApplication });
   } catch (error) {
+    if (error instanceof ApplicationStatusLockedError) {
+      return res.status(409).json({ code: error.code, message: error.message });
+    }
     res.status(500).json({ error: error.message });
   }
 });
@@ -1890,7 +1906,7 @@ app.put("/api/notifications/:id/read", authMiddleware, async (req, res) => {
     const notification = await Notification.findOneAndUpdate(
       { _id: req.params.id, recipient: req.user.id },
       { isRead: true },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!notification) {
       return res.status(404).json({ message: "Khong tim thay thong bao" });
@@ -1998,22 +2014,25 @@ app.delete("/api/saved-jobs/:jobId", authMiddleware, async (req, res) => {
 // Get CV details (authorized viewing)
 app.get("/api/resumes/view/:id", authMiddleware, async (req, res) => {
   try {
+    // Older recruiter links must also use the submitted copy, never the live CV.
+    if (req.user.role === "company") {
+      const companyJobIds = await Job.find({ companyId: req.user.id }).distinct("_id");
+      let application = await Application.findOne({ resumeId: req.params.id, jobId: { $in: companyJobIds } })
+        .select('+resumeSnapshot').sort({ createdAt: -1 });
+      if (!application) return res.status(403).json({ message: "Bạn không có quyền xem CV này" });
+      application = await ensureApplicationResumeSnapshot(Application, Resume, application);
+      if (!application?.resumeSnapshot) {
+        return res.status(410).json({ message: "Hồ sơ cũ chưa lưu bản CV và CV gốc không còn tồn tại." });
+      }
+      return res.status(200).json(sanitizeResumeData(applicationResumeData(application)));
+    }
     const resume = await Resume.findById(req.params.id);
     if (!resume) {
       return res.status(404).json({ message: "Khong tim thay CV" });
     }
     const isOwner = resume.userId.toString() === req.user.id.toString();
     const isAdmin = req.user.role === "admin";
-    let isHiringCompany = false;
-
-    if (req.user.role === "company") {
-      const companyJobIds = await Job.find({ companyId: req.user.id }).distinct("_id");
-      isHiringCompany = Boolean(
-        await Application.exists({ resumeId: resume._id, jobId: { $in: companyJobIds } }),
-      );
-    }
-
-    if (!isOwner && !isAdmin && !isHiringCompany) {
+    if (!isOwner && !isAdmin) {
       return res.status(403).json({ 
         message: "Bạn không có quyền xem CV này" 
       });
@@ -2102,7 +2121,7 @@ app.put("/api/admin/jobs/:id/hide", authMiddleware, async (req, res) => {
     const job = await Job.findByIdAndUpdate(
       req.params.id,
       { status: "Expired", isAdminHidden: true },
-      { new: true },
+      { returnDocument: 'after' },
     );
     if (!job) return res.status(404).json({ message: "Khong tim thay cong viec" });
     res.status(200).json({ message: "Da an tin tuyen dung", job });
@@ -2207,7 +2226,7 @@ app.put("/api/admin/companies/:id/verification", authMiddleware, async (req, res
     const company = await User.findOneAndUpdate(
       { _id: req.params.id, role: "company" },
       updates,
-      { new: true },
+      { returnDocument: 'after' },
     ).select(ADMIN_USER_FIELDS);
     if (!company) return res.status(404).json({ message: "Khong tim thay doanh nghiep" });
 
@@ -2230,7 +2249,7 @@ app.put("/api/admin/users/:id/ban", authMiddleware, async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { isBanned: true },
-      { new: true },
+      { returnDocument: 'after' },
     ).select(ADMIN_USER_FIELDS);
     if (!user) return res.status(404).json({ message: "Khong tim thay nguoi dung" });
     res.status(200).json({ message: "Da khoa tai khoan", user });
@@ -2262,6 +2281,18 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: corsOptions
 });
+
+setNotificationPublisher(createNotificationPublisher({
+  io,
+  serverUrl: realtimeServerUrl,
+  sharedSecret: realtimeSharedSecret,
+  timeoutMs: realtimeRelayTimeoutMs,
+}));
+
+app.post("/api/realtime/notifications", createNotificationRelayHandler({
+  io,
+  sharedSecret: realtimeSharedSecret,
+}));
 
 app.get("/api/realtime/health", (req, res) => {
   res.status(200).json({ ok: true, service: "rabbitcv-realtime" });

@@ -12,8 +12,9 @@ const countOperations = (spec) =>
   );
 
 test("OpenAPI documentation covers every RabbitCV HTTP API", () => {
-  assert.equal(Object.keys(openapiSpec.paths).length, 51);
-  assert.equal(countOperations(openapiSpec), 57);
+  assert.equal(Object.keys(openapiSpec.paths).length, 52);
+  assert.equal(countOperations(openapiSpec), 58);
+  assert.ok(openapiSpec.paths["/api/jobs/applications/{id}/resume"].get);
   assert.ok(openapiSpec.paths["/api/ai/interview/turn"].post);
   assert.ok(openapiSpec.paths["/api/admin/stats"].get);
   assert.equal(openapiSpec.paths["/api/ai/resume/score"], undefined);

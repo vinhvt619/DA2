@@ -268,7 +268,7 @@ const openapiSpec = {
           title: "CV Frontend Developer",
           targetRole: "Frontend Developer",
           bio: "Mô tả ngắn về ứng viên",
-          skills: [{ title: "ReactJS", description: "Xây dựng giao diện web" }],
+          skill: [{ title: "ReactJS" }],
         }),
         responses: {
           "200": jsonResponse("CV đã được lưu", "ResumeResponse"),
@@ -372,6 +372,7 @@ const openapiSpec = {
       post: secured({
         tags: ["Jobs"],
         summary: "Ứng tuyển bằng CV đã lưu",
+        description: "Server lưu bản sao nội dung CV đã lưu tại thời điểm nộp. Những lần chỉnh sửa hoặc xóa CV gốc sau đó không thay đổi hồ sơ đã nộp.",
         requestBody: requestBody("JobApplicationRequest", {
           jobId: "65f1a8b7c9d0123456789012",
           resumeId: "65f1a8b7c9d0123456789034",
@@ -403,6 +404,21 @@ const openapiSpec = {
         requestBody: requestBody("ApplicationStatusRequest", { status: "Interview" }),
         responses: {
           "200": jsonResponse("Đã cập nhật trạng thái hồ sơ", "ApplicationResponse"),
+          "409": jsonResponse("Hồ sơ đã bị từ chối, không thể đổi trạng thái", "MessageResponse"),
+        },
+      }),
+    },
+    "/api/jobs/applications/{id}/resume": {
+      get: secured({
+        tags: ["Jobs"],
+        summary: "Xem bản CV đã nộp cùng hồ sơ ứng tuyển",
+        description: "Lưu nội dung, mẫu, bố cục và file PDF tại thời điểm nộp; không theo dõi CV gốc. Hồ sơ cũ chưa có bản lưu chỉ giữ được phiên bản còn tồn tại, với resumeSnapshotOrigin là legacy.",
+        parameters: [idParameter()],
+        responses: {
+          "200": jsonResponse("Bản CV của hồ sơ ứng tuyển", "Resume"),
+          "403": jsonResponse("Không có quyền xem hồ sơ", "MessageResponse"),
+          "404": jsonResponse("Không tìm thấy hồ sơ ứng tuyển", "MessageResponse"),
+          "410": jsonResponse("Hồ sơ cũ không còn CV để lưu lại", "MessageResponse"),
         },
       }),
     },
@@ -843,9 +859,31 @@ const openapiSpec = {
           _id: { type: "string", nullable: true },
           title: { type: "string", example: "CV Frontend Developer" },
           targetRole: { type: "string" },
+          selectedTemplate: { type: "string", enum: ["classic", "modern", "professional", "elegant", "creative", "compact"] },
+          customSections: {
+            type: "array", maxItems: 30,
+            items: { type: "object", required: ["id", "title"], properties: {
+              id: { type: "string" }, title: { type: "string", maxLength: 120 },
+              fields: { type: "object", properties: Object.fromEntries(["organization", "location", "dates", "link", "description"].map((key) => [key, { type: "boolean" }])) },
+              items: { type: "array", maxItems: 50, items: { type: "object", properties: {
+                id: { type: "string" }, title: { type: "string", maxLength: 200 },
+                organization: { type: "string" }, location: { type: "string" }, startDate: { type: "string" }, endDate: { type: "string" },
+                link: { type: "string" }, description: { type: "string", description: "Nội dung rich text" },
+                details: { type: "array", maxItems: 12, items: { type: "object", properties: { id: { type: "string" }, label: { type: "string" }, value: { type: "string" } } } },
+              } } },
+            } },
+          },
+          layout: { type: "object", properties: {
+            version: { type: "integer", enum: [1] },
+            customizedTemplates: { type: "array", items: { type: "string" } },
+            byTemplate: { type: "object", additionalProperties: { type: "object", properties: {
+              main: { type: "array", items: { type: "string" } },
+              sidebar: { type: "array", items: { type: "string" } },
+            } } },
+          } },
           bio: { type: "string" },
           personalInfo: { type: "object", additionalProperties: true },
-          skills: { type: "array", items: { type: "object", additionalProperties: true } },
+          skill: { type: "array", items: { type: "object", properties: { title: { type: "string" } } } },
           experiences: { type: "array", items: { type: "object", additionalProperties: true } },
           education: { type: "array", items: { type: "object", additionalProperties: true } },
           projects: { type: "array", items: { type: "object", additionalProperties: true } },

@@ -197,6 +197,9 @@ export default function Header() {
               }`}
             >
               <input
+                id="header-search"
+                name="headerSearch"
+                aria-label="Tìm kiếm"
                 type="text"
                 placeholder="Tìm kiếm..."
                 value={searchQuery}

@@ -196,11 +196,16 @@ function SummaryPanel({ summary, onRestart, mobile = false }) {
 function SetupInterview({
   settings,
   setSettings,
+  onRoleChange,
   onSubmit,
   isRequesting,
   displayName,
 }) {
   const updateSetting = (key, value) => {
+    if (key === "role") {
+      onRoleChange(value);
+      return;
+    }
     setSettings((current) => ({ ...current, [key]: value }));
   };
 
@@ -797,6 +802,7 @@ function FeedbackSidebar({
 export default function AiInterview() {
   const { currentUser, isAuthChecked } = useAuth();
   const messagesEndRef = useRef(null);
+  const roleEditedRef = useRef(false);
   const initialRole = currentUser?.experiences?.[0]?.position || "";
   const displayName =
     currentUser?.fullName || currentUser?.username || "Ứng viên RabbitCV";
@@ -820,7 +826,7 @@ export default function AiInterview() {
 
   useEffect(() => {
     const accountRole = currentUser?.experiences?.[0]?.position?.trim();
-    if (accountRole && !settings.role && phase === "setup") {
+    if (accountRole && !roleEditedRef.current && !settings.role && phase === "setup") {
       setSettings((current) => ({ ...current, role: accountRole }));
     }
   }, [currentUser, phase, settings.role]);
@@ -988,6 +994,10 @@ export default function AiInterview() {
         <SetupInterview
           settings={settings}
           setSettings={setSettings}
+          onRoleChange={(role) => {
+            roleEditedRef.current = true;
+            setSettings((current) => ({ ...current, role }));
+          }}
           onSubmit={startInterview}
           isRequesting={isRequesting}
           displayName={displayName}

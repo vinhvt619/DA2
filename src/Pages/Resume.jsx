@@ -10,12 +10,16 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useConfirmDialog } from "../context/ConfirmDialogContext.jsx";
 import ResumeForm from "../Components/ResumeForm";
+import ResumeLayoutEditor from "../Components/ResumeLayoutEditor.jsx";
 import ResumePreview from "../Components/ResumePreview";
 import ResumeTemplate from "../Components/ResumeTemplate";
 import useCvZoom from "../hooks/useCvZoom";
 import useResumePrint from "../hooks/useResumePrint.js";
+import useResumeHistory from "../hooks/useResumeHistory.js";
+import { normalizeResumeLayout, setTemplateLayout, resetTemplateLayout, customSectionKey } from "../utils/resumeLayout.js";
 import { requestAi } from "../utils/aiApi.js";
 import { normalizeResumeDateValue } from "../utils/dateInput.js";
+import { normalizeCustomSections, normalizeSkillNames } from "../../shared/resumeCustomSections.js";
 import { showToast } from "../utils/toast.js";
 import {
   mergeAiSection,
@@ -23,6 +27,9 @@ import {
 } from "../utils/resumeAiFill.js";
 import {
   ArrowLeftIcon,
+  ArrowUturnLeftIcon,
+  ArrowUturnRightIcon,
+  Squares2X2Icon,
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
   CloudArrowUpIcon,
@@ -90,13 +97,15 @@ const normalizeResume = (data = {}) => ({
   profile: mapIds(data.profile),
   experience: mapIds(data.experience),
   education: mapIds(data.education),
-  skill: mapIds(data.skill),
+  skill: normalizeSkillNames(mapIds(data.skill)),
   language: mapIds(data.language),
   certificate: mapIds(data.certificate),
   project: mapIds(data.project),
   award: mapIds(data.award),
   hobby: mapIds(data.hobby),
   selectedTemplate: normalizeTemplate(data.selectedTemplate),
+  customSections: normalizeCustomSections(data.customSections),
+  layout: normalizeResumeLayout(data.layout, normalizeCustomSections(data.customSections)),
 });
 
 export default function CreateResume() {
@@ -108,6 +117,7 @@ export default function CreateResume() {
   const previewRef = useCvZoom();
   const printContentRef = useRef(null);
   const titleInputRef = useRef(null);
+  const loadedResumeRef = useRef({ id: null, attempt: -1 });
 
   const [showForm, setShowForm] = useState(
     () => typeof window === "undefined" || window.innerWidth >= 1024,
@@ -116,10 +126,19 @@ export default function CreateResume() {
     () => typeof window !== "undefined" && window.innerWidth >= 1600,
   );
   const [_id, setId] = useState(initialResumeId);
-  const [title, setTitle] = useState(DEFAULT_TITLE);
-  const [selectedTemplate, setSelectedTemplate] = useState(
-    normalizeTemplate(location.state?.template),
-  );
+  const initialResume = useMemo(() => normalizeResume({ selectedTemplate: location.state?.template }), [location.state?.template]);
+  const { value: resumeData, setters, update: updateResume, reset: resetResume, undo, redo, canUndo, canRedo } = useResumeHistory(initialResume);
+  const { title, selectedTemplate, image, bio, personalInfo, profile, experience, education, skill,
+    language, certificate, project, award, hobby, layout, customSections } = resumeData;
+  const { title: setTitle, selectedTemplate: setSelectedTemplate, image: setImage, bio: setBio,
+    personalInfo: setPersonalInfo, profile: setProfile, experience: setExperience, education: setEducation,
+    skill: setSkill, language: setLanguage, certificate: setCertificate, project: setProject,
+    award: setAward, hobby: setHobby } = setters;
+  const setCustomSections = useCallback((value) => updateResume((current) => {
+    const next = typeof value === "function" ? value(current.customSections) : value;
+    return { ...current, customSections: next, layout: normalizeResumeLayout(current.layout, next) };
+  }), [updateResume]);
+  const [isLayoutEditorOpen, setIsLayoutEditorOpen] = useState(false);
   const [titleError, setTitleError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingResume, setIsLoadingResume] = useState(Boolean(initialResumeId));
@@ -133,55 +152,7 @@ export default function CreateResume() {
   const [isAiFillPromptOpen, setIsAiFillPromptOpen] = useState(false);
   const [aiTargetRole, setAiTargetRole] = useState("");
 
-  const [image, setImage] = useState(null);
-  const [bio, setBio] = useState("");
-  const [personalInfo, setPersonalInfo] = useState(DEFAULT_PERSONAL_INFO);
-  const [profile, setProfile] = useState([]);
-  const [experience, setExperience] = useState([]);
-  const [education, setEducation] = useState([]);
-  const [skill, setSkill] = useState([]);
-  const [language, setLanguage] = useState([]);
-  const [certificate, setCertificate] = useState([]);
-  const [project, setProject] = useState([]);
-  const [award, setAward] = useState([]);
-  const [hobby, setHobby] = useState([]);
-
   const { currentUser, isAuthChecked } = useAuth();
-
-  const resumeData = useMemo(
-    () => ({
-      title,
-      image,
-      personalInfo,
-      bio,
-      profile,
-      experience,
-      education,
-      skill,
-      language,
-      certificate,
-      project,
-      award,
-      hobby,
-      selectedTemplate,
-    }),
-    [
-      title,
-      image,
-      personalInfo,
-      bio,
-      profile,
-      experience,
-      education,
-      skill,
-      language,
-      certificate,
-      project,
-      award,
-      hobby,
-      selectedTemplate,
-    ],
-  );
   const currentSignature = useMemo(
     () => JSON.stringify(resumeData),
     [resumeData],
@@ -191,22 +162,25 @@ export default function CreateResume() {
 
   const applyResume = useCallback((data) => {
     const normalized = normalizeResume(data);
-    setTitle(normalized.title);
-    setImage(normalized.image);
-    setPersonalInfo(normalized.personalInfo);
-    setBio(normalized.bio);
-    setProfile(normalized.profile);
-    setExperience(normalized.experience);
-    setEducation(normalized.education);
-    setSkill(normalized.skill);
-    setLanguage(normalized.language);
-    setCertificate(normalized.certificate);
-    setProject(normalized.project);
-    setAward(normalized.award);
-    setHobby(normalized.hobby);
-    setSelectedTemplate(normalized.selectedTemplate);
+    resetResume(normalized);
     return normalized;
-  }, []);
+  }, [resetResume]);
+
+  const historyDisabled = isLoadingResume || Boolean(loadError) || isSaving || isAiFillingResume;
+  useEffect(() => {
+    const handleHistoryKey = (event) => {
+      if (historyDisabled || !(event.ctrlKey || event.metaKey) || event.altKey ||
+        event.target.closest?.("input, textarea, [contenteditable], dialog, [role='dialog']")) return;
+      if (event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        if (event.shiftKey) redo(); else undo();
+      } else if (event.key.toLowerCase() === "y") {
+        event.preventDefault(); redo();
+      }
+    };
+    window.addEventListener("keydown", handleHistoryKey);
+    return () => window.removeEventListener("keydown", handleHistoryKey);
+  }, [historyDisabled, undo, redo]);
 
   useEffect(() => {
     const nextId = routeResumeId || location.state?.cvId || null;
@@ -244,6 +218,8 @@ export default function CreateResume() {
       return undefined;
     }
 
+    if (loadedResumeRef.current.id === _id && loadedResumeRef.current.attempt === loadAttempt) return undefined;
+
     const controller = new AbortController();
 
     const fetchResumeData = async () => {
@@ -262,6 +238,7 @@ export default function CreateResume() {
         }
 
         const normalized = applyResume(data);
+        loadedResumeRef.current = { id: _id, attempt: loadAttempt };
         setSavedSignature(JSON.stringify(normalized));
       } catch (error) {
         if (error.name === "AbortError") return;
@@ -319,15 +296,8 @@ export default function CreateResume() {
       project.length > 0 ||
       certificate.length > 0;
 
-    setPersonalInfo(mergedPersonalInfo);
-    if (experience.length === 0 && sourceExperience.length > 0) {
-      setExperience(sourceExperience);
-    }
-    if (education.length === 0 && sourceEducation.length > 0) {
-      setEducation(sourceEducation);
-    }
-
     if (!hasCareerContext) {
+      updateResume((current) => ({ ...current, personalInfo: mergedPersonalInfo }));
       setAiTargetRole("");
       setIsAiFillPromptOpen(true);
       return;
@@ -355,93 +325,24 @@ export default function CreateResume() {
       const targetRole =
         mergedPersonalInfo.jobTitle || generated.targetRole?.trim() || "";
 
-      setPersonalInfo({
-        ...mergedPersonalInfo,
-        jobTitle: targetRole,
-      });
-      if (!bio.trim() && generated.bio?.trim()) {
-        setBio(generated.bio.trim());
-      }
-      setSkill(mergeAiSkills(skill, generated.skills));
-      setExperience(
-        mergeAiSection(
-          sourceExperience,
-          generated.experiences,
-          [
-            "title",
-            "company",
-            "location",
-            "startDate",
-            "endDate",
-            "description",
-          ],
-          "experience",
-        ),
-      );
-      setEducation(
-        mergeAiSection(
-          sourceEducation,
-          generated.education,
-          [
-            "title",
-            "major",
-            "company",
-            "location",
-            "startDate",
-            "endDate",
-            "score",
-            "description",
-          ],
-          "education",
-        ),
-      );
-      setLanguage(
-        mergeAiSection(
-          language,
-          generated.languages,
-          ["title", "description"],
-          "language",
-        ),
-      );
-      setCertificate(
-        mergeAiSection(
-          certificate,
-          generated.certificates,
-          ["title", "date", "publisher", "description"],
-          "certificate",
-        ),
-      );
-      setProject(
-        mergeAiSection(
-          project,
-          generated.projects,
-          [
-            "title",
-            "company",
-            "location",
-            "startDate",
-            "endDate",
-            "date",
-            "link",
-            "description",
-          ],
-          "project",
-        ),
-      );
-      setAward(
-        mergeAiSection(
-          award,
-          generated.awards,
-          ["title", "awarder", "date", "description"],
-          "award",
-        ),
-      );
-      setHobby(
-        mergeAiSection(hobby, generated.hobbies, ["title"], "hobby"),
-      );
-      if (title === DEFAULT_TITLE && targetRole) {
-        setTitle(`CV ${targetRole}`);
-      }
+      updateResume((current) => ({
+        ...current,
+        personalInfo: Object.fromEntries(Object.keys(mergedPersonalInfo).map((key) => [
+          key, current.personalInfo[key] || (key === "jobTitle" ? targetRole : mergedPersonalInfo[key]),
+        ])),
+        bio: current.bio.trim() ? current.bio : generated.bio?.trim() || current.bio,
+        skill: mergeAiSkills(current.skill, generated.skills),
+        experience: mergeAiSection(current.experience.length ? current.experience : sourceExperience,
+          generated.experiences, ["title", "company", "location", "startDate", "endDate", "description"], "experience"),
+        education: mergeAiSection(current.education.length ? current.education : sourceEducation,
+          generated.education, ["title", "major", "company", "location", "startDate", "endDate", "score", "description"], "education"),
+        language: mergeAiSection(current.language, generated.languages, ["title", "description"], "language"),
+        certificate: mergeAiSection(current.certificate, generated.certificates, ["title", "date", "publisher", "description"], "certificate"),
+        project: mergeAiSection(current.project, generated.projects, ["title", "company", "location", "startDate", "endDate", "date", "link", "description"], "project"),
+        award: mergeAiSection(current.award, generated.awards, ["title", "awarder", "date", "description"], "award"),
+        hobby: mergeAiSection(current.hobby, generated.hobbies, ["title"], "hobby"),
+        title: current.title === DEFAULT_TITLE && targetRole ? `CV ${targetRole}` : current.title,
+      }));
 
       showToast(
         "AI đã điền các phần còn thiếu. Hãy kiểm tra nội dung trước khi lưu.",
@@ -462,7 +363,7 @@ export default function CreateResume() {
       education.length > 0 ||
       skill.length > 0 ||
       project.length > 0 ||
-      certificate.length > 0;
+      certificate.length > 0 || customSections.some((section) => section.items.length > 0);
 
     if (!hasReviewableContent) {
       showToast(
@@ -490,6 +391,7 @@ export default function CreateResume() {
           award,
           hobby,
           selectedTemplate,
+          customSections,
         },
       });
       setResumeReview(data.result);
@@ -512,7 +414,7 @@ export default function CreateResume() {
       return;
     }
 
-    if (isLoadingResume || loadError) return;
+    if (isSaving || isAiFillingResume || isLoadingResume || loadError) return;
 
     setTitleError("");
     setIsSaving(true);
@@ -534,8 +436,10 @@ export default function CreateResume() {
         throw error;
       }
 
-      const savedResume = applyResume(responseData.resume || payload);
+      const savedResume = normalizeResume(payload);
       const savedId = responseData.resume?._id || _id;
+      loadedResumeRef.current = { id: savedId, attempt: loadAttempt };
+      updateResume((current) => current.title === title ? { ...current, title: cleanTitle } : current);
       setSavedSignature(JSON.stringify(savedResume));
       setLastSaved(new Date());
 
@@ -611,11 +515,16 @@ export default function CreateResume() {
     );
   }
 
-  const saveDisabled = isSaving || isLoadingResume || Boolean(loadError);
+  const saveDisabled = isSaving || isAiFillingResume || isLoadingResume || Boolean(loadError);
 
   return (
     <div className="resume-editor-root flex h-screen flex-col overflow-hidden bg-[var(--page-background)] font-sans page-transition">
       <div className="resume-editor-toolbar z-30 flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-3 py-2 sm:px-4">
+        <div className="flex shrink-0 items-center gap-1">
+          <button type="button" onClick={undo} disabled={!canUndo || historyDisabled} aria-label="Hoàn tác CV" title="Hoàn tác CV (Ctrl+Z)" className="grid h-8 w-8 place-items-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"><ArrowUturnLeftIcon className="h-4 w-4" /></button>
+          <button type="button" onClick={redo} disabled={!canRedo || historyDisabled} aria-label="Làm lại CV" title="Làm lại CV (Ctrl+Shift+Z)" className="grid h-8 w-8 place-items-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"><ArrowUturnRightIcon className="h-4 w-4" /></button>
+          <button type="button" onClick={() => setIsLayoutEditorOpen(true)} disabled={historyDisabled} aria-label="Chỉnh bố cục CV" title="Chỉnh bố cục CV" className="grid h-8 w-8 place-items-center rounded-md border border-slate-200 text-slate-600 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40"><Squares2X2Icon className="h-4 w-4" /></button>
+        </div>
         <div className="flex min-w-0 w-full items-center gap-2 sm:w-auto sm:flex-1">
           <button
             type="button"
@@ -672,6 +581,7 @@ export default function CreateResume() {
           <button
             type="button"
             onClick={toggleForm}
+            aria-label="Nội dung"
             aria-pressed={showForm}
             title="Ẩn hoặc hiện phần nội dung"
             className={`flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border px-1 text-xs font-semibold transition sm:shrink-0 sm:px-2.5 ${
@@ -691,6 +601,7 @@ export default function CreateResume() {
           <button
             type="button"
             onClick={toggleTemplates}
+            aria-label="Mẫu CV"
             aria-pressed={showTemplates}
             title="Ẩn hoặc hiện danh sách mẫu CV"
             className={`flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border px-1 text-xs font-semibold transition sm:shrink-0 sm:px-2.5 ${
@@ -752,6 +663,17 @@ export default function CreateResume() {
           </button>
         </div>
       </div>
+
+      <ResumeLayoutEditor open={isLayoutEditorOpen} template={selectedTemplate} layout={layout} customSections={customSections}
+        sectionCounts={{ bio: bio ? 1 : 0, experience: experience.length, education: education.length,
+          skill: skill.length, project: project.length, certificate: certificate.length, award: award.length,
+          language: language.length, hobby: hobby.length, ...Object.fromEntries(customSections.map((item) => [customSectionKey(item.id), item.items.length])) }}
+        onClose={() => setIsLayoutEditorOpen(false)}
+        onSave={(zones) => {
+          setters.layout(setTemplateLayout(layout, selectedTemplate, zones, customSections));
+          setIsLayoutEditorOpen(false);
+        }}
+        onReset={() => setters.layout(resetTemplateLayout(layout, selectedTemplate, customSections))} />
 
       {isAiFillPromptOpen &&
         typeof document !== "undefined" &&
@@ -884,6 +806,8 @@ export default function CreateResume() {
               setAward={setAward}
               hobby={hobby}
               setHobby={setHobby}
+              customSections={customSections}
+              setCustomSections={setCustomSections}
               onReviewResume={handleReviewResume}
               isReviewingResume={isReviewingResume}
               resumeReview={resumeReview}
@@ -935,6 +859,8 @@ export default function CreateResume() {
               <div ref={printContentRef} className="cv-wrapper mb-10 rounded-sm bg-white shadow-lg print:w-full print:shadow-none">
                 <ResumePreview
                   selectedTemplate={selectedTemplate}
+                  layout={layout}
+                  customSections={customSections}
                   image={image}
                   personalInfo={personalInfo}
                   bio={bio}
