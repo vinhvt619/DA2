@@ -1,4 +1,4 @@
-const UNAVAILABLE_STATUSES = new Set(["Draft", "Expired"]);
+const UNAVAILABLE_STATUSES = new Set(['Draft', 'Pending', 'Rejected', 'Expired']);
 
 export const isJobDeleted = (job) =>
   Boolean(job?.deletedAt) || job?.status === "Deleted";
@@ -18,7 +18,7 @@ export const isJobExpired = (job, now = new Date()) => {
 };
 
 export const isJobUnavailable = (job, now = new Date()) => {
-  if (!job || isJobDeleted(job)) return true;
+  if (!job || isJobDeleted(job) || job.isAdminHidden || (job.approvalStatus && job.approvalStatus !== 'Approved')) return true;
   if (UNAVAILABLE_STATUSES.has(job.status)) return true;
   return isJobExpired(job, now);
 };

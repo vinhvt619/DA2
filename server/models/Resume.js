@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { RESUME_TEMPLATE_KEYS } from '../../shared/resumeTemplates.js';
 
 const ProfileSchema = new mongoose.Schema({ networkName: String, username: String, link: String });
 const ExperienceSchema = new mongoose.Schema({ title: String, company: String, location: String, startDate: String, endDate: String, description: String });
@@ -29,14 +30,9 @@ const LayoutZonesSchema = new mongoose.Schema({
 const ResumeLayoutSchema = new mongoose.Schema({
   version: { type: Number, default: 1 },
   customizedTemplates: [{ type: String }],
-  byTemplate: {
-    classic: { type: LayoutZonesSchema, default: undefined },
-    modern: { type: LayoutZonesSchema, default: undefined },
-    professional: { type: LayoutZonesSchema, default: undefined },
-    elegant: { type: LayoutZonesSchema, default: undefined },
-    creative: { type: LayoutZonesSchema, default: undefined },
-    compact: { type: LayoutZonesSchema, default: undefined },
-  },
+  byTemplate: Object.fromEntries(RESUME_TEMPLATE_KEYS.map((key) => [
+    key, { type: LayoutZonesSchema, default: undefined },
+  ])),
 }, { _id: false });
 
 const ResumeSchema = new mongoose.Schema({
@@ -68,7 +64,7 @@ const ResumeSchema = new mongoose.Schema({
   layout: { type: ResumeLayoutSchema, default: () => ({ version: 1 }) },
   selectedTemplate: {
     type: String,
-    enum: ["classic", "modern", "professional", "elegant", "creative", "compact"],
+    enum: RESUME_TEMPLATE_KEYS,
     default: "modern",
   },
 }, { timestamps: true });

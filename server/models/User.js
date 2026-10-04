@@ -59,10 +59,13 @@ const UserSchema = new mongoose.Schema(
     },
     companyVerificationStatus: {
       type: String,
-      enum: ["pending", "verified", "rejected"],
+      enum: ["unverified", "pending", "verified", "rejected"],
       default: undefined,
     },
+    companyAccountApprovalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: undefined },
+    companyAccountRejectionReason: { type: String, default: '' },
     isBanned: { type: Boolean, default: false },
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );

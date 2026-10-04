@@ -20,6 +20,7 @@ import { normalizeResumeLayout, setTemplateLayout, resetTemplateLayout, customSe
 import { requestAi } from "../utils/aiApi.js";
 import { normalizeResumeDateValue } from "../utils/dateInput.js";
 import { normalizeCustomSections, normalizeSkillNames } from "../../shared/resumeCustomSections.js";
+import { RESUME_TEMPLATE_NAMES as TEMPLATE_NAMES } from "../../shared/resumeTemplates.js";
 import { showToast } from "../utils/toast.js";
 import {
   mergeAiSection,
@@ -48,15 +49,6 @@ const DEFAULT_PERSONAL_INFO = {
   phone: "",
   location: "",
 };
-const TEMPLATE_NAMES = {
-  classic: "Mẫu cơ bản tối giản",
-  modern: "Mẫu hiện đại",
-  professional: "Mẫu chuyên nghiệp",
-  elegant: "Mẫu thanh lịch đơn sắc",
-  creative: "Mẫu sáng tạo hai cột",
-  compact: "Mẫu tối ưu ATS",
-};
-
 const normalizeTemplate = (template) =>
   Object.hasOwn(TEMPLATE_NAMES, template) ? template : "modern";
 

@@ -75,7 +75,7 @@ test("elegant CV keeps education in the wider left column", async () => {
     new URL("../src/Components/ResumePreview.jsx", import.meta.url),
     "utf8",
   );
-  const elegantTemplate = preview.match(
+  const elegantTemplate = preview.replace(/\r\n/g, "\n").match(
     /const ElegantTemplate = \([\s\S]*?\n\);\n\nconst CreativeTemplate/,
   )?.[0];
 

@@ -8,10 +8,15 @@ import {
 } from "@heroicons/react/24/outline";
 import { useSearchParams } from "react-router-dom";
 import { useConfirmDialog } from "../context/ConfirmDialogContext.jsx";
+import { showToast } from '../utils/toast.js';
+import { useQueryClient } from '@tanstack/react-query';
+import { publicJobsKey } from '../hooks/usePublicJobs.js';
+import { companyAccountStatus } from '../../shared/companyPolicy.js';
 
 export default function AdminUsers() {
   const [searchParams] = useSearchParams();
   const confirmDialog = useConfirmDialog();
+  const queryClient = useQueryClient();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -61,36 +66,7 @@ export default function AdminUsers() {
       const res = await fetch("/api/admin/stats", { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
-        let loadedUsers = data.users || [];
-        
-        // Standardize status and inject mock status if not present
-        loadedUsers = loadedUsers.map((u, index) => {
-          let status = "active";
-          // Inject a couple of pending status examples for company roles
-          if (u.role === "company" && index % 3 === 1) {
-            status = "pending";
-          }
-          return {
-            status,
-            ...u
-          };
-        });
-
-        // Ensure there is at least one pending company for the Needs Action flow to show
-        const hasPendingCompany = loadedUsers.some(u => u.role === "company" && u.status === "pending");
-        if (!hasPendingCompany) {
-          loadedUsers.push({
-            _id: "pending_mock_co",
-            username: "vng_cloud_pending",
-            fullName: "VNG Cloud Technology (Chờ duyệt)",
-            email: "cloud-pending@vng.com.vn",
-            role: "company",
-            status: "pending",
-            isBanned: false,
-          });
-        }
-        
-        setUsers(loadedUsers);
+        setUsers((data.users || []).map((u) => ({ ...u, status: u.role === 'company' && companyAccountStatus(u) !== 'approved' ? 'pending' : u.status || 'active' })));
       } else {
         throw new Error("Không thể tải danh sách người dùng từ hệ thống.");
       }
@@ -126,43 +102,34 @@ export default function AdminUsers() {
         credentials: "include",
       });
       if (res.ok) {
-        fetchUsers();
+        await fetchUsers();
       } else {
-        // Fallback local update for demo
-        setUsers((prev) =>
-          prev.map((u) => (u._id === id ? { ...u, isBanned: true } : u))
-        );
-        console.warn("API ban failed or route not found, applied local fallback");
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Không thể khóa tài khoản.');
       }
     } catch (err) {
       console.error("Lỗi khóa tài khoản:", err);
-      // Fallback local update
-      setUsers((prev) =>
-        prev.map((u) => (u._id === id ? { ...u, isBanned: true } : u))
-      );
+      showToast(err.message || 'Không thể khóa tài khoản.', 'error');
     }
   };
 
   // Delete user action
   const handleDeleteUser = async (id) => {
     setOpenMenuId(null);
-    if (!(await confirmDialog("Bạn có chắc chắn muốn xóa tài khoản này không?"))) return;
+    if (!(await confirmDialog("Xóa tài khoản này? Tài khoản sẽ bị vô hiệu hóa; tin tuyển dụng của doanh nghiệp sẽ được gỡ, lịch sử ứng tuyển được giữ lại."))) return;
     try {
       const res = await fetch(`/api/admin/users/${id}`, {
         method: "DELETE",
         credentials: "include",
       });
-      if (res.ok) {
-        fetchUsers();
-      } else {
-        // Fallback local delete for demo
-        setUsers((prev) => prev.filter((u) => u._id !== id));
-        console.warn("API delete failed or route not found, applied local fallback");
-      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Không thể xóa tài khoản.');
+      await queryClient.invalidateQueries({ queryKey: publicJobsKey });
+      await fetchUsers();
+      showToast(data.message || 'Đã vô hiệu hóa tài khoản.', 'success');
     } catch (err) {
       console.error("Lỗi xóa tài khoản:", err);
-      // Fallback local delete
-      setUsers((prev) => prev.filter((u) => u._id !== id));
+      showToast(err.message || 'Không thể xóa tài khoản.', 'error');
     }
   };
 
@@ -359,7 +326,7 @@ export default function AdminUsers() {
                               className="w-full px-3 py-1.5 hover:bg-slate-50 text-[11px] text-slate-600 hover:text-slate-900 flex items-center gap-2 border-b-[0.5px] border-slate-100"
                             >
                               <NoSymbolIcon className="size-3.5 text-amber-500" />
-                              <span>{isUserBanned ? "Mở khóa" : "Khóa tài khoản"}</span>
+                              <span>{isUserBanned ? "Đã khóa tài khoản" : "Khóa tài khoản"}</span>
                             </button>
                             <button
                               onClick={() => handleDeleteUser(u._id)}

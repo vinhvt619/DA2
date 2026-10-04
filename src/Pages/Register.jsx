@@ -17,8 +17,11 @@ const registerSchema = z
     password: z.string().min(1, "Vui lòng nhập mật khẩu."),
     confirmPassword: z.string().min(1, "Vui lòng nhập lại mật khẩu."),
     role: z.enum(["employee", "company"]),
+    fullName: z.string().trim().max(200).optional(),
+    companyTaxCode: z.string().trim().max(50).optional(),
     terms: z.boolean().refine(Boolean, "Bạn phải đồng ý với Điều khoản sử dụng."),
   })
+  .refine((data) => data.role !== 'company' || Boolean(data.fullName?.trim()), { message: 'Vui lòng nhập tên doanh nghiệp.', path: ['fullName'] })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Mật khẩu xác nhận không khớp.",
     path: ["confirmPassword"],
@@ -47,6 +50,8 @@ function Register() {
       password: "",
       confirmPassword: "",
       role: "employee",
+      fullName: '',
+      companyTaxCode: '',
       terms: false,
     },
     resolver: zodResolver(registerSchema),
@@ -73,7 +78,7 @@ function Register() {
       });
 
       if (loginData.user) login(loginData.user);
-      showToast("Đăng ký thành công! Chào mừng bạn đến với RabbitCV.", "success");
+      showToast(values.role === 'company' ? 'Đăng ký thành công. Tài khoản doanh nghiệp đang chờ admin duyệt.' : 'Đăng ký thành công! Chào mừng bạn đến với RabbitCV.', 'success');
       navigate(
         loginData.user?.role === "company" ? "/CompanyDashboard" : "/MainMenu",
         { replace: true },
@@ -207,6 +212,13 @@ function Register() {
                   ))}
                 </div>
               </fieldset>
+
+              {selectedRole === 'company' && <div className="space-y-3">
+                <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">Tài khoản cần được admin duyệt trước khi gửi tin. Doanh nghiệp được xác minh có thể đăng tin ngay.</p>
+                <label className="block space-y-1 text-sm"><span>Tên doanh nghiệp *</span><input {...register('fullName')} aria-invalid={Boolean(errors.fullName)} className="w-full rounded-xl border-2 border-gray-300 px-4 py-2 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-100" /></label>
+                <FieldError error={errors.fullName} />
+                <label className="block space-y-1 text-sm"><span>Mã số thuế (nếu có)</span><input {...register('companyTaxCode')} className="w-full rounded-xl border-2 border-gray-300 px-4 py-2 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-100" /></label>
+              </div>}
 
               <div>
                 <label className="mt-2 flex items-start text-xs leading-tight text-gray-600">

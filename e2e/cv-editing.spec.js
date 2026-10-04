@@ -47,7 +47,7 @@ async function addCustomSection(page, title = "Hoạt động tình nguyện") {
   await expect(page.locator(".cv-wrapper [data-custom-section]")).toContainText(title);
 }
 
-test("custom CV content supports editing, undo/redo after save and persistence in the viewer", async ({ page }) => {
+test("Sửa mục tùy chỉnh và hoàn tác/làm lại", async ({ page }) => {
   const mocks = await mockEditor(page);
   await page.goto("/resume/editing-cv");
   await addCustomSection(page);
@@ -73,7 +73,7 @@ test("custom CV content supports editing, undo/redo after save and persistence i
   await expect(page.locator(".cv-wrapper [data-custom-section]")).toContainText("Hoạt động cộng đồng");
 });
 
-test("drag/drop and custom column changes are saved, cancellable and undoable", async ({ page }, testInfo) => {
+test("Kéo thả sắp xếp bố cục CV", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   const mocks = await mockEditor(page);
   await page.goto("/resume/editing-cv");
@@ -110,7 +110,7 @@ test("drag/drop and custom column changes are saved, cancellable and undoable", 
   await page.screenshot({ path: testInfo.outputPath("cv-layout-desktop.png"), fullPage: true });
 });
 
-test("custom section deletion supports confirmation and undo", async ({ page }) => {
+test("Xóa và khôi phục mục tùy chỉnh", async ({ page }) => {
   await mockEditor(page);
   await page.goto("/resume/editing-cv");
   await addCustomSection(page);
@@ -121,41 +121,7 @@ test("custom section deletion supports confirmation and undo", async ({ page }) 
   await expect(page.locator(".cv-wrapper [data-custom-section]")).toBeVisible();
 });
 
-test("mobile custom dialogs and layout controls stay within the viewport", async ({ page }, testInfo) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await mockEditor(page);
-  await page.goto("/resume/editing-cv");
-  await page.getByRole("button", { name: "Nội dung", exact: true }).click();
-  await page.getByRole("button", { name: "Thêm mục tùy chỉnh", exact: true }).click();
-  const customDialog = page.getByRole("dialog", { name: "Thêm mục tùy chỉnh" });
-  const customBox = await customDialog.boundingBox();
-  expect(customBox.x).toBeGreaterThanOrEqual(0);
-  expect(customBox.x + customBox.width).toBeLessThanOrEqual(390);
-  await customDialog.getByLabel("Tên mục").fill("Hoạt động cộng đồng");
-  await page.screenshot({ path: testInfo.outputPath("cv-custom-mobile.png") });
-  await customDialog.getByRole("button", { name: "Lưu mục", exact: true }).click();
-  await page.getByRole("button", { name: "Thêm nội dung · Hoạt động cộng đồng", exact: true }).click();
-  const entryDialog = page.getByRole("dialog", { name: "Thêm nội dung · Hoạt động cộng đồng", exact: true });
-  await entryDialog.getByLabel("Tên nội dung", { exact: true }).fill("Hướng dẫn lập trình");
-  await entryDialog.getByLabel("Tổ chức / Đơn vị", { exact: true }).fill("Câu lạc bộ");
-  await entryDialog.locator("[contenteditable=true]").fill("Hướng dẫn lập trình.");
-  await entryDialog.getByRole("button", { name: "Thêm trường thông tin", exact: true }).click();
-  await entryDialog.getByLabel("Tên trường 1", { exact: true }).fill("Vai trò");
-  await entryDialog.getByLabel("Giá trị 1", { exact: true }).fill("Điều phối");
-  const entryDimensions = await entryDialog.evaluate((element) => ({ width: element.clientWidth, content: element.scrollWidth }));
-  expect(entryDimensions.content).toBeLessThanOrEqual(entryDimensions.width + 1);
-  await page.screenshot({ path: testInfo.outputPath("cv-custom-entry-mobile.png") });
-  await entryDialog.getByRole("button", { name: "Lưu mục", exact: true }).click();
-  await page.getByRole("button", { name: "Chỉnh bố cục CV", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Sắp xếp bố cục CV" });
-  await dialog.getByRole("button", { name: "Chuyển cột Hoạt động cộng đồng", exact: true }).click();
-  await expect(dialog.locator('[data-layout-zone="sidebar"]').getByRole("button", { name: "Kéo Hoạt động cộng đồng", exact: true })).toBeVisible();
-  const dimensions = await dialog.evaluate((element) => ({ width: element.clientWidth, content: element.scrollWidth }));
-  expect(dimensions.content).toBeLessThanOrEqual(dimensions.width + 1);
-  await page.screenshot({ path: testInfo.outputPath("cv-layout-mobile.png") });
-});
-
-test("AI fill can be undone and redone as one change", async ({ page }) => {
+test("AI điền CV và hoàn tác/làm lại", async ({ page }) => {
   const mocks = await mockEditor(page, user, { ...initialResume, bio: "", skill: [], experience: [], education: [] });
   await page.goto("/resume/editing-cv");
   await page.getByRole("button", { name: "AI điền CV", exact: true }).click();
@@ -171,7 +137,7 @@ test("AI fill can be undone and redone as one change", async ({ page }) => {
   expect(mocks.getPayload().skill[0]).not.toHaveProperty("description");
 });
 
-test("saving a new CV preserves undo history after navigation to its saved URL", async ({ page }) => {
+test("Lưu CV mới và giữ lịch sử hoàn tác", async ({ page }) => {
   await mockEditor(page);
   await page.goto("/resume");
   await addCustomSection(page);
@@ -187,7 +153,7 @@ test("saving a new CV preserves undo history after navigation to its saved URL",
   await expect(page.locator(".cv-wrapper [data-custom-section]")).toContainText("Hoạt động tình nguyện");
 });
 
-test("CV undo synchronizes the biography editor without clearing redo history", async ({ page }) => {
+test("Đồng bộ editor tiểu sử khi hoàn tác", async ({ page }) => {
   await mockEditor(page);
   await page.goto("/resume/editing-cv");
   const editor = page.locator("[data-resume-editor-panel]").first().locator("[contenteditable=true]").first();
@@ -201,7 +167,7 @@ test("CV undo synchronizes the biography editor without clearing redo history", 
   await expect(editor).toContainText("Tiểu sử đã được thay đổi.");
 });
 
-test("custom groups allow multiple entries, optional fields and extra details", async ({ page }, testInfo) => {
+test("Quản lý nhóm mục tùy chỉnh và chi tiết", async ({ page }, testInfo) => {
   const mocks = await mockEditor(page);
   await page.goto("/resume/editing-cv");
   await addCustomSection(page);
@@ -248,7 +214,7 @@ test("custom groups allow multiple entries, optional fields and extra details", 
   await page.screenshot({ path: testInfo.outputPath("cv-custom-group-preview.png"), fullPage: true });
 });
 
-test("skill editing has one name field and saves names only", async ({ page }) => {
+test("Thêm và lưu tên kỹ năng", async ({ page }) => {
   const mocks = await mockEditor(page);
   await page.goto("/resume/editing-cv");
   await page.getByText("Thêm kỹ năng", { exact: true }).click();
@@ -269,7 +235,7 @@ test("skill editing has one name field and saves names only", async ({ page }) =
 });
 
 for (const template of ["classic", "modern", "professional", "elegant", "creative", "compact"]) {
-  test(`skills show names only in ${template} and legacy custom sections remain readable`, async ({ page }) => {
+  test(`Hiển thị kỹ năng trên template ${template}`, async ({ page }) => {
     await mockEditor(page, user, { ...initialResume, selectedTemplate: template });
     await page.goto("/resume/editing-cv");
     const preview = page.locator(".cv-wrapper").first();

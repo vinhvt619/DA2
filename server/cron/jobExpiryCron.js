@@ -20,7 +20,7 @@ export const runJobExpiryCheck = async () => {
     const expiringJobs = await Job.find({
       expiryDate: { $gte: now, $lte: threeDaysLater },
       expiryNotifiedAt: null,
-      status: { $ne: 'Expired' }
+      status: 'Active', approvalStatus: 'Approved', deletedAt: null, isAdminHidden: { $ne: true }
     });
 
     if (expiringJobs.length > 0) {
@@ -69,7 +69,8 @@ export const runJobExpiryCheck = async () => {
     // ==========================================
     const expiredJobs = await Job.find({
       expiryDate: { $lt: now },
-      expiredNotifiedAt: null
+      expiredNotifiedAt: null,
+      status: 'Active', approvalStatus: 'Approved', deletedAt: null, isAdminHidden: { $ne: true }
     });
 
     if (expiredJobs.length > 0) {

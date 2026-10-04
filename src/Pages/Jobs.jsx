@@ -16,10 +16,9 @@ import Header from "../Components/Header.jsx";
 import StickyProfile from "../Components/SitckyProfile.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSavedJobs } from "../context/SavedJobsContext.jsx";
-import { jobsData } from "../data/jobsData.js";
-import { newsArticles } from "../data/newsArticles.js";
+import usePublicJobs from "../hooks/usePublicJobs.js";
+import usePublicNews from '../hooks/usePublicNews.js';
 import { getProfileCompletion } from "../utils/profileCompletion.js";
-import { formatDate } from "../utils/dateTime.js";
 
 const categoryOptions = [
   { value: "", label: "Tất cả ngành nghề" },
@@ -226,6 +225,7 @@ function SuggestedJob({ job }) {
 }
 
 function Jobs() {
+  const { articles: newsArticles } = usePublicNews();
   const location = useLocation();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
@@ -236,9 +236,8 @@ function Jobs() {
   const [sortMode, setSortMode] = useState("newest");
   const [showFilters, setShowFilters] = useState(false);
   const [showWorkTypeOptions, setShowWorkTypeOptions] = useState(false);
-  const [dbJobs, setDbJobs] = useState([]);
+  const { jobs: allJobs, isLoading, error: jobsError, refetch: refetchJobs } = usePublicJobs();
   const [recommendedJobs, setRecommendedJobs] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (location.state?.searchKeyword !== undefined) {
@@ -246,45 +245,8 @@ function Jobs() {
     }
   }, [location.state?.searchKeyword]);
 
-  useEffect(() => {
-    const fetchJobs = async () => {
-      try {
-        const response = await fetch("/api/jobs");
-        if (!response.ok) return;
-
-        const data = await response.json();
-        setDbJobs(
-          data.map((job) => ({
-            ...job,
-            id: job._id,
-            postedAt: formatDate(job.createdAt),
-            tags: job.tags || [],
-          })),
-        );
-      } catch (error) {
-        console.error("Lỗi khi tải danh sách công việc:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchJobs();
-  }, []);
-
-  const allJobs = useMemo(() => {
-    const seen = new Set();
-    return [...dbJobs, ...jobsData].filter((job) => {
-      const identity = `${job.company || ""}::${job.title || ""}`.toLocaleLowerCase("vi");
-      if (seen.has(identity)) return false;
-      seen.add(identity);
-      return true;
-    });
-  }, [dbJobs]);
-
   const refreshRecommendedJobs = useCallback(() => {
-    if (allJobs.length > 0) {
-      setRecommendedJobs(shuffleArray(allJobs).slice(0, 3));
-    }
+    setRecommendedJobs(shuffleArray(allJobs).slice(0, 3));
   }, [allJobs]);
 
   useEffect(() => {
@@ -570,6 +532,11 @@ function Jobs() {
                     <JobSkeleton />
                     <JobSkeleton />
                   </>
+                ) : jobsError ? (
+                  <div role="alert" className="px-4 py-8 text-center text-sm text-red-700">
+                    Không thể tải danh sách việc làm.
+                    <button type="button" onClick={() => refetchJobs()} className="ml-2 font-semibold underline">Thử lại</button>
+                  </div>
                 ) : sortedJobs.length > 0 ? (
                   sortedJobs
                     .slice(0, 5)

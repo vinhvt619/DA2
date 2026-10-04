@@ -27,20 +27,21 @@ import { useConfirmDialog } from "../context/ConfirmDialogContext.jsx";
 import { showToast } from "../utils/toast.js";
 import { formatDate } from "../utils/dateTime.js";
 import NotificationBell from "../Components/NotificationBell.jsx";
+import { companyAccountStatus, isApprovedCompany, isVerifiedCompany } from '../../shared/companyPolicy.js';
 
 function PortalCard({ children, className = "" }) {
   return <section className={`rounded-[10px] border-[0.5px] border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.01)] ${className}`}>{children}</section>;
 }
 
 function StatusBadge({ status }) {
-  const normalized = status === "Draft" ? "Draft" : status === "Expired" ? "Expired" : "Active";
+  const normalized = ['Draft', 'Expired', 'Pending', 'Rejected', 'Active'].includes(status) ? status : 'Pending';
   const className =
     normalized === "Active"
       ? "bg-emerald-50 text-emerald-700"
       : normalized === "Draft"
         ? "bg-slate-100 text-slate-600"
         : "bg-red-50 text-red-700";
-  const labels = { Active: "Đang tuyển", Draft: "Bản nháp", Expired: "Đã đóng" };
+  const labels = { Active: "Đang tuyển", Draft: "Bản nháp", Expired: "Đã đóng", Pending: 'Chờ admin duyệt', Rejected: 'Không được duyệt' };
   return <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold ${className}`}>{labels[normalized]}</span>;
 }
 
@@ -288,13 +289,22 @@ export default function CompanyDashboard() {
   const navigate = useNavigate();
   const confirmDialog = useConfirmDialog();
   const location = useLocation();
-  const { currentUser, isAuthChecked, logout } = useAuth();
+  const { currentUser, isAuthChecked, logout, refreshUser } = useAuth();
+  const canPost = isApprovedCompany(currentUser);
+  const autoPublish = isVerifiedCompany(currentUser);
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') refreshUser(); };
+    window.addEventListener('focus', refresh);
+    const timer = window.setInterval(refresh, 30000);
+    return () => { window.removeEventListener('focus', refresh); window.clearInterval(timer); };
+  }, [refreshUser]);
 
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || "overview");
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState([]);
   const [updatingApplicationIds, setUpdatingApplicationIds] = useState([]);
   const statusUpdateIdsRef = useRef(new Set());
+  const loadedCompanyProfileRef = useRef('');
   const [loading, setLoading] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
   const [selectedCoverLetter, setSelectedCoverLetter] = useState(null);
@@ -345,7 +355,7 @@ export default function CompanyDashboard() {
 
   useEffect(() => {
     if (!currentUser) return;
-    setCompanyProfile({
+    const profile = {
       fullName: currentUser.fullName || currentUser.username || "",
       companyWebsite: currentUser.companyWebsite || "",
       companyDescription: currentUser.companyDescription || "",
@@ -353,7 +363,13 @@ export default function CompanyDashboard() {
       companyIndustry: currentUser.companyIndustry || "",
       address: currentUser.address || "",
       phoneNumber: currentUser.phoneNumber || "",
-    });
+    };
+    const profileKey = JSON.stringify([currentUser._id, profile]);
+    // Refresh approval/trust without overwriting an unsaved profile form.
+    if (loadedCompanyProfileRef.current !== profileKey) {
+      loadedCompanyProfileRef.current = profileKey;
+      setCompanyProfile(profile);
+    }
   }, [currentUser]);
 
   const fetchDashboardData = useCallback(async () => {
@@ -380,6 +396,7 @@ export default function CompanyDashboard() {
 
   const getJobStatus = (job) => {
     if (job.status === "Draft") return "Draft";
+    if (job.approvalStatus !== 'Approved') return job.approvalStatus === 'Rejected' ? 'Rejected' : 'Pending';
     if (job.expiryDate && new Date(job.expiryDate) < new Date()) return "Expired";
     return job.status || "Active";
   };
@@ -464,6 +481,7 @@ export default function CompanyDashboard() {
 
   const handlePostJob = async (event, submitStatus) => {
     if (event) event.preventDefault();
+    if (!canPost) { showToast('Tài khoản doanh nghiệp cần được admin duyệt trước khi gửi tin.', 'error'); return; }
     if (!formData.title || !formData.salary || !formData.location || !formData.description) {
       showToast("Vui lòng điền các thông tin bắt buộc (*)", "error");
       return;
@@ -475,14 +493,14 @@ export default function CompanyDashboard() {
         method: isEditing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ ...formData, status: submitStatus || formData.status || "Active" }),
+        body: JSON.stringify({ ...formData, status: (submitStatus || formData.status) === 'Draft' ? 'Draft' : 'Pending' }),
       });
       const data = await res.json();
       if (!res.ok) {
         showToast(data.message || "Lỗi khi lưu tin", "error");
         return;
       }
-      showToast(isEditing ? "Cập nhật tin tuyển dụng thành công!" : "Đăng tin tuyển dụng thành công!", "success");
+      showToast(data.job?.status === 'Draft' ? 'Đã lưu bản nháp.' : data.job?.status === 'Active' ? 'Tin tuyển dụng đã được công khai.' : 'Đã gửi tin tuyển dụng chờ admin duyệt.', 'success');
       resetForm();
       setActiveTab("jobs");
       fetchDashboardData();
@@ -688,6 +706,9 @@ export default function CompanyDashboard() {
 
       <main className="min-w-0 px-4 py-6 lg:ml-[212px] lg:px-6">
         <div className="mx-auto w-full max-w-[1120px]">
+          <div role="status" className={`mb-4 rounded-xl border p-3 text-sm ${canPost ? autoPublish ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-violet-200 bg-violet-50 text-violet-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+            {!canPost ? companyAccountStatus(currentUser) === 'rejected' ? `Tài khoản bị từ chối: ${currentUser?.companyAccountRejectionReason || 'Vui lòng liên hệ quản trị viên.'}` : 'Tài khoản đang chờ admin duyệt. Bạn có thể cập nhật hồ sơ, chưa thể gửi tin tuyển dụng.' : autoPublish ? 'Doanh nghiệp đã xác minh: tin tuyển dụng được đăng công khai ngay.' : 'Tài khoản đã được duyệt. Tin tuyển dụng cần admin duyệt trước khi công khai.'}
+          </div>
           {loading ? (
             <PortalCard className="grid min-h-[340px] place-items-center">
               <div className="text-center">
@@ -799,6 +820,8 @@ export default function CompanyDashboard() {
                         ["All", `Tất cả (${jobs.length})`],
                         ["Active", `Đang tuyển (${jobs.filter((j) => getJobStatus(j) === "Active").length})`],
                         ["Draft", `Bản nháp (${jobs.filter((j) => getJobStatus(j) === "Draft").length})`],
+                        ['Pending', `Chờ duyệt (${jobs.filter((j) => getJobStatus(j) === 'Pending').length})`],
+                        ['Rejected', `Không duyệt (${jobs.filter((j) => getJobStatus(j) === 'Rejected').length})`],
                         ["Expired", `Đã đóng (${jobs.filter((j) => getJobStatus(j) === "Expired").length})`],
                       ].map(([id, label]) => (
                         <button key={id} onClick={() => setJobStatusFilter(id)} className={`border-b-2 pb-2 text-[11px] font-bold ${jobStatusFilter === id ? "border-violet-700 text-violet-700" : "border-transparent text-[#665d70]"}`}>{label}</button>
@@ -813,12 +836,12 @@ export default function CompanyDashboard() {
                           {filteredJobs.map((job) => (
                             <tr key={job._id} className="hover:bg-violet-50/30">
                               <td className="px-3.5 py-2.5"><p className="text-[12px] font-black">{job.title}</p><p className="text-[9px] font-semibold text-[#665d70]">{getJobTypeLabel(job.type)} • {job.salary}</p></td>
-                              <td><StatusBadge status={getJobStatus(job)} /></td>
+                              <td><StatusBadge status={getJobStatus(job)} />{job.rejectionReason && <p className="mt-1 max-w-60 whitespace-normal text-xs text-red-700">{job.rejectionReason}</p>}{job.isAdminHidden && <p className="mt-1 text-xs text-red-700">Admin đã ẩn tin</p>}</td>
                               <td className="text-[11px] font-semibold text-[#665d70]">{job.location}</td>
                               <td className="text-[11px] font-semibold text-[#665d70]">{formatDate(job.createdAt)}</td>
                               <td><button onClick={() => handleRecruitForJob(job._id)} className="text-[11px] font-black text-violet-700">{getAppCountForJob(job._id)}</button></td>
                               <td className="pr-3.5 text-right">
-                                {["Active", "Draft", "Expired"].includes(getJobStatus(job)) ? (
+                                {job.approvalStatus === 'Approved' && !job.isAdminHidden ? (
                                   <div className="flex justify-end gap-1.5">
                                     <JobStatusToggle isActive={getJobStatus(job) === "Active"} onToggle={() => handleJobStatusToggle(job)} />
                                     <button type="button" onClick={() => handleStartEdit(job)} aria-label={`Chỉnh sửa ${job.title}`} className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"><PencilIcon className="h-3.5 w-3.5" /></button>
@@ -1042,14 +1065,14 @@ export default function CompanyDashboard() {
                         {isEditing ? (
                           <div className="mt-5 space-y-2 border-t border-violet-100 pt-4">
                             <p className="text-[11px] font-semibold text-slate-600">Trạng thái bài đăng</p>
-                            <JobStatusToggle isActive={formData.status === "Active"} onToggle={() => handleJobStatusToggle({ _id: editingJobId, title: formData.title, status: formData.status })} />
-                            <button disabled={formLoading} type="button" onClick={(event) => handlePostJob(event, formData.status)} className="h-10 w-full rounded-xl bg-violet-700 text-[12px] font-semibold text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50">{formLoading ? "Đang lưu..." : "Lưu thay đổi"}</button>
+                            {jobs.find((j) => j._id === editingJobId)?.approvalStatus === 'Approved' && !jobs.find((j) => j._id === editingJobId)?.isAdminHidden && <JobStatusToggle isActive={formData.status === "Active"} onToggle={() => handleJobStatusToggle(jobs.find((j) => j._id === editingJobId))} />}
+                            <p className="text-xs text-slate-500">{autoPublish ? 'Nội dung mới được công khai ngay, trừ tin bị admin ẩn.' : 'Sửa nội dung sẽ gửi admin duyệt lại trước khi công khai.'}</p><button disabled={formLoading || !canPost} type="button" onClick={(event) => handlePostJob(event, 'Pending')} className="h-10 w-full rounded-xl bg-violet-700 text-[12px] font-semibold text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50">{formLoading ? "Đang lưu..." : autoPublish ? 'Lưu và công khai' : "Lưu và gửi duyệt lại"}</button>
                             <button type="button" onClick={async () => { const deleted = await handleDeleteJob(editingJobId); if (deleted) { resetForm(); setActiveTab("jobs"); } }} className="h-10 w-full rounded-xl border border-red-100 bg-white text-[12px] font-semibold text-red-600 transition hover:bg-red-50">Xóa tin</button>
                           </div>
                         ) : (
                           <div className="mt-5 space-y-2 border-t border-violet-100 pt-4">
-                            <button type="button" onClick={(e) => handlePostJob(e, "Draft")} className="h-10 w-full rounded-xl border border-violet-200 bg-white text-[12px] font-semibold text-violet-700 transition hover:bg-violet-50">Lưu bản nháp</button>
-                            <button disabled={formLoading} type="button" onClick={(e) => handlePostJob(e, "Active")} className="h-10 w-full rounded-xl bg-violet-700 text-[12px] font-semibold text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50">{formLoading ? "Đang lưu..." : "Đăng tuyển"}</button>
+                            <button disabled={formLoading || !canPost} type="button" onClick={(e) => handlePostJob(e, "Draft")} className="h-10 w-full rounded-xl border border-violet-200 bg-white text-[12px] font-semibold text-violet-700 transition hover:bg-violet-50 disabled:opacity-50">Lưu bản nháp</button>
+                            <button disabled={formLoading || !canPost} type="button" onClick={(e) => handlePostJob(e, "Pending")} className="h-10 w-full rounded-xl bg-violet-700 text-[12px] font-semibold text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50">{formLoading ? "Đang lưu..." : autoPublish ? 'Đăng tuyển ngay' : "Gửi admin duyệt"}</button>
                           </div>
                         )}
                       </PortalCard>

@@ -35,6 +35,42 @@ const respondJson = (route, body, status = 200) =>
     body: JSON.stringify(body),
   });
 
+for (const contact of ["candidate@example.test", "0912345678"]) {
+  test(`Đổi mật khẩu yêu cầu email/số điện thoại khớp tài khoản (${contact.includes("@") ? "email" : "phone"})`, async ({ page }, testInfo) => {
+    await installApiMocks(page, { currentUser: users.candidate });
+    const requests = [];
+    await page.route("**/api/user/password", (route) => {
+      const payload = route.request().postDataJSON();
+      requests.push(payload);
+      return payload.contact === contact
+        ? respondJson(route, { message: "Đổi mật khẩu thành công." })
+        : respondJson(route, { message: "Email hoặc số điện thoại không khớp với tài khoản của bạn." }, 400);
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/SettingAndPrivate");
+    const form = page.getByRole("form", { name: "Thay đổi mật khẩu" });
+    await form.getByLabel("Mật khẩu hiện tại", { exact: true }).click();
+    await form.getByLabel("Mật khẩu hiện tại", { exact: true }).fill("old-password");
+    await form.getByLabel("Mật khẩu mới", { exact: true }).fill("new-password");
+    await form.getByLabel("Nhập lại mật khẩu mới", { exact: true }).fill("new-password");
+    await form.getByRole("button", { name: "Cập nhật mật khẩu" }).click();
+    expect(requests).toHaveLength(0);
+    const input = form.getByLabel("Email hoặc số điện thoại xác nhận");
+    await input.fill("wrong@example.test");
+    await form.getByRole("button", { name: "Cập nhật mật khẩu" }).click();
+    await expect(page.getByText("Email hoặc số điện thoại không khớp với tài khoản của bạn.", { exact: true })).toBeVisible();
+    await expect(form.getByLabel("Mật khẩu mới", { exact: true })).toHaveValue("new-password");
+    await input.fill(contact);
+    await form.getByRole("button", { name: "Cập nhật mật khẩu" }).click();
+    await expect(page.getByText("Đổi mật khẩu thành công.", { exact: true })).toBeVisible();
+    await expect(input).toHaveValue("");
+    await expect(form.getByLabel("Mật khẩu hiện tại", { exact: true })).toHaveValue("");
+    expect(requests[1]).toEqual({ contact, oldPassword: "old-password", newPassword: "new-password" });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath("password-change-mobile.png"), fullPage: true });
+  });
+}
+
 async function installApiMocks(page, { currentUser = null } = {}) {
   await page.route("**/socket.io/**", (route) => route.abort());
   await page.route("**/api/**", async (route) => {
@@ -93,7 +129,7 @@ async function installApiMocks(page, { currentUser = null } = {}) {
   });
 }
 
-test("trang chào mừng hiển thị lời giới thiệu và hành động chính", async ({
+test("Hiển thị trang chủ chào mừng", async ({
   page,
 }) => {
   await installApiMocks(page);
@@ -106,7 +142,7 @@ test("trang chào mừng hiển thị lời giới thiệu và hành động ch�
   await expect(page.getByRole("button", { name: "Xem việc làm" })).toBeVisible();
 });
 
-test("form đăng nhập hiển thị lỗi khi bỏ trống thông tin", async ({ page }) => {
+test("Kiểm tra form đăng nhập trống", async ({ page }) => {
   await installApiMocks(page);
   await page.goto("/login");
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
@@ -117,25 +153,25 @@ test("form đăng nhập hiển thị lỗi khi bỏ trống thông tin", async 
 
 for (const scenario of [
   {
-    name: "ứng viên",
+    name: "Ứng viên",
     user: users.candidate,
     destination: /\/MainMenu$/,
     marker: /Khám phá các tính năng của RabbitCV/i,
   },
   {
-    name: "doanh nghiệp",
+    name: "Doanh nghiệp",
     user: users.company,
     destination: /\/CompanyDashboard$/,
     marker: /Chào mừng trở lại, Doanh nghiệp E2E/i,
   },
   {
-    name: "quản trị viên",
+    name: "Quản trị viên",
     user: users.admin,
     destination: /\/admin$/,
     marker: /Tổng người dùng/i,
   },
 ]) {
-  test(`đăng nhập ${scenario.name} chuyển đến đúng cổng`, async ({ page }) => {
+  test(`Đăng nhập vai trò ${scenario.name}`, async ({ page }) => {
     await installApiMocks(page);
     await page.goto("/login");
 
@@ -150,7 +186,7 @@ for (const scenario of [
   });
 }
 
-test("ứng viên không thể mở trực tiếp trang quản trị", async ({ page }) => {
+test("Chặn ứng viên vào trang quản trị", async ({ page }) => {
   await installApiMocks(page, { currentUser: users.candidate });
   await page.goto("/admin");
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import Header from "../Components/Header";
-import { getJobById, jobsData } from "../data/jobsData";
+import usePublicJobs from "../hooks/usePublicJobs.js";
 import { showToast } from "../utils/toast.js";
 import { formatDate } from "../utils/dateTime.js";
 import {
@@ -58,6 +58,7 @@ export default function JobDetail() {
   const [loadingJob, setLoadingJob] = useState(true);
   const [applying, setApplying] = useState(false);
   const [similarJobs, setSimilarJobs] = useState([]);
+  const { jobs: publicJobs } = usePublicJobs();
   const { isSaved, toggleSave, pendingIds } = useSavedJobs();
   const jobIsDeleted = isJobDeleted(job);
   const jobIsExpired = isJobExpired(job);
@@ -67,7 +68,7 @@ export default function JobDetail() {
     const getJob = async () => {
       setLoadingJob(true);
       try {
-        const res = await fetch(`/api/jobs/${jobId}`);
+        const res = await fetch(`/api/jobs/${jobId}`, { cache: "no-store" });
         if (!res.ok) throw new Error("job not found");
         const data = await res.json();
         setJob(normalizeJobDetails({
@@ -79,8 +80,7 @@ export default function JobDetail() {
           tags: data.tags || [],
         }));
       } catch {
-        const staticJob = getJobById(jobId);
-        setJob(staticJob ? normalizeJobDetails(staticJob) : null);
+        setJob(null);
       } finally {
         setLoadingJob(false);
       }
@@ -111,28 +111,11 @@ export default function JobDetail() {
   }, []);
 
   useEffect(() => {
-    if (!job) return;
-
-    const fetchSimilarJobs = async () => {
-      let dbJobsList = [];
-      try {
-        const res = await fetch("/api/jobs");
-        if (res.ok) {
-          const data = await res.json();
-          dbJobsList = data.map((j) => ({
-            ...j,
-            id: j._id,
-            postedAt: formatDate(j.createdAt),
-            tags: j.tags || [],
-          }));
-        }
-      } catch (err) {
-        console.error("Lỗi khi tải danh sách công việc tương tự:", err);
-      }
-
-      const allJobs = [...dbJobsList, ...jobsData];
-
-      const scored = allJobs
+    if (!job) {
+      setSimilarJobs([]);
+      return;
+    }
+      const scored = publicJobs
         .filter((j) => j.id !== job.id)
         .map((j) => {
           let score = 0;
@@ -168,10 +151,7 @@ export default function JobDetail() {
         .map((item) => item.job);
 
       setSimilarJobs(top3);
-    };
-
-    fetchSimilarJobs();
-  }, [job, jobId]);
+  }, [job, publicJobs]);
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);

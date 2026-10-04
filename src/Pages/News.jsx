@@ -9,18 +9,10 @@ import {
   SparklesIcon,
 } from "@heroicons/react/24/outline";
 import Header from "../Components/Header.jsx";
-import {
-  featuredArticle,
-  getCategoryImg,
-  newsArticles,
-  newsCategories,
-} from "../data/newsArticles.js";
+import { getCategoryImg } from "../data/newsArticles.js";
+import usePublicNews from '../hooks/usePublicNews.js';
 
-const allCategory = newsCategories[0];
-const secondaryFeatured = newsArticles
-  .filter((article) => article.slug !== featuredArticle.slug)
-  .slice(0, 2);
-const popularArticles = newsArticles.slice(1, 4);
+const allCategory = 'Tất cả';
 
 function normalizeText(value = "") {
   return value
@@ -91,6 +83,11 @@ function ArticleRow({ article }) {
 }
 
 export default function News() {
+  const { articles: newsArticles, isLoading, error } = usePublicNews();
+  const featuredArticle = newsArticles[0];
+  const secondaryFeatured = newsArticles.slice(1, 3);
+  const popularArticles = newsArticles.slice(1, 4);
+  const newsCategories = [allCategory, ...new Set(newsArticles.map((a) => a.category))];
   const [activeCategory, setActiveCategory] = useState(allCategory);
   const [keyword, setKeyword] = useState("");
   const [sortMode, setSortMode] = useState("newest");
@@ -98,7 +95,7 @@ export default function News() {
   const filteredArticles = useMemo(() => {
     const query = normalizeText(keyword.trim());
     const filtered = newsArticles.filter((article) => {
-      if (article.slug === featuredArticle.slug) return false;
+      if (article.slug === featuredArticle?.slug) return false;
       const matchesCategory =
         activeCategory === allCategory || article.category === activeCategory;
       const searchableText = normalizeText(
@@ -111,7 +108,7 @@ export default function News() {
       return [...filtered].sort((a, b) => b.summary.length - a.summary.length);
     }
     return filtered;
-  }, [activeCategory, keyword, sortMode]);
+  }, [activeCategory, keyword, sortMode, newsArticles, featuredArticle?.slug]);
 
   const resetFilters = () => {
     setKeyword("");
@@ -173,7 +170,9 @@ export default function News() {
           })}
         </nav>
 
-        <section className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(220px,0.75fr)]">
+        {isLoading && <p className="mt-4">Đang tải tin tức...</p>}
+        {error && <p role="alert" className="mt-4 text-red-700">{error.message}</p>}
+        {featuredArticle && <section className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(220px,0.75fr)]">
           <Link
             to={`/News/${featuredArticle.slug}`}
             className="group grid overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_2px_8px_rgba(15,23,42,0.035)] transition hover:border-violet-200 hover:shadow-md sm:grid-cols-[43%_57%]"
@@ -218,7 +217,7 @@ export default function News() {
               <SecondaryArticle key={article.slug} article={article} />
             ))}
           </div>
-        </section>
+        </section>}
 
         <div className="mt-5 grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_240px]">
           <section aria-labelledby="latest-news-title">

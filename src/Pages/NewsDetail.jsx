@@ -14,11 +14,13 @@ import {
   SparklesIcon,
   TagIcon,
 } from "@heroicons/react/24/outline";
-import { getArticleBySlug, getCategoryImg, newsArticles } from "../data/newsArticles.js";
+import { getCategoryImg } from "../data/newsArticles.js";
+import usePublicNews from '../hooks/usePublicNews.js';
 
 export default function NewsDetail() {
   const { slug } = useParams();
-  const article = getArticleBySlug(slug);
+  const { articles: newsArticles, isLoading, error } = usePublicNews();
+  const article = newsArticles.find((a) => a.slug === slug);
 
   const related = useMemo(() => {
     if (!article) return [];
@@ -28,7 +30,7 @@ export default function NewsDetail() {
       .concat(newsArticles.filter((item) => item.slug !== article.slug))
       .filter((item, index, items) => items.findIndex((candidate) => candidate.slug === item.slug) === index)
       .slice(0, 3);
-  }, [article]);
+  }, [article, newsArticles]);
 
   const readingTime = useMemo(() => {
     if (!article) return 0;
@@ -47,6 +49,7 @@ export default function NewsDetail() {
     return Math.max(3, Math.ceil(content.trim().split(/\s+/).length / 220));
   }, [article]);
 
+  if (isLoading || error) return <div><Header /><p role={error ? 'alert' : 'status'} className="p-8">{error?.message || 'Đang tải bài viết...'}</p></div>;
   if (!article) return <Navigate to="/News" replace />;
 
   const coverImage = getCategoryImg(article.slug, article.category);

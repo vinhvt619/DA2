@@ -14,63 +14,14 @@ import {
 } from "@heroicons/react/24/outline";
 import Header from "../Components/Header.jsx";
 import ResumePreview from "../Components/ResumePreview.jsx";
+import ResumeTemplateSource from "../Components/ResumeTemplateSource.jsx";
 import { showToast } from "../utils/toast.js";
 import { formatDate } from "../utils/dateTime.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useConfirmDialog } from "../context/ConfirmDialogContext.jsx";
 import { SAMPLE_CVS } from "../data/sampleCV.js";
 import useResumePrint from "../hooks/useResumePrint.js";
-
-const TEMPLATES = [
-  {
-    id: "modern",
-    name: "Hiện đại",
-    category: "Hiện đại",
-    description: "Bố cục rõ ràng, điểm nhấn violet phù hợp nhiều ngành nghề.",
-    accent: "bg-violet-600",
-    soft: "bg-violet-50",
-  },
-  {
-    id: "classic",
-    name: "Cơ bản tối giản",
-    category: "Tối giản",
-    description: "Thiết kế tinh gọn, tập trung vào kinh nghiệm và nội dung.",
-    accent: "bg-slate-800",
-    soft: "bg-slate-50",
-  },
-  {
-    id: "professional",
-    name: "Chuyên nghiệp",
-    category: "Chuyên nghiệp",
-    description: "Bố cục chắc chắn, tạo cảm giác tin cậy và chỉn chu.",
-    accent: "bg-blue-700",
-    soft: "bg-blue-50",
-  },
-  {
-    id: "elegant",
-    name: "Thanh lịch đơn sắc",
-    category: "Thanh lịch",
-    description: "Bố cục tối giản, nhiều khoảng thở, phù hợp tài chính, tư vấn và quản lý.",
-    accent: "bg-slate-900",
-    soft: "bg-stone-50",
-  },
-  {
-    id: "creative",
-    name: "Sáng tạo hai cột",
-    category: "Sáng tạo",
-    description: "Header nổi bật kết hợp sidebar sáng, phù hợp thiết kế, marketing và sản phẩm.",
-    accent: "bg-teal-700",
-    soft: "bg-teal-50",
-  },
-  {
-    id: "compact",
-    name: "Tối ưu ATS",
-    category: "Tối giản",
-    description: "Bố cục một cột, tiêu đề chuẩn và thứ tự nội dung rõ ràng để ATS dễ phân tích.",
-    accent: "bg-indigo-700",
-    soft: "bg-indigo-50",
-  },
-];
+import { RESUME_TEMPLATES as TEMPLATES } from "../../shared/resumeTemplates.js";
 
 const FILTERS = ["Tất cả", "Hiện đại", "Tối giản", "Chuyên nghiệp", "Thanh lịch", "Sáng tạo"];
 
@@ -251,6 +202,7 @@ function TemplateCard({ template, onSelect }) {
         <h3 className="text-sm font-semibold text-slate-900 group-hover:text-violet-700">{template.name}</h3>
         <span className="mt-1 text-[10px] font-medium text-violet-600">{template.category}</span>
         <p className="mt-2 line-clamp-4 flex-1 text-[10px] leading-4 text-slate-500">{template.description}</p>
+        <ResumeTemplateSource source={template.source} />
         <button type="button" onClick={() => onSelect(template.id)} className="mt-3 flex h-9 w-full items-center justify-center gap-1 rounded-md border border-violet-300 text-[11px] font-semibold text-violet-700 transition hover:bg-violet-50">Dùng mẫu <ArrowRightIcon className="h-3.5 w-3.5" /></button>
       </div>
     </article>

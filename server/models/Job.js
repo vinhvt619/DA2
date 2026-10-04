@@ -57,9 +57,14 @@ const JobSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Draft', 'Active', 'Expired', 'Deleted'],
-    default: 'Active',
+    enum: ['Draft', 'Pending', 'Active', 'Expired', 'Rejected', 'Deleted'],
+    default: 'Pending',
   },
+  approvalStatus: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' },
+  approvalSource: { type: String, enum: ['admin', 'company_verification', null], default: null },
+  reviewedAt: { type: Date, default: null },
+  reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  rejectionReason: { type: String, default: '' },
   deletedAt: { type: Date, default: null },
   isAdminHidden: { type: Boolean, default: false },
   expiryDate: {

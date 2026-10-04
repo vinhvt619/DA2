@@ -25,7 +25,7 @@ async function installMocks(page, initialStatus = "Pending", fail = false) {
   return { writes: () => writes };
 }
 
-test("rejecting requires confirmation and permanently disables the status selector after reload", async ({ page }, testInfo) => {
+test("Xác nhận từ chối và khóa trạng thái hồ sơ", async ({ page }, testInfo) => {
   const mocks = await installMocks(page);
   await page.goto("/CompanyDashboard");
   await page.getByRole("button", { name: "Duyệt ứng viên", exact: true }).click();
@@ -48,7 +48,7 @@ test("rejecting requires confirmation and permanently disables the status select
   await expect(page.getByRole("button", { name: "Đã từ chối", exact: true })).toBeDisabled();
 });
 
-test("a failed rejection keeps the previous status available", async ({ page }) => {
+test("Giữ nguyên trạng thái khi từ chối thất bại", async ({ page }) => {
   await installMocks(page, "Pending", true);
   await page.goto("/CompanyDashboard");
   await page.getByRole("button", { name: "Duyệt ứng viên", exact: true }).click();

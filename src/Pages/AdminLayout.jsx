@@ -5,6 +5,7 @@ import {
   BriefcaseIcon,
   BuildingOffice2Icon,
   ChartBarIcon,
+  NewspaperIcon,
   ArrowRightStartOnRectangleIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../context/AuthContext";
@@ -38,6 +39,8 @@ export default function AdminLayout() {
         return { title: "Quản lý Việc làm & Tuyển dụng", subtitle: "Danh sách tin đăng của các doanh nghiệp." };
       case "/admin/companies":
         return { title: "Quản lý doanh nghiệp", subtitle: "Xác minh và quản trị các tài khoản nhà tuyển dụng." };
+      case '/admin/news':
+        return { title: 'Quản lý tin tức', subtitle: 'Đăng, chỉnh sửa và quản lý nội dung tin tức.' };
       default:
         return { title: "Hệ thống Admin", subtitle: "RabbitCV Portal" };
     }
@@ -60,7 +63,7 @@ export default function AdminLayout() {
     <div className="flex h-screen min-h-screen overflow-hidden bg-[var(--page-background)] font-sans text-[13px] text-slate-700 antialiased">
       
       {/* LEFT SIDEBAR (220px) */}
-      <aside className="w-[250px] bg-[#F4F0FA] border-r-[0.5px] border-[rgba(196,180,240,0.4)] flex flex-col justify-between py-5 shrink-0 relative z-20">
+      <aside className="hidden w-[250px] bg-[#F4F0FA] border-r-[0.5px] border-[rgba(196,180,240,0.4)] md:flex flex-col justify-between py-5 shrink-0 relative z-20">
         <div>
           {/* Logo Branding */}
           <div className="px-5 mb-8 flex items-center gap-2">
@@ -75,6 +78,7 @@ export default function AdminLayout() {
 
           {/* Navigation Items */}
           <nav className="flex flex-col gap-0.5 px-3">
+            <button type="button" onClick={() => navigate('/admin/news')} className={navItemClass('/admin/news')}><NewspaperIcon className="size-4" /><span>Tin tức</span></button>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-1.5">
               Quản lý chung
             </p>
@@ -126,9 +130,9 @@ export default function AdminLayout() {
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex h-screen flex-1 flex-col overflow-hidden bg-[var(--page-background)]">
+      <main className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden bg-[var(--page-background)]">
         {/* Header section */}
-        <header className="sticky top-0 z-10 flex shrink-0 items-center justify-between border-b-[0.5px] border-[rgba(196,180,240,0.4)] bg-[var(--header-background)] px-8 py-4.5">
+        <header className="sticky top-0 z-10 flex shrink-0 items-center justify-between gap-3 border-b-[0.5px] border-[rgba(196,180,240,0.4)] bg-[var(--header-background)] px-4 sm:px-8 py-4.5">
           <div>
             <h1 className="text-[17px] font-bold text-slate-900 tracking-tight">
               {title}
@@ -151,6 +155,10 @@ export default function AdminLayout() {
         </header>
 
         {/* Dynamic Nested Child Route Content */}
+        <nav aria-label="Quản trị trên điện thoại" className="flex shrink-0 flex-wrap gap-1 border-b border-violet-100 p-3 md:hidden">
+          {[['/admin', 'Tổng quan'], ['/admin/users', 'Người dùng'], ['/admin/jobs', 'Việc làm'], ['/admin/companies', 'Doanh nghiệp'], ['/admin/news', 'Tin tức']].map(([path, label]) => <button key={path} type="button" onClick={() => navigate(path)} className={navItemClass(path)}>{label}</button>)}
+          <button type="button" onClick={handleLogout} className="rounded-lg px-3 py-2 text-red-700">Đăng xuất</button>
+        </nav>
         <div className="flex-1 overflow-y-auto">
           <Outlet />
         </div>

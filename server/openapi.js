@@ -1,3 +1,5 @@
+import { RESUME_TEMPLATE_KEYS } from "../shared/resumeTemplates.js";
+
 const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
 
 const jsonResponse = (description, schema = "AnyObject", example) => ({
@@ -225,8 +227,9 @@ const openapiSpec = {
         tags: ["Users"],
         summary: "Đổi mật khẩu",
         requestBody: requestBody("PasswordRequest", {
-          currentPassword: "old-password",
+          oldPassword: "old-password",
           newPassword: "new-password",
+          contact: "candidate@example.test",
         }),
         responses: {
           "200": jsonResponse("Đã đổi mật khẩu", "MessageResponse"),
@@ -661,10 +664,12 @@ const openapiSpec = {
     "/api/admin/jobs/{id}/unhide": {
       put: secured({
         tags: ["Admin"],
-        summary: "Hiện lại tin tuyển dụng",
+        summary: "Hiện lại tin còn hạn đã duyệt hoặc tin cũ của doanh nghiệp xác minh",
         parameters: [idParameter()],
         responses: {
           "200": jsonResponse("Đã hiện lại tin tuyển dụng", "MessageResponse"),
+          "400": jsonResponse('Tin hết hạn, không bị ẩn, bị từ chối hoặc chưa đủ điều kiện', 'ErrorResponse'),
+          "409": jsonResponse('Tin đã thay đổi hoặc chủ sở hữu bị vô hiệu hóa', 'ErrorResponse'),
         },
       }),
     },
@@ -679,6 +684,7 @@ const openapiSpec = {
       }),
     },
     "/api/admin/companies": {
+      post: secured({ tags: ['Admin'], summary: 'Admin tạo tài khoản doanh nghiệp đã duyệt, tùy chọn xác minh', requestBody: requestBody('CompanyCreateRequest'), responses: { '201': jsonResponse('Đã tạo tài khoản', 'UserResponse'), '409': jsonResponse('Tên đăng nhập hoặc email trùng', 'ErrorResponse') } }),
       get: secured({
         tags: ["Admin"],
         summary: "Lấy danh sách doanh nghiệp",
@@ -797,7 +803,8 @@ const openapiSpec = {
           username: { type: "string" },
           email: { type: "string", format: "email" },
           password: { type: "string", format: "password" },
-          fullName: { type: "string" },
+          fullName: { type: "string", description: 'Bắt buộc với đăng ký doanh nghiệp', maxLength: 200 },
+          companyTaxCode: { type: 'string', maxLength: 50 },
           role: { type: "string", enum: ["employee", "company"] },
         },
         additionalProperties: true,
@@ -819,6 +826,9 @@ const openapiSpec = {
           role: { type: "string", enum: ["employee", "company", "admin"] },
           status: { type: "string" },
           isBanned: { type: "boolean" },
+          companyAccountApprovalStatus: { type: 'string', enum: ['pending', 'approved', 'rejected'] },
+          companyAccountRejectionReason: { type: 'string' },
+          companyVerificationStatus: { type: 'string', enum: ['unverified', 'pending', 'verified', 'rejected'] },
         },
         additionalProperties: true,
       },
@@ -846,10 +856,11 @@ const openapiSpec = {
       },
       PasswordRequest: {
         type: "object",
-        required: ["currentPassword", "newPassword"],
+        required: ["oldPassword", "newPassword", "contact"],
         properties: {
-          currentPassword: { type: "string", format: "password" },
-          newPassword: { type: "string", format: "password" },
+          oldPassword: { type: "string", format: "password" },
+          newPassword: { type: "string", format: "password", minLength: 8, description: "Tối đa 72 byte UTF-8; phải khác mật khẩu hiện tại." },
+          contact: { type: "string", maxLength: 254, description: "Email hoặc số điện thoại khớp với tài khoản đang đăng nhập." },
         },
       },
       ResumePayload: {
@@ -859,7 +870,7 @@ const openapiSpec = {
           _id: { type: "string", nullable: true },
           title: { type: "string", example: "CV Frontend Developer" },
           targetRole: { type: "string" },
-          selectedTemplate: { type: "string", enum: ["classic", "modern", "professional", "elegant", "creative", "compact"] },
+          selectedTemplate: { type: "string", enum: RESUME_TEMPLATE_KEYS },
           customSections: {
             type: "array", maxItems: 30,
             items: { type: "object", required: ["id", "title"], properties: {
@@ -910,7 +921,8 @@ const openapiSpec = {
           companyName: { type: "string" },
           location: { type: "string" },
           description: { type: "string" },
-          status: { type: "string", enum: ["Active", "Expired", "Hidden"] },
+          status: { type: "string", enum: ['Draft', 'Pending', 'Active', 'Expired', 'Rejected', 'Deleted'] },
+          approvalStatus: { type: 'string', enum: ['Pending', 'Approved', 'Rejected'] },
           deadline: { type: "string", format: "date" },
         },
         additionalProperties: true,
@@ -1041,10 +1053,23 @@ const openapiSpec = {
       CompanyVerificationRequest: {
         type: "object",
         required: ["action"],
-        properties: { action: { type: "string", enum: ["approve", "reject", "suspend", "restore"] } },
+        properties: { action: { type: "string", enum: ["approve", "reject", "verify", "unverify", "suspend", "restore"] }, reason: { type: 'string', description: 'Bắt buộc khi từ chối tài khoản', maxLength: 2000 } },
       },
+      CompanyCreateRequest: { type: 'object', required: ['username', 'email', 'password', 'fullName'], properties: { username: { type: 'string' }, email: { type: 'string', format: 'email' }, password: { type: 'string', minLength: 8, maxLength: 72, writeOnly: true }, fullName: { type: 'string' }, companyTaxCode: { type: 'string' }, companyWebsite: { type: 'string' }, verified: { type: 'boolean', default: false } } },
     },
   },
 };
 
+Object.assign(openapiSpec.paths, {
+  '/api/admin/jobs/{id}/review': { put: secured({ tags: ['Admin'], summary: 'Duyệt hoặc từ chối tin sau khi đọc đúng phiên bản', parameters: [idParameter()], requestBody: requestBody('AnyObject', { action: 'approve', updatedAt: '2026-10-02T00:00:00Z', reason: '' }), responses: { '200': jsonResponse('Đã lưu quyết định'), '409': jsonResponse('Tin hoặc doanh nghiệp đã thay đổi', 'ErrorResponse') } }) },
+  '/api/news': { get: publicOperation({ tags: ['News'], summary: 'Danh sách tin tức đã công khai', responses: { '200': { description: 'Các bài viết đã xuất bản', content: { 'application/json': { schema: { type: 'array', items: ref('AnyObject') } } } } } }) },
+  '/api/admin/news': {
+    get: secured({ tags: ['Admin'], summary: 'Quản lý tất cả tin tức và bản nháp', responses: { '200': jsonResponse('Danh sách bài viết') } }),
+    post: secured({ tags: ['Admin'], summary: 'Đăng tin tức mới (chỉ admin)', requestBody: requestBody('AnyObject'), responses: { '201': jsonResponse('Đã tạo bài viết') } }),
+  },
+  '/api/admin/news/{slug}': {
+    put: secured({ tags: ['Admin'], summary: 'Sửa nội dung hoặc ẩn tin tức', parameters: [idParameter('slug', 'Slug bài viết')], requestBody: requestBody('AnyObject'), responses: { '200': jsonResponse('Đã cập nhật') } }),
+    delete: secured({ tags: ['Admin'], summary: 'Xóa tin tức', parameters: [idParameter('slug', 'Slug bài viết')], responses: { '200': jsonResponse('Đã xóa') } }),
+  },
+});
 export default openapiSpec;

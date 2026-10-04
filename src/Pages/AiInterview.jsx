@@ -10,6 +10,7 @@ import {
   CheckCircleIcon,
   ChevronRightIcon,
   ClockIcon,
+  MicrophoneIcon,
   PaperAirplaneIcon,
   SparklesIcon,
   StopCircleIcon,
@@ -19,6 +20,8 @@ import Header from "../Components/Header.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { showToast } from "../utils/toast.js";
 import { requestAi } from "../utils/aiApi.js";
+import useInterviewSpeech from "../hooks/useInterviewSpeech.js";
+import { INTERVIEW_ANSWER_LIMIT } from "../utils/interviewSpeech.js";
 
 const LEVEL_OPTIONS = [
   { value: "intern", label: "Thực tập sinh" },
@@ -692,9 +695,49 @@ function AnswerComposer({
   isRequesting,
   questionNumber,
 }) {
+  const speech = useInterviewSpeech({ onText: setAnswer, disabled: isRequesting });
+  const sendAnswer = () => {
+    if (!speech.busy && !isRequesting) void onSubmit();
+  };
+  const speechStatus = speech.status === "starting" ? "Đang mở mic…"
+    : speech.status === "listening" ? "Đang nghe tiếng Việt… Bấm Dừng mic khi trả lời xong."
+      : speech.status === "stopping" ? "Đang dừng mic và hoàn tất bản chép lời…"
+        : "Kiểm tra, chỉnh sửa bản chép lời rồi bấm Gửi. Mic tự dừng sau 2 phút.";
   return (
     <div className="shrink-0 border-t border-slate-200 bg-white p-3 sm:px-5">
       <div className="w-full">
+        {speech.canSelectMicrophone ? <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <label htmlFor="interview-microphone" className="shrink-0 text-xs font-semibold text-slate-700">Microphone</label>
+          <select id="interview-microphone" value={speech.deviceId} onChange={(event) => speech.selectDevice(event.target.value)}
+            disabled={isRequesting || speech.busy || speech.loadingDevices} aria-describedby="interview-microphone-help"
+            className="min-h-11 w-full min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-xs text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:bg-slate-50 disabled:opacity-60">
+            <option value="">Mic mặc định của trình duyệt</option>
+            {speech.deviceId && !speech.devices.some((device) => device.deviceId === speech.deviceId) && <option value={speech.deviceId}>Mic đã ngắt kết nối — chọn mic khác</option>}
+            {speech.devices.map((device, index) => <option key={device.deviceId} value={device.deviceId}>{device.label || `Microphone ${index + 1}`}</option>)}
+          </select>
+          <button type="button" onClick={() => void speech.refreshDevices()} disabled={isRequesting || speech.busy || speech.loadingDevices}
+            className="min-h-11 shrink-0 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:opacity-50">
+            {speech.loadingDevices ? "Đang tải mic…" : "Tải danh sách mic"}
+          </button>
+        </div> : null}
+        {speech.supported && <p id="interview-microphone-help" className="mb-2 text-[11px] leading-4 text-slate-600" role="status" aria-live="polite">
+          {speech.canSelectMicrophone ? "Bấm Tải danh sách mic và cấp quyền để xem tên thiết bị. Chọn mic trước khi bắt đầu nói."
+            : "Trình duyệt này dùng mic mặc định. Muốn đổi mic, hãy đổi trong cài đặt trình duyệt/hệ điều hành, hoặc dùng Chrome/Edge 135+ trên máy tính để chọn tại đây."}
+        </p>}
+        <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <button type="button" onClick={() => speech.busy ? speech.stop() : speech.start(answer)}
+            disabled={isRequesting || !speech.supported || speech.loadingDevices || speech.status === "stopping" || (!speech.busy && answer.length >= INTERVIEW_ANSWER_LIMIT)}
+            aria-label={speech.busy ? "Dừng mic" : "Trả lời bằng mic"}
+            aria-pressed={speech.busy} aria-describedby="interview-speech-status interview-speech-privacy"
+            className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${speech.busy ? "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100" : "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100"}`}>
+            {speech.busy ? <StopCircleIcon className="h-4 w-4" /> : <MicrophoneIcon className="h-4 w-4" />}
+            {speech.busy ? "Dừng mic" : "Trả lời bằng mic"}
+          </button>
+          <p id="interview-speech-status" role="status" aria-live="polite" className="min-w-0 flex-1 text-[11px] leading-4 text-slate-600">
+            {speech.supported ? speechStatus : speech.unsupportedReason}
+          </p>
+        </div>
+        {speech.error && <p role="alert" className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">{speech.error}</p>}
         <div className="flex items-end gap-3 rounded-lg border border-slate-300 bg-white p-2.5 shadow-sm transition focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-100">
           <label htmlFor="interview-answer" className="sr-only">
             Câu trả lời phỏng vấn
@@ -704,28 +747,29 @@ function AnswerComposer({
             value={answer}
             onChange={(event) => setAnswer(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
+              if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
                 event.preventDefault();
-                void onSubmit();
+                sendAnswer();
               }
             }}
             placeholder={`Viết câu trả lời cho câu ${Math.min(
               questionNumber,
               12,
             )}...`}
-            maxLength={1200}
+            maxLength={INTERVIEW_ANSWER_LIMIT}
             rows={2}
-            disabled={isRequesting}
+            disabled={isRequesting || speech.busy}
+            aria-describedby="interview-speech-status"
             className="block min-h-[58px] min-w-0 flex-1 resize-none border-0 bg-transparent px-2 py-1.5 text-[13px] leading-5 text-slate-900 outline-none placeholder:text-slate-400 disabled:bg-slate-50"
           />
           <div className="flex shrink-0 flex-col items-end gap-2">
             <span className="text-[10px] tabular-nums text-slate-400">
-              {answer.length}/1200
+              {answer.length}/{INTERVIEW_ANSWER_LIMIT}
             </span>
             <button
               type="button"
-              onClick={onSubmit}
-              disabled={!answer.trim() || isRequesting}
+              onClick={sendAnswer}
+              disabled={!answer.trim() || isRequesting || speech.busy}
               title="Gửi câu trả lời"
               aria-label="Gửi câu trả lời"
               className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md bg-violet-600 text-white transition-colors duration-200 hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-300 disabled:cursor-not-allowed disabled:bg-violet-300"
@@ -734,6 +778,9 @@ function AnswerComposer({
             </button>
           </div>
         </div>
+        <p id="interview-speech-privacy" className="mt-2 text-[10px] leading-4 text-slate-500">
+          Mic chỉ mở khi bạn bấm nút. Trình duyệt có thể gửi âm thanh đến dịch vụ nhận dạng. Chỉ văn bản bạn bấm Gửi mới được gửi cho AI phỏng vấn.
+        </p>
       </div>
     </div>
   );

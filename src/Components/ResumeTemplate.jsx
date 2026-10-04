@@ -1,5 +1,8 @@
 import React from "react";
 import { CheckIcon } from "@heroicons/react/24/outline";
+import { ADDITIONAL_RESUME_TEMPLATES } from "../../shared/resumeTemplates.js";
+import { AdditionalResumeThumbnail } from "./ResumePreview.jsx";
+import ResumeTemplateSource from "./ResumeTemplateSource.jsx";
 
 const templates = [
   {
@@ -174,6 +177,20 @@ const templates = [
   },
 ];
 
+const additionalTemplates = ADDITIONAL_RESUME_TEMPLATES.map((template) => ({
+  ...template,
+  desc: template.description,
+  preview: (
+    <div aria-hidden="true" className={`flex h-28 items-center justify-center overflow-hidden rounded-lg border border-gray-100 ${template.soft}`}>
+      <div className="relative h-[100px] w-[71px] overflow-hidden bg-white shadow-sm">
+        <div className="pointer-events-none absolute left-0 top-0 h-[1123px] w-[794px] origin-top-left scale-[0.089]">
+          <AdditionalResumeThumbnail template={template.id} />
+        </div>
+      </div>
+    </div>
+  ),
+}));
+
 export default function ResumeTemplate({ selectedTemplate, setSelectedTemplate }) {
   return (
     <div className="h-full flex flex-col bg-white overflow-hidden">
@@ -184,14 +201,16 @@ export default function ResumeTemplate({ selectedTemplate, setSelectedTemplate }
 
       {/* Template list */}
       <div className="flex-1 overflow-y-auto no-scrollbar p-3 space-y-3">
-        {templates.map((t) => {
+        {[...templates, ...additionalTemplates].map((t) => {
           const isActive = selectedTemplate === t.id;
           return (
+            <div key={t.id}>
             <button
-              key={t.id}
               type="button"
+              aria-pressed={isActive}
+              aria-label={`Chọn mẫu ${t.name}`}
               onClick={() => setSelectedTemplate(t.id)}
-              className={`w-full text-left rounded-xl p-2 border-2 transition-all ${
+              className={`w-full text-left rounded-xl p-2 border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 ${
                 isActive
                   ? "border-[#9346F5] ring-2 ring-[#9346F5]/15 shadow-md shadow-[#9346F5]/10"
                   : "border-gray-200 hover:border-[#9346F5]/40 hover:shadow-sm"
@@ -215,6 +234,8 @@ export default function ResumeTemplate({ selectedTemplate, setSelectedTemplate }
                 <p className="text-[10px] text-gray-400 mt-0.5">{t.desc}</p>
               </div>
             </button>
+            <div className="px-2"><ResumeTemplateSource source={t.source} /></div>
+            </div>
           );
         })}
       </div>

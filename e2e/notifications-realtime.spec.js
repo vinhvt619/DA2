@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("new notifications refresh the bell and list immediately; reconnect catches missed notifications", async ({ page }) => {
+test("Nhận thông báo thời gian thực qua Socket", async ({ page }) => {
   const user = { _id: "507f1f77bcf86cd799439012", username: "candidate", fullName: "Ứng viên kiểm thử", role: "employee" };
   let records = [];
   let socket;

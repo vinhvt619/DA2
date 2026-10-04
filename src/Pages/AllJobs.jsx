@@ -14,8 +14,7 @@ import {
 import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import Header from "../Components/Header.jsx";
 import { useSavedJobs } from "../context/SavedJobsContext.jsx";
-import { jobsData } from "../data/jobsData.js";
-import { formatDate } from "../utils/dateTime.js";
+import usePublicJobs from "../hooks/usePublicJobs.js";
 
 const locationOptions = [
   { value: "", label: "Tất cả địa điểm" },
@@ -202,8 +201,7 @@ function AllJobs() {
   const [showFilters, setShowFilters] = useState(true);
   const [showWorkTypeOptions, setShowWorkTypeOptions] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [dbJobs, setDbJobs] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { jobs: allJobs, isLoading, error: jobsError, refetch: refetchJobs } = usePublicJobs();
 
   useEffect(() => {
     if (location.state?.searchKeyword !== undefined) {
@@ -211,39 +209,6 @@ function AllJobs() {
       setCurrentPage(1);
     }
   }, [location.state?.searchKeyword]);
-
-  useEffect(() => {
-    const fetchJobs = async () => {
-      try {
-        const response = await fetch("/api/jobs");
-        if (!response.ok) return;
-        const data = await response.json();
-        setDbJobs(
-          data.map((job) => ({
-            ...job,
-            id: job._id,
-            postedAt: formatDate(job.createdAt),
-            tags: job.tags || [],
-          })),
-        );
-      } catch (error) {
-        console.error("Lỗi khi tải danh sách công việc từ DB:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchJobs();
-  }, []);
-
-  const allJobs = useMemo(() => {
-    const seen = new Set();
-    return [...dbJobs, ...jobsData].filter((job) => {
-      const identity = `${job.company || ""}::${job.title || ""}`.toLocaleLowerCase("vi");
-      if (seen.has(identity)) return false;
-      seen.add(identity);
-      return true;
-    });
-  }, [dbJobs]);
 
   const filteredJobs = useMemo(() => {
     const keyword = normalizeText(searchKeyword.trim());
@@ -548,6 +513,11 @@ function AllJobs() {
                 <JobSkeleton />
                 <JobSkeleton />
               </>
+            ) : jobsError ? (
+              <div role="alert" className="px-5 py-8 text-center text-sm text-red-700">
+                Không thể tải danh sách việc làm.
+                <button type="button" onClick={() => refetchJobs()} className="ml-2 font-semibold underline">Thử lại</button>
+              </div>
             ) : paginatedJobs.length > 0 ? (
               paginatedJobs.map((job, index) => (
                 <AllJobRow

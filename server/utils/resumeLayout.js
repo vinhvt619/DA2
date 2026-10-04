@@ -1,3 +1,6 @@
+import { RESUME_TEMPLATE_KEYS } from "../../shared/resumeTemplates.js";
+export { RESUME_TEMPLATE_KEYS } from "../../shared/resumeTemplates.js";
+
 export const RESUME_SECTION_KEYS = [
   "bio",
   "experience",
@@ -8,15 +11,6 @@ export const RESUME_SECTION_KEYS = [
   "skill",
   "language",
   "hobby",
-];
-
-export const RESUME_TEMPLATE_KEYS = [
-  "classic",
-  "modern",
-  "professional",
-  "elegant",
-  "creative",
-  "compact",
 ];
 
 const cleanZone = (items, seen, keys) =>

@@ -1,3 +1,6 @@
+import { RESUME_TEMPLATE_KEYS } from "../../shared/resumeTemplates.js";
+export { RESUME_TEMPLATE_KEYS } from "../../shared/resumeTemplates.js";
+
 export const RESUME_SECTION_KEYS = [
   "bio",
   "experience",
@@ -21,15 +24,6 @@ export const RESUME_SECTION_LABELS = {
   language: "Ngoại ngữ",
   hobby: "Sở thích",
 };
-
-export const RESUME_TEMPLATE_KEYS = [
-  "classic",
-  "modern",
-  "professional",
-  "elegant",
-  "creative",
-  "compact",
-];
 
 export const DEFAULT_RESUME_LAYOUTS = {
   classic: {
@@ -55,6 +49,34 @@ export const DEFAULT_RESUME_LAYOUTS = {
   compact: {
     main: [...RESUME_SECTION_KEYS],
     sidebar: [],
+  },
+  executive: {
+    main: ["bio", "experience", "education", "project", "certificate", "award", "skill", "language", "hobby"],
+    sidebar: [],
+  },
+  timeline: {
+    main: ["bio", "experience", "project", "certificate"],
+    sidebar: ["award", "skill", "language", "education", "hobby"],
+  },
+  editorial: {
+    main: ["bio", "education", "experience", "project", "certificate", "award", "skill", "language", "hobby"],
+    sidebar: [],
+  },
+  technology: {
+    main: ["bio", "experience", "project", "award", "certificate"],
+    sidebar: ["education", "skill", "language", "hobby"],
+  },
+  graduate: {
+    main: ["education", "experience", "project", "skill", "bio", "certificate", "award", "language", "hobby"],
+    sidebar: [],
+  },
+  nordic: {
+    main: ["bio", "experience", "education", "project", "certificate", "award", "skill", "language", "hobby"],
+    sidebar: [],
+  },
+  portfolio: {
+    main: ["experience", "education", "project", "certificate", "award"],
+    sidebar: ["bio", "skill", "language", "hobby"],
   },
 };
 

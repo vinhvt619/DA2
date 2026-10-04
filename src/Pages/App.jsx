@@ -29,6 +29,7 @@ const AdminLayout = lazy(() => import("./AdminLayout.jsx"));
 const AdminDashboard = lazy(() => import("./AdminDashboard.jsx"));
 const AdminUsers = lazy(() => import("./AdminUsers.jsx"));
 const AdminJobs = lazy(() => import("./AdminJobs.jsx"));
+const AdminNews = lazy(() => import('./AdminNews.jsx'));
 const AdminCompanies = lazy(() => import("./AdminCompanies.jsx"));
 const CompanyDashboard = lazy(() => import("./CompanyDashboard.jsx"));
 const ViewResume = lazy(() => import("./ViewResume.jsx"));
@@ -82,6 +83,7 @@ function App() {
                   <Route path="/admin" element={<AdminDashboard />} />
                   <Route path="/admin/users" element={<AdminUsers />} />
                   <Route path="/admin/jobs" element={<AdminJobs />} />
+                  <Route path="/admin/news" element={<AdminNews />} />
                   <Route path="/admin/reports" element={<Navigate to="/admin" replace />} />
                   <Route path="/admin/companies" element={<AdminCompanies />} />
                   <Route path="/admin/reviews" element={<Navigate to="/admin/companies" replace />} />

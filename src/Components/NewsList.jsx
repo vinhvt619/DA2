@@ -5,22 +5,8 @@ import {
   CalendarDaysIcon,
   NewspaperIcon,
 } from "@heroicons/react/24/outline";
-import { getCategoryImg, newsArticles } from "../data/newsArticles.js";
-
-const displayContent = [
-  {
-    title: "Xu hướng tuyển dụng 2026: Nhà tuyển dụng tìm gì ở ứng viên trẻ?",
-    category: "Thị trường",
-  },
-  {
-    title: "Cách viết CV ấn tượng cho sinh viên chưa có kinh nghiệm",
-    category: "Hướng dẫn CV",
-  },
-  {
-    title: "Nghệ thuật quản lý thời gian giúp tăng hiệu suất làm việc",
-    category: "Kỹ năng",
-  },
-];
+import { getCategoryImg } from "../data/newsArticles.js";
+import usePublicNews from '../hooks/usePublicNews.js';
 
 function NewsRow({ article, display }) {
   return (
@@ -40,6 +26,7 @@ function NewsRow({ article, display }) {
 }
 
 export default function ListNews() {
+  const { articles: newsArticles } = usePublicNews();
   const articles = newsArticles.slice(0, 3);
 
   return (
@@ -52,7 +39,7 @@ export default function ListNews() {
         <Link to="/News" className="flex items-center gap-1 text-[10px] font-medium text-violet-600 hover:text-violet-700">Xem tất cả <ArrowRightIcon className="h-3 w-3" /></Link>
       </div>
       <div className="p-4 sm:p-5">
-        {articles.map((article, index) => <NewsRow key={article.slug} article={article} display={displayContent[index]} />)}
+        {articles.map((article) => <NewsRow key={article.slug} article={article} display={article} />)}
       </div>
     </section>
   );
