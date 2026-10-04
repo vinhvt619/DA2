@@ -11,6 +11,7 @@ import { showToast } from "../utils/toast.js";
 import { useQueryClient } from "@tanstack/react-query";
 import { publicJobsKey } from "../hooks/usePublicJobs.js";
 import { adminJobStatus, jobHasExpiredDeadline } from '../../shared/adminJobStatus.js';
+import AdminDetailDialog from '../Components/AdminDetailDialog.jsx';
 
 export default function AdminJobs() {
   const confirmDialog = useConfirmDialog();
@@ -166,8 +167,7 @@ export default function AdminJobs() {
         </div>
       </div>
 
-      {selected && <section aria-labelledby="job-review-title" className="rounded-xl border border-violet-200 bg-white p-5 shadow-sm">
-        <div className="flex items-start justify-between gap-4"><h2 id="job-review-title" className="text-lg font-bold">{selected.title}</h2><button type="button" disabled={reviewing} onClick={() => setSelected(null)} className="shrink-0 rounded-lg border border-slate-200 px-3 py-2">Đóng chi tiết</button></div>
+      {selected && <AdminDetailDialog title={selected.title} busy={reviewing} onClose={() => setSelected(null)}>
         <p className="mt-2 text-sm text-slate-500">{selected.company?.name} · {selected.location} · {selected.type} · {selected.salary}</p>
         <p className="mt-2 text-sm">Kinh nghiệm: {selected.experience || 'Không yêu cầu'} · Học vấn: {selected.education || 'Không yêu cầu'} · {selected.workModel}</p>
         <p className="mt-2 text-sm">Hạn ứng tuyển: {selected.expiryDate ? new Date(selected.expiryDate).toLocaleDateString('vi-VN') : 'Không giới hạn'}</p>
@@ -179,7 +179,7 @@ export default function AdminJobs() {
           <label htmlFor="rejection-reason" className="block font-semibold">Lý do không duyệt</label><textarea id="rejection-reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={2000} className="mt-2 w-full rounded-lg border border-slate-300 p-3 focus:ring-2 focus:ring-violet-500" placeholder="Nhập lý do nếu từ chối tin này" />
           <div className="mt-3 flex gap-3"><button type="button" disabled={reviewing} onClick={() => reviewJob('approve')} className="rounded-lg bg-violet-600 px-5 py-2 text-white disabled:opacity-50">Duyệt tin</button><button type="button" disabled={reviewing} onClick={() => reviewJob('reject')} className="rounded-lg border border-red-200 px-5 py-2 text-red-700 disabled:opacity-50">Không duyệt</button></div>
         </div>}
-      </section>}
+      </AdminDetailDialog>}
       {/* Jobs Table */}
       <div className="bg-white rounded-[10px] border-[0.5px] border-[rgba(196,180,240,0.4)] shadow-[0_1px_3px_rgba(0,0,0,0.01)] overflow-hidden">
         {loading ? (

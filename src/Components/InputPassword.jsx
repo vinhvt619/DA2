@@ -11,20 +11,28 @@ function InputPassword({
   placeholder = "Nhập mật khẩu",
   autoComplete = "new-password",
   preventAutofill = false,
+  inputRef,
+  onBlur,
+  invalid = false,
+  describedBy,
 }) {
   const [allowTyping, setAllowTyping] = React.useState(!preventAutofill);
 
   return (
     <div className="relative w-full">
         <input
+          ref={inputRef}
           id={id}
           type={show ? "text" : "password"}
           name={name}
           aria-label={placeholder}
+          aria-invalid={invalid}
+          aria-describedby={describedBy}
           placeholder={placeholder}
           className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 pr-11 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
           value={value}
           onChange={onChange}
+          onBlur={onBlur}
           autoComplete={autoComplete}
           readOnly={!allowTyping}
           onFocus={() => setAllowTyping(true)}

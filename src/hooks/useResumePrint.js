@@ -23,8 +23,20 @@ export default function useResumePrint({
     contentRef,
     documentTitle: () => getResumePrintTitle(title),
     onAfterPrint,
-    onPrintError: () => {
-      showToast("Không thể mở hộp thoại in CV lúc này.", "error");
+    onBeforePrint: async () => {
+      await document.fonts?.ready;
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        const pages = contentRef.current?.querySelector(".cv-resume-pages");
+        if (!pages || pages.dataset.paginationReady === "true") break;
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      }
+      const pages = contentRef.current?.querySelector(".cv-resume-pages");
+      if (pages?.dataset.paginationReady === "false") throw new Error("CV chưa sẵn sàng để in. Vui lòng thử lại.");
+      if (pages?.dataset.resumeOverflow === "true") throw new Error("Nội dung vượt quá 2 trang A4. Hãy rút gọn nội dung trước khi xuất PDF.");
+    },
+    onPrintError: (_location, error) => {
+      showToast(error?.message || "Không thể mở hộp thoại in CV lúc này.", "error");
       onAfterPrint?.();
     },
     pageStyle: PRINT_PAGE_STYLE,

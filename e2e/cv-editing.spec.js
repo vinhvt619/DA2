@@ -1,4 +1,6 @@
 import { expect, test } from "@playwright/test";
+import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { RESUME_TEMPLATE_KEYS, RESUME_TEMPLATES } from "../shared/resumeTemplates.js";
 
 const user = { _id: "candidate", username: "candidate", fullName: "Nguyễn Minh Anh", email: "candidate@example.test", role: "employee" };
 const initialResume = {
@@ -9,6 +11,18 @@ const initialResume = {
   education: [{ id: "edu", title: "Cử nhân", company: "Đại học" }],
   skill: [{ id: "skill", title: "React", description: "Hooks", performance: "Tốt" }],
   profile: [], project: [], certificate: [], award: [], language: [], hobby: [], customSections: [],
+};
+
+const pageDescription = "Phát triển giao diện React, phối hợp cùng nhóm thiết kế và backend để hoàn thiện trải nghiệm người dùng. ";
+const twoPageResume = {
+  ...initialResume,
+  pageCount: 2,
+  experience: Array.from({ length: 6 }, (_, index) => ({
+    id: `exp-${index}`, title: `Developer ${index}`, company: "RabbitCV",
+    description: `<p>START-${index} ${pageDescription.repeat(5)} END-${index}</p>`,
+  })),
+  project: [{ id: "project", title: "Dự án RabbitCV", description: `<p>${pageDescription.repeat(3)}</p>` }],
+  customSections: [{ id: "last", title: "Hoạt động cộng đồng", items: [{ id: "item", title: "Điều phối viên", description: "<p>FINAL-MARKER</p>" }] }],
 };
 
 async function mockEditor(page, currentUser = user, initial = initialResume) {
@@ -31,6 +45,202 @@ async function mockEditor(page, currentUser = user, initial = initialResume) {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
   });
   return { getPayload: () => lastPayload, getSaved: () => saved };
+}
+
+test("Danh sách mẫu CV không hiển thị liên kết nguồn và giấy phép", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await mockEditor(page);
+  await page.goto("/resume/editing-cv");
+  const template = page.getByRole("button", { name: "Chọn mẫu Công nghệ hiện đại", exact: true });
+  await expect(template).toBeVisible();
+  await expect(page.getByRole("link", { name: /Tham khảo mẫu/ })).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText("Debarghya Das");
+  await expect(page.locator("body")).not.toContainText("Apache-2.0");
+  await template.screenshot({ path: testInfo.outputPath("template-without-source.png") });
+  await page.goto("/ResumeSelection");
+  const card = page.locator("article").filter({ has: page.getByRole("heading", { name: "Công nghệ hiện đại", exact: true }) });
+  await expect(card).toBeVisible();
+  await expect(page.getByRole("link", { name: /Tham khảo mẫu/ })).toHaveCount(0);
+  await expect(card).not.toContainText("Debarghya Das");
+  await expect(card).not.toContainText("Apache-2.0");
+  await expect(card.getByRole("button", { name: "Dùng mẫu", exact: true })).toBeVisible();
+  await card.screenshot({ path: testInfo.outputPath("library-template-without-source.png") });
+});
+
+test("Tên và mô tả mẫu CV đồng bộ, đổi tên không đổi mã mẫu đã lưu", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const mocks = await mockEditor(page);
+  await page.goto("/resume/editing-cv");
+  for (const template of RESUME_TEMPLATES) {
+    const choice = page.getByRole("button", { name: `Chọn mẫu ${template.name}`, exact: true });
+    await expect(choice).toBeVisible();
+    await expect(choice).toContainText(template.description);
+  }
+  await page.getByRole("button", { name: "Chọn mẫu Công nghệ hiện đại", exact: true }).click();
+  await expect(page.locator('.cv-wrapper [data-resume-template="technology"]')).toBeVisible();
+  await page.getByRole("button", { name: "Lưu CV", exact: true }).click();
+  await expect(page.getByText("Lưu CV thành công!", { exact: true })).toBeVisible();
+  expect(mocks.getPayload().selectedTemplate).toBe("technology");
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Chọn mẫu Công nghệ hiện đại", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.goto("/ResumeSelection");
+  for (const template of RESUME_TEMPLATES) {
+    const card = page.locator("article").filter({ has: page.getByRole("heading", { name: template.name, exact: true }) });
+    await expect(card).toBeVisible();
+    await expect(card).toContainText(template.description);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator("article").filter({ has: page.getByRole("heading", { name: "Chuyên nghiệp tương phản", exact: true }) }).screenshot({ path: testInfo.outputPath("renamed-template-mobile.png") });
+  await page.goto("/TopPage");
+  await expect(page.getByRole("heading", { name: "Chuyên nghiệp tương phản", exact: true })).toBeVisible();
+  await page.getByRole("button").filter({ has: page.getByRole("heading", { name: "Chuyên nghiệp tương phản", exact: true }) }).screenshot({ path: testInfo.outputPath("renamed-top-template-mobile.png") });
+});
+
+test("Đổi số trang A4, hoàn tác/làm lại và lưu/mở lại", async ({ page }, testInfo) => {
+  const mocks = await mockEditor(page);
+  await page.goto("/resume/editing-cv");
+  const onePage = page.getByRole("radio", { name: "1 trang", exact: true });
+  const twoPages = page.getByRole("radio", { name: "2 trang", exact: true });
+  await expect(onePage).toBeChecked();
+  await twoPages.check();
+  await expect(page.locator(".cv-resume-page")).toHaveCount(2);
+  await page.getByRole("button", { name: "Hoàn tác CV", exact: true }).click();
+  await expect(onePage).toBeChecked();
+  await expect(page.locator(".cv-resume-page")).toHaveCount(0);
+  await page.getByRole("button", { name: "Làm lại CV", exact: true }).click();
+  await expect(twoPages).toBeChecked();
+  const editor = page.locator("[data-resume-editor-panel]").first().locator("[contenteditable=true]").first();
+  await editor.fill("Tiểu sử mới trên CV hai trang.");
+  await expect(page.locator('.cv-resume-page[data-cv-page="1"]')).toContainText("Tiểu sử mới trên CV hai trang.");
+  await page.getByRole("button", { name: "Lưu CV", exact: true }).click();
+  await expect(page.getByText("Lưu CV thành công!", { exact: true })).toBeVisible();
+  expect(mocks.getPayload().pageCount).toBe(2);
+  await page.reload();
+  await expect(twoPages).toBeChecked();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(onePage).toBeVisible();
+  await expect(twoPages).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("cv-pages-mobile.png"), fullPage: true });
+  await page.goto("/resume/view/editing-cv");
+  await expect(page.locator(".cv-resume-page")).toHaveCount(2);
+});
+
+for (const template of RESUME_TEMPLATE_KEYS) {
+  test(`Xuất đúng 2 trang A4 với đủ nội dung: ${template}`, async ({ page }, testInfo) => {
+    await mockEditor(page, user, { ...twoPageResume, selectedTemplate: template });
+    await page.goto("/resume/view/editing-cv");
+    const pagination = page.locator(".cv-resume-pages");
+    await expect(pagination).toHaveAttribute("data-pagination-ready", "true");
+    await expect(pagination).toHaveAttribute("data-resume-overflow", "false");
+    const continuation = page.locator('.cv-resume-page[data-cv-page="2"]');
+    await expect(continuation.locator("header, [data-resume-static]")).toHaveCount(0);
+    await expect(continuation).not.toContainText(user.fullName);
+    expect(await continuation.evaluate((paper) => {
+      const rect = paper.getBoundingClientRect();
+      const scale = rect.width / paper.clientWidth;
+      return [...paper.querySelectorAll(".cv-paged-window")].every((zone) => (zone.getBoundingClientRect().top - rect.top) / scale <= 48);
+    })).toBe(true);
+    await continuation.screenshot({ path: testInfo.outputPath(`${template}-continuation.png`) });
+    const bytes = await page.pdf({ format: "A4", printBackground: true, path: testInfo.outputPath(`${template}-two-pages.pdf`) });
+    const task = getDocument({ data: new Uint8Array(bytes) });
+    const pdf = await task.promise;
+    expect(pdf.numPages).toBe(2);
+    let text = "";
+    for (let number = 1; number <= pdf.numPages; number += 1) {
+      const pdfPage = await pdf.getPage(number);
+      // Chromium rounds millimetres to device pixels before PDF points.
+      const viewport = pdfPage.getViewport({ scale: 1 });
+      expect(Math.abs(viewport.width - 595.28)).toBeLessThan(1);
+      expect(Math.abs(viewport.height - 841.89)).toBeLessThan(1);
+      const pageText = (await pdfPage.getTextContent()).items.map((item) => item.str).join(" ");
+      const compactText = pageText.replace(/\s+/g, "").toUpperCase();
+      const compactName = user.fullName.replace(/\s+/g, "").toUpperCase();
+      if (number === 1) expect(compactText).toContain(compactName);
+      else {
+        expect(compactText).not.toContain(compactName);
+        expect(compactText).not.toContain(user.email.toUpperCase());
+        expect(compactText).not.toContain("FRONTENDDEVELOPER");
+      }
+      text += pageText;
+    }
+    for (const marker of ["FINAL-MARKER", ...Array.from({ length: 6 }, (_, index) => [`START-${index}`, `END-${index}`]).flat()]) {
+      expect(text.split(marker), marker).toHaveLength(2);
+    }
+    await task.destroy();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(pagination).toHaveAttribute("data-resume-overflow", "false");
+    await page.locator('.cv-resume-page[data-cv-page="1"]').screenshot({ path: testInfo.outputPath(`${template}-two-pages-mobile.png`) });
+  });
+}
+
+test("Cảnh báo và không in CV vượt quá 2 trang A4", async ({ page }) => {
+  await mockEditor(page, user, {
+    ...twoPageResume, selectedTemplate: "executive",
+    experience: Array.from({ length: 35 }, (_, index) => ({ ...twoPageResume.experience[0], id: `long-${index}` })),
+  });
+  await page.goto("/resume/editing-cv");
+  await expect(page.locator(".cv-resume-pages")).toHaveAttribute("data-resume-overflow", "true");
+  await expect(page.getByRole("alert")).toContainText("Nội dung vượt quá 2 trang A4");
+  await page.getByRole("button", { name: "Tải CV dưới dạng PDF", exact: true }).click();
+  await expect(page.locator("[data-sonner-toast]")).toContainText("Nội dung vượt quá 2 trang A4");
+});
+
+for (const location of ["editor", "library"]) {
+  test(`Luồng tải PDF hai trang từ ${location}`, async ({ page, context }, testInfo) => {
+    await mockEditor(page, user, { ...twoPageResume, selectedTemplate: "executive" });
+    await page.route("**/api/resumes", (route) => route.fulfill({ json: [{ ...twoPageResume, selectedTemplate: "executive" }] }));
+    let printedDocument;
+    await page.exposeFunction("captureResumePrint", (html) => { printedDocument = html; });
+    await page.addInitScript(() => {
+      const observer = new MutationObserver((records) => {
+        for (const record of records) {
+          for (const node of record.addedNodes) {
+            if (node instanceof HTMLIFrameElement) {
+              node.addEventListener("load", () => {
+                node.contentWindow.print = () => window.captureResumePrint(node.contentDocument.documentElement.outerHTML);
+              });
+            }
+          }
+        }
+      });
+      observer.observe(document, { childList: true, subtree: true });
+    });
+    await page.goto(location === "editor" ? "/resume/editing-cv" : "/ResumeSelection");
+    await page.getByRole("button", { name: location === "editor" ? "Tải CV dưới dạng PDF" : "Tải PDF", exact: true }).click();
+    await expect.poll(() => Boolean(printedDocument)).toBe(true);
+    const printPage = await context.newPage();
+    await printPage.setContent(printedDocument);
+    const bytes = await printPage.pdf({ format: "A4", printBackground: true, path: testInfo.outputPath(`${location}-print-two-pages.pdf`) });
+    const task = getDocument({ data: new Uint8Array(bytes) });
+    const pdf = await task.promise;
+    expect(pdf.numPages).toBe(2);
+    const secondPage = await (await pdf.getPage(2)).getTextContent();
+    expect(secondPage.items.map((item) => item.str).join(" ")).toContain("FINAL-MARKER");
+    await task.destroy();
+    await printPage.close();
+  });
+}
+
+for (const template of ["executive", "elegant", "nordic"]) {
+  test(`Mô tả dài trong một mục tiếp tục sang trang sau: ${template}`, async ({ page }) => {
+    const paragraphs = Array.from({ length: 12 }, (_, index) => `<p>LINE-${index} ${pageDescription.repeat(4)} ENDLINE-${index}</p>`).join("");
+    await mockEditor(page, user, {
+      ...twoPageResume, selectedTemplate: template, bio: "", project: [], customSections: [],
+      experience: [{ id: "long-entry", title: "Developer", company: "RabbitCV", description: paragraphs }],
+    });
+    await page.goto("/resume/view/editing-cv");
+    await expect(page.locator(".cv-resume-pages")).toHaveAttribute("data-pagination-ready", "true");
+    await expect(page.locator(".cv-resume-pages")).toHaveAttribute("data-resume-overflow", "false");
+    const bytes = await page.pdf({ format: "A4", printBackground: true });
+    const task = getDocument({ data: new Uint8Array(bytes) });
+    const pdf = await task.promise;
+    expect(pdf.numPages).toBe(2);
+    const pages = [];
+    for (let number = 1; number <= 2; number += 1) pages.push((await (await pdf.getPage(number)).getTextContent()).items.map((item) => item.str).join(" "));
+    expect(pages[1]).toContain("ENDLINE-11");
+    for (let index = 0; index < 12; index += 1) expect(pages.join(" ").split(`ENDLINE-${index} `)).toHaveLength(2);
+    await task.destroy();
+  });
 }
 
 async function addCustomSection(page, title = "Hoạt động tình nguyện") {

@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { RESUME_TEMPLATE_KEYS } from '../../shared/resumeTemplates.js';
+import { RESUME_PAGE_COUNTS } from '../../shared/resumePages.js';
 
 const ProfileSchema = new mongoose.Schema({ networkName: String, username: String, link: String });
 const ExperienceSchema = new mongoose.Schema({ title: String, company: String, location: String, startDate: String, endDate: String, description: String });
@@ -62,6 +63,7 @@ const ResumeSchema = new mongoose.Schema({
   hobby: [HobbySchema],
   customSections: [CustomSectionSchema],
   layout: { type: ResumeLayoutSchema, default: () => ({ version: 1 }) },
+  pageCount: { type: Number, enum: RESUME_PAGE_COUNTS, default: 1 },
   selectedTemplate: {
     type: String,
     enum: RESUME_TEMPLATE_KEYS,

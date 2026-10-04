@@ -1,4 +1,5 @@
 import { RESUME_TEMPLATE_KEYS } from "../shared/resumeTemplates.js";
+import { NEWS_CATEGORIES } from '../shared/newsContent.js';
 
 const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
 
@@ -227,8 +228,8 @@ const openapiSpec = {
         tags: ["Users"],
         summary: "Đổi mật khẩu",
         requestBody: requestBody("PasswordRequest", {
-          oldPassword: "old-password",
           newPassword: "new-password",
+          confirmPassword: "new-password",
           contact: "candidate@example.test",
         }),
         responses: {
@@ -856,11 +857,21 @@ const openapiSpec = {
       },
       PasswordRequest: {
         type: "object",
-        required: ["oldPassword", "newPassword", "contact"],
+        required: ["newPassword", "confirmPassword", "contact"],
         properties: {
-          oldPassword: { type: "string", format: "password" },
+          confirmPassword: { type: "string", format: "password", description: "Phải trùng với mật khẩu mới." },
           newPassword: { type: "string", format: "password", minLength: 8, description: "Tối đa 72 byte UTF-8; phải khác mật khẩu hiện tại." },
-          contact: { type: "string", maxLength: 254, description: "Email hoặc số điện thoại khớp với tài khoản đang đăng nhập." },
+          contact: { type: "string", maxLength: 254, description: "Email hoặc số điện thoại đã lưu trong tài khoản. Với API đổi mật khẩu, phải khớp tài khoản đang đăng nhập." },
+        },
+      },
+      ForgotPasswordRequest: {
+        type: "object",
+        required: ["username", "contact", "newPassword", "confirmPassword"],
+        properties: {
+          username: { type: "string", minLength: 1, maxLength: 254, description: "Tên đăng nhập của tài khoản cần đặt lại mật khẩu." },
+          contact: { type: "string", format: "email", maxLength: 254, description: "Email đã đăng ký phải thuộc đúng tên đăng nhập được cung cấp." },
+          newPassword: { type: "string", format: "password", minLength: 8, description: "Tối đa 72 byte UTF-8; phải khác mật khẩu hiện tại." },
+          confirmPassword: { type: "string", format: "password", description: "Phải trùng với mật khẩu mới." },
         },
       },
       ResumePayload: {
@@ -871,6 +882,7 @@ const openapiSpec = {
           title: { type: "string", example: "CV Frontend Developer" },
           targetRole: { type: "string" },
           selectedTemplate: { type: "string", enum: RESUME_TEMPLATE_KEYS },
+          pageCount: { type: "integer", enum: [1, 2], default: 1, description: "Số trang A4 của CV có cấu trúc." },
           customSections: {
             type: "array", maxItems: 30,
             items: { type: "object", required: ["id", "title"], properties: {
@@ -1056,19 +1068,29 @@ const openapiSpec = {
         properties: { action: { type: "string", enum: ["approve", "reject", "verify", "unverify", "suspend", "restore"] }, reason: { type: 'string', description: 'Bắt buộc khi từ chối tài khoản', maxLength: 2000 } },
       },
       CompanyCreateRequest: { type: 'object', required: ['username', 'email', 'password', 'fullName'], properties: { username: { type: 'string' }, email: { type: 'string', format: 'email' }, password: { type: 'string', minLength: 8, maxLength: 72, writeOnly: true }, fullName: { type: 'string' }, companyTaxCode: { type: 'string' }, companyWebsite: { type: 'string' }, verified: { type: 'boolean', default: false } } },
+      NewsWriteRequest: {
+        type: 'object', required: ['title', 'summary', 'category', 'content', 'status'],
+        properties: {
+          title: { type: 'string', maxLength: 250 }, summary: { type: 'string', maxLength: 1500 },
+          category: { type: 'string', enum: NEWS_CATEGORIES }, intro: { type: 'string', maxLength: 2000 },
+          content: { type: 'string', description: 'HTML rich text: tiêu đề, danh sách, định dạng và ảnh HTTP(S) hoặc data URL PNG/JPEG/WebP/GIF. Tổng nội dung tối đa 3 MB.', example: '<h2>Chuẩn bị phỏng vấn</h2><p><strong>Tìm hiểu doanh nghiệp</strong></p><img src="https://example.com/interview.jpg" alt="Phỏng vấn" />' },
+          status: { type: 'string', enum: ['Draft', 'Published'] },
+        },
+      },
     },
   },
 };
 
 Object.assign(openapiSpec.paths, {
+  '/api/forgot-password': { post: publicOperation({ tags: ['Auth'], summary: 'Đặt lại mật khẩu bằng tên đăng nhập và email khớp tài khoản (chỉ demo)', description: 'Yêu cầu tên đăng nhập và email thuộc cùng một tài khoản. Đối chiếu thông tin không xác minh quyền sở hữu email. Mặc định tắt trong production; chỉ bật khi ALLOW_DEMO_PASSWORD_RESET=true. Không dùng cho tài khoản thật.', requestBody: requestBody('ForgotPasswordRequest'), responses: { '200': jsonResponse('Đã đặt lại mật khẩu', 'MessageResponse'), '400': jsonResponse('Thông tin tài khoản hoặc mật khẩu không hợp lệ', 'ErrorResponse'), '403': jsonResponse('Luồng demo chưa được bật', 'ErrorResponse') } }) },
   '/api/admin/jobs/{id}/review': { put: secured({ tags: ['Admin'], summary: 'Duyệt hoặc từ chối tin sau khi đọc đúng phiên bản', parameters: [idParameter()], requestBody: requestBody('AnyObject', { action: 'approve', updatedAt: '2026-10-02T00:00:00Z', reason: '' }), responses: { '200': jsonResponse('Đã lưu quyết định'), '409': jsonResponse('Tin hoặc doanh nghiệp đã thay đổi', 'ErrorResponse') } }) },
   '/api/news': { get: publicOperation({ tags: ['News'], summary: 'Danh sách tin tức đã công khai', responses: { '200': { description: 'Các bài viết đã xuất bản', content: { 'application/json': { schema: { type: 'array', items: ref('AnyObject') } } } } } }) },
   '/api/admin/news': {
     get: secured({ tags: ['Admin'], summary: 'Quản lý tất cả tin tức và bản nháp', responses: { '200': jsonResponse('Danh sách bài viết') } }),
-    post: secured({ tags: ['Admin'], summary: 'Đăng tin tức mới (chỉ admin)', requestBody: requestBody('AnyObject'), responses: { '201': jsonResponse('Đã tạo bài viết') } }),
+    post: secured({ tags: ['Admin'], summary: 'Đăng tin tức mới (chỉ admin)', requestBody: requestBody('NewsWriteRequest'), responses: { '201': jsonResponse('Đã tạo bài viết') } }),
   },
   '/api/admin/news/{slug}': {
-    put: secured({ tags: ['Admin'], summary: 'Sửa nội dung hoặc ẩn tin tức', parameters: [idParameter('slug', 'Slug bài viết')], requestBody: requestBody('AnyObject'), responses: { '200': jsonResponse('Đã cập nhật') } }),
+    put: secured({ tags: ['Admin'], summary: 'Sửa nội dung hoặc ẩn tin tức', parameters: [idParameter('slug', 'Slug bài viết')], requestBody: requestBody('NewsWriteRequest'), responses: { '200': jsonResponse('Đã cập nhật') } }),
     delete: secured({ tags: ['Admin'], summary: 'Xóa tin tức', parameters: [idParameter('slug', 'Slug bài viết')], responses: { '200': jsonResponse('Đã xóa') } }),
   },
 });

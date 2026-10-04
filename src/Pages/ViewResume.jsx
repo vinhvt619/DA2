@@ -205,8 +205,9 @@ export default function ViewResume() {
             </div>
 
             {/* Wrapper chuẩn hóa */}
-            <div ref={printContentRef} className="cv-wrapper bg-white shadow-lg print:shadow-none print:w-full rounded-sm mb-10">
+            <div ref={printContentRef} className={`cv-wrapper ${resumeData.pageCount === 2 ? "cv-document" : ""} bg-white shadow-lg print:shadow-none print:w-full rounded-sm mb-10`}>
               <ResumePreview
+                pageCount={resumeData.pageCount}
                 selectedTemplate={resumeData.selectedTemplate || "modern"}
                 layout={resumeData.layout}
                 customSections={resumeData.customSections || []}

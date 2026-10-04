@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { createPasswordChangeHandler, matchesAccountContact } from "../server/services/passwordChangeService.js";
 
 const account = { _id: "self", email: "Owner@example.test", phoneNumber: "0912345678", password: "old-hash" };
-const body = { contact: "owner@example.test", oldPassword: "old-password", newPassword: "new-password" };
+const body = { contact: "owner@example.test", newPassword: "new-password", confirmPassword: "new-password" };
 async function request(payload = body, options = {}) {
   let writes = 0;
   let update;
@@ -24,7 +24,7 @@ async function request(payload = body, options = {}) {
     comparePassword: options.real ? bcrypt.compare : async (plain) => plain === "old-password",
     hashPassword: options.real ? bcrypt.hash : async () => "new-hash",
   });
-  await handler({ user: { id: "self" }, body: payload }, res);
+  await handler({ user: options.unauthenticated ? null : { id: "self" }, body: payload }, res);
   return { res, writes, update, filter };
 }
 
@@ -36,22 +36,22 @@ test("contact must match the signed-in account; email case and Vietnamese phone 
 
 test("missing contact, malformed password and weak or oversized new passwords never write", async () => {
   for (const payload of [null, {}, { ...body, contact: "" }, { ...body, contact: {} },
-    { ...body, oldPassword: [] }, { ...body, newPassword: "short" },
+    { ...body, confirmPassword: [] }, { ...body, confirmPassword: '' }, { ...body, confirmPassword: 'not-matching' }, { ...body, newPassword: "short" },
     { ...body, newPassword: "a".repeat(73) }, { ...body, newPassword: "ệ".repeat(25) }]) {
     const result = await request(payload);
     assert.equal(result.res.code, 400); assert.equal(result.writes, 0);
   }
 });
 
-test("wrong contact, incorrect current password and unchanged password are rejected without updates", async () => {
+test("wrong contact and unchanged password are rejected without updates", async () => {
   for (const payload of [{ ...body, contact: "other@example.test" }, { ...body, contact: "0999999999" },
-    { ...body, oldPassword: "wrong-password" }, { ...body, newPassword: "old-password" }]) {
+    { ...body, newPassword: "old-password", confirmPassword: 'old-password' }]) {
     const result = await request(payload);
     assert.equal(result.res.code, 400); assert.equal(result.writes, 0);
   }
 });
 
-test("correct email or phone plus the current password allows changing only the account password", async () => {
+test("correct account contact and matching new passwords allow a change without the current password", async () => {
   for (const contact of [body.contact, "+84912345678"]) {
     const result = await request({ ...body, contact });
     assert.equal(result.res.code, 200); assert.equal(result.writes, 1);
@@ -59,12 +59,12 @@ test("correct email or phone plus the current password allows changing only the 
     assert.equal(result.filter._id, "self"); assert.equal(result.filter.password, "old-hash");
     assert.equal(result.filter.email, account.email); assert.equal(result.filter.phoneNumber, account.phoneNumber);
   }
-  const password = await bcrypt.hash(body.oldPassword, 4);
+  const password = await bcrypt.hash('old-password', 4);
   const result = await request(body, { real: true, user: { ...account, password } });
   assert.equal(result.res.code, 200);
   assert.notEqual(result.update.$set.password, body.newPassword);
   assert.equal(await bcrypt.compare(body.newPassword, result.update.$set.password), true);
-  assert.equal(await bcrypt.compare(body.oldPassword, result.update.$set.password), false);
+  assert.equal(await bcrypt.compare('old-password', result.update.$set.password), false);
 });
 
 test("missing or disabled accounts and database failures cannot change passwords or leak errors", async () => {
@@ -80,4 +80,9 @@ test("missing or disabled accounts and database failures cannot change passwords
 test("concurrent password or contact changes return conflict instead of a false success", async () => {
   const result = await request(body, { stale: true });
   assert.equal(result.res.code, 409);
+});
+
+test('account password change still requires an authenticated account', async () => {
+  const result = await request(body, { unauthenticated: true });
+  assert.equal(result.res.code, 401); assert.equal(result.writes, 0);
 });

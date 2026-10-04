@@ -247,6 +247,7 @@ function Register() {
               {isSubmitting ? "Đang xử lý..." : "Đăng ký tài khoản"}
             </button>
 
+            <p className="text-center text-xs font-semibold text-violet-700"><Link to="/forgot-password" className="hover:underline">Quên mật khẩu?</Link></p>
             <p className="text-center text-xs text-gray-600">
               Đã có tài khoản?{" "}
               <Link to="/login" className="font-semibold text-[#9346F5] hover:text-[#7c38c9]">

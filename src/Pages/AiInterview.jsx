@@ -706,27 +706,9 @@ function AnswerComposer({
   return (
     <div className="shrink-0 border-t border-slate-200 bg-white p-3 sm:px-5">
       <div className="w-full">
-        {speech.canSelectMicrophone ? <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-          <label htmlFor="interview-microphone" className="shrink-0 text-xs font-semibold text-slate-700">Microphone</label>
-          <select id="interview-microphone" value={speech.deviceId} onChange={(event) => speech.selectDevice(event.target.value)}
-            disabled={isRequesting || speech.busy || speech.loadingDevices} aria-describedby="interview-microphone-help"
-            className="min-h-11 w-full min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-xs text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:bg-slate-50 disabled:opacity-60">
-            <option value="">Mic mặc định của trình duyệt</option>
-            {speech.deviceId && !speech.devices.some((device) => device.deviceId === speech.deviceId) && <option value={speech.deviceId}>Mic đã ngắt kết nối — chọn mic khác</option>}
-            {speech.devices.map((device, index) => <option key={device.deviceId} value={device.deviceId}>{device.label || `Microphone ${index + 1}`}</option>)}
-          </select>
-          <button type="button" onClick={() => void speech.refreshDevices()} disabled={isRequesting || speech.busy || speech.loadingDevices}
-            className="min-h-11 shrink-0 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:opacity-50">
-            {speech.loadingDevices ? "Đang tải mic…" : "Tải danh sách mic"}
-          </button>
-        </div> : null}
-        {speech.supported && <p id="interview-microphone-help" className="mb-2 text-[11px] leading-4 text-slate-600" role="status" aria-live="polite">
-          {speech.canSelectMicrophone ? "Bấm Tải danh sách mic và cấp quyền để xem tên thiết bị. Chọn mic trước khi bắt đầu nói."
-            : "Trình duyệt này dùng mic mặc định. Muốn đổi mic, hãy đổi trong cài đặt trình duyệt/hệ điều hành, hoặc dùng Chrome/Edge 135+ trên máy tính để chọn tại đây."}
-        </p>}
         <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2">
           <button type="button" onClick={() => speech.busy ? speech.stop() : speech.start(answer)}
-            disabled={isRequesting || !speech.supported || speech.loadingDevices || speech.status === "stopping" || (!speech.busy && answer.length >= INTERVIEW_ANSWER_LIMIT)}
+            disabled={isRequesting || !speech.supported || speech.status === "stopping" || (!speech.busy && answer.length >= INTERVIEW_ANSWER_LIMIT)}
             aria-label={speech.busy ? "Dừng mic" : "Trả lời bằng mic"}
             aria-pressed={speech.busy} aria-describedby="interview-speech-status interview-speech-privacy"
             className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${speech.busy ? "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100" : "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100"}`}>
@@ -738,6 +720,10 @@ function AnswerComposer({
           </p>
         </div>
         {speech.error && <p role="alert" className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">{speech.error}</p>}
+        {speech.interim && <div className="mb-2 max-h-24 overflow-y-auto border-l-2 border-violet-300 pl-3 text-xs leading-5 text-slate-600">
+          <p className="font-semibold text-slate-500">Đang nhận dạng…</p>
+          <p className="break-words">{speech.interim}</p>
+        </div>}
         <div className="flex items-end gap-3 rounded-lg border border-slate-300 bg-white p-2.5 shadow-sm transition focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-100">
           <label htmlFor="interview-answer" className="sr-only">
             Câu trả lời phỏng vấn

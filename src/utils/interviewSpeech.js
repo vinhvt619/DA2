@@ -1,23 +1,5 @@
 export const INTERVIEW_ANSWER_LIMIT = 1200;
 
-export function supportsMicrophoneSelection(scope) {
-  const navigator = scope?.navigator;
-  const ua = navigator?.userAgent || "";
-  // Older engines silently ignore start(audioTrack). Restrict selection to
-  // known desktop Chromium implementations rather than using the wrong mic.
-  const chromium = ua.match(/(?:Chrome|Chromium)\/(\d+)/);
-  return Boolean(scope?.isSecureContext && chromium && Number(chromium[1]) >= 135
-    && !/Android|iPhone|iPad|iPod|Mobile/i.test(ua) && !navigator?.userAgentData?.mobile
-    && navigator?.mediaDevices?.getUserMedia && navigator?.mediaDevices?.enumerateDevices);
-}
-
-export function microphoneErrorMessage(error) {
-  if (error?.name === "NotAllowedError" || error?.name === "SecurityError") return speechErrorMessage("not-allowed");
-  if (["NotFoundError", "OverconstrainedError"].includes(error?.name)) return "Mic đã chọn không còn khả dụng. Hãy tải lại danh sách và chọn mic khác; ứng dụng không tự chuyển sang mic khác.";
-  if (error?.name === "NotReadableError") return "Không mở được mic đã chọn. Hãy kiểm tra kết nối hoặc ứng dụng khác đang sử dụng mic.";
-  return "Không thể mở mic hoặc tải danh sách thiết bị. Hãy thử lại hoặc gõ câu trả lời.";
-}
-
 export function speechSupport(scope) {
   if (!scope?.isSecureContext) return { reason: "Mic cần kết nối HTTPS hoặc localhost. Bạn vẫn có thể gõ câu trả lời." };
   const Recognition = scope.SpeechRecognition || scope.webkitSpeechRecognition;
@@ -39,11 +21,8 @@ export function speechErrorMessage(code) {
 }
 
 // Only transcribes into a draft. Never sends audio/text to the interview API.
-export function createInterviewSpeech({ Recognition, mediaDevices, onText, onStatus, onError, maxLength = INTERVIEW_ANSWER_LIMIT }) {
+export function createInterviewSpeech({ Recognition, onText, onStatus, onError, onInterim = () => {}, maxLength = INTERVIEW_ANSWER_LIMIT }) {
   let active = null;
-  let pending = null;
-  let stream = null;
-  let removeTrackListener = () => {};
   let destroyed = false;
   let stopping = false;
   let stopTimer;
@@ -60,22 +39,17 @@ export function createInterviewSpeech({ Recognition, mediaDevices, onText, onSta
     clearTimeout(sessionTimer);
     const recognition = active;
     active = null;
-    pending = null;
-    removeTrackListener();
-    removeTrackListener = () => {};
+    if (!destroyed) onInterim("");
     if (recognition) {
       detach(recognition);
       if (abort) {
         try { recognition.abort(); } catch { /* Already closed by the browser. */ }
       }
     }
-    stream?.getTracks().forEach((track) => track.stop());
-    stream = null;
     if (notify && !destroyed) onStatus("idle");
   };
 
   const stop = () => {
-    if (pending) { release({ abort: true }); return; }
     if (!active || destroyed || stopping) return;
     stopping = true;
     onStatus("stopping");
@@ -87,15 +61,13 @@ export function createInterviewSpeech({ Recognition, mediaDevices, onText, onSta
     try { recognition.stop(); } catch { release({ abort: true }); }
   };
 
-  const startRecognition = (prefix, audioTrack) => {
+  const startRecognition = (prefix) => {
       try {
-        if (audioTrack && (audioTrack.kind !== "audio" || audioTrack.readyState !== "live")) {
-          throw Object.assign(new Error("Microphone disconnected"), { name: "NotFoundError" });
-        }
         const recognition = new Recognition();
         active = recognition;
         stopping = false;
-        let heardSpeech = false;
+        let finalTranscript = "";
+        let interimTranscript = "";
         let limitReached = false;
         recognition.lang = "vi-VN";
         recognition.continuous = true;
@@ -108,13 +80,17 @@ export function createInterviewSpeech({ Recognition, mediaDevices, onText, onSta
         };
         recognition.onresult = (event) => {
           if (active !== recognition || destroyed || limitReached || !event.results) return;
-          // Results are cumulative in a session. Rebuild instead of appending
-          // on every event, otherwise interim revisions duplicate words.
-          const transcript = Array.from(event.results)
+          // Interim hypotheses can change or disappear. Only final results
+          // belong in the answer; rebuild the cumulative list to avoid repeats.
+          const results = Array.from(event.results);
+          const textFor = (final) => results.filter((result) => result.isFinal === final)
             .map((result) => result[0]?.transcript || "").join(" ").replace(/\s+/g, " ").trim();
-          if (!transcript) return;
-          heardSpeech = true;
-          const draft = `${prefix}${prefix && !/\s$/.test(prefix) ? " " : ""}${transcript}`;
+          interimTranscript = textFor(false);
+          onInterim(interimTranscript);
+          const transcript = textFor(true);
+          if (!transcript || transcript === finalTranscript) return;
+          finalTranscript = transcript;
+          const draft = `${prefix}${prefix && !/\s$/.test(prefix) ? " " : ""}${finalTranscript}`;
           onText(draft.slice(0, maxLength));
           if (draft.length >= maxLength) {
             limitReached = true;
@@ -129,65 +105,32 @@ export function createInterviewSpeech({ Recognition, mediaDevices, onText, onSta
         };
         recognition.onend = () => {
           if (active !== recognition || destroyed) return;
-          if (!heardSpeech) onError(speechErrorMessage("no-speech"));
+          if (interimTranscript && !limitReached) {
+            onError("Phần lời nói cuối chưa được nhận dạng hoàn tất nên chưa điền vào câu trả lời. Hãy bật mic để nói lại phần đó hoặc gõ bổ sung.");
+          } else if (!finalTranscript && !limitReached) {
+            onError(speechErrorMessage("no-speech"));
+          }
           release();
         };
-        if (audioTrack) {
-          const handleEnded = () => {
-            if (active !== recognition || destroyed) return;
-            onError(microphoneErrorMessage({ name: "NotFoundError" }));
-            release({ abort: true });
-          };
-          audioTrack.addEventListener("ended", handleEnded);
-          removeTrackListener = () => audioTrack.removeEventListener("ended", handleEnded);
-        }
         onStatus("starting");
-        if (audioTrack) recognition.start(audioTrack);
-        else recognition.start();
+        recognition.start();
         return true;
       } catch (error) {
         release({ abort: true });
-        onError(audioTrack ? microphoneErrorMessage(error) : speechErrorMessage(error.name === "NotAllowedError" ? "not-allowed" : "start-failed"));
+        onError(speechErrorMessage(["NotAllowedError", "SecurityError"].includes(error.name) ? "not-allowed" : "start-failed"));
         return false;
       }
   };
 
   return {
-    start(baseText = "", deviceId = "") {
-      if (destroyed || active || pending || !Recognition) return false;
+    start(baseText = "") {
+      if (destroyed || active || !Recognition) return false;
       const prefix = String(baseText);
       if (prefix.length >= maxLength) {
         onError(`Câu trả lời đã đạt ${maxLength} ký tự. Hãy chỉnh sửa trước khi dùng mic.`);
         return false;
       }
-      if (!deviceId) return startRecognition(prefix);
-      const token = {};
-      pending = token;
-      onStatus("starting");
-      return (async () => {
-        let captured;
-        try {
-          captured = await mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } }, video: false });
-          if (destroyed || pending !== token) {
-            captured.getTracks().forEach((track) => track.stop());
-            return false;
-          }
-          pending = null;
-          stream = captured;
-          const track = captured.getAudioTracks()[0];
-          // Fail closed if a browser returns a different input.
-          if (!track || track.getSettings().deviceId !== deviceId) {
-            throw Object.assign(new Error("Wrong microphone"), { name: "NotFoundError" });
-          }
-          return startRecognition(prefix, track);
-        } catch (error) {
-          if (!destroyed && (pending === token || (captured && stream === captured))) {
-            release({ abort: true });
-            onError(microphoneErrorMessage(error));
-          }
-          return false;
-        }
-      })();
+      return startRecognition(prefix);
     },
     stop,
     destroy() {

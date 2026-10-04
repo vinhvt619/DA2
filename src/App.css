@@ -158,8 +158,10 @@ input[type="password"]::-ms-clear {
 
   .resume-library-print-root {
     display: block !important;
+    position: static !important;
+    opacity: 1 !important;
     width: 210mm !important;
-    height: 297mm !important;
+    height: auto !important;
     margin: 0 !important;
     padding: 0 !important;
     background: white !important;
@@ -287,7 +289,12 @@ input[type="password"]::-ms-clear {
 }
 
 .resume-library-print-root {
-  display: none;
+  position: fixed;
+  top: 0;
+  left: -100000px;
+  display: block;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .resume-fit-content {

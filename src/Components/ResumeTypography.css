@@ -1,0 +1,6 @@
+/* Shared by every CV layout, its thumbnail and the browser print document. */
+.cv-print-layout,
+.cv-template-thumbnail {
+  --cv-font-family: Arial, sans-serif;
+  font-family: var(--cv-font-family);
+}

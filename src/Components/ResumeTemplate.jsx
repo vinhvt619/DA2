@@ -1,15 +1,11 @@
 import React from "react";
 import { CheckIcon } from "@heroicons/react/24/outline";
-import { ADDITIONAL_RESUME_TEMPLATES } from "../../shared/resumeTemplates.js";
+import { ADDITIONAL_RESUME_TEMPLATES, RESUME_TEMPLATES } from "../../shared/resumeTemplates.js";
 import { AdditionalResumeThumbnail } from "./ResumePreview.jsx";
-import ResumeTemplateSource from "./ResumeTemplateSource.jsx";
 
 const templates = [
   {
     id: "classic",
-    name: "Cơ bản tối giản",
-    desc: "Truyền thống, rõ ràng",
-    accent: "bg-gray-100",
     preview: (
       <div className="h-28 bg-white border border-gray-100 rounded-lg overflow-hidden p-2 text-[3.5px]">
         <div className="text-center mb-1 border-b border-gray-200 pb-1">
@@ -36,9 +32,6 @@ const templates = [
   },
   {
     id: "modern",
-    name: "Hiện đại",
-    desc: "Sáng tạo, nổi bật",
-    accent: "bg-blue-50",
     preview: (
       <div className="h-28 bg-white border border-gray-100 rounded-lg overflow-hidden text-[3.5px]">
         <div className="grid grid-cols-5 h-full">
@@ -63,9 +56,6 @@ const templates = [
   },
   {
     id: "professional",
-    name: "Chuyên nghiệp",
-    desc: "Tối giản, lịch sự",
-    accent: "bg-slate-800",
     preview: (
       <div className="h-28 bg-white border border-gray-100 rounded-lg overflow-hidden text-[3.5px]">
         <div className="grid grid-cols-5 h-full">
@@ -90,9 +80,6 @@ const templates = [
   },
   {
     id: "elegant",
-    name: "Thanh lịch đơn sắc",
-    desc: "Tối giản, chuyên nghiệp",
-    accent: "bg-stone-50",
     preview: (
       <div className="h-28 overflow-hidden rounded-lg border border-stone-200 bg-white p-2 text-[3.5px]">
         <div className="flex items-start justify-between border-b-2 border-slate-800 pb-1.5">
@@ -121,9 +108,6 @@ const templates = [
   },
   {
     id: "creative",
-    name: "Sáng tạo hai cột",
-    desc: "Màu sắc, cân bằng",
-    accent: "bg-teal-50",
     preview: (
       <div className="h-28 overflow-hidden rounded-lg border border-teal-100 bg-white text-[3.5px]">
         <div className="flex h-[36%] items-center gap-2 bg-teal-800 px-2 text-white">
@@ -150,9 +134,6 @@ const templates = [
   },
   {
     id: "compact",
-    name: "Tối ưu ATS",
-    desc: "Một cột, dễ đọc bởi ATS",
-    accent: "bg-slate-100",
     preview: (
       <div className="h-28 overflow-hidden rounded-lg border border-slate-200 bg-white p-2 text-[3.5px]">
         <div className="border-b border-slate-800 pb-1.5">
@@ -175,7 +156,10 @@ const templates = [
       </div>
     ),
   },
-];
+].map(({ id, preview }) => {
+  const definition = RESUME_TEMPLATES.find((template) => template.id === id);
+  return { ...definition, desc: definition.description, preview };
+});
 
 const additionalTemplates = ADDITIONAL_RESUME_TEMPLATES.map((template) => ({
   ...template,
@@ -217,7 +201,7 @@ export default function ResumeTemplate({ selectedTemplate, setSelectedTemplate }
               }`}
             >
               {/* Preview thumbnail */}
-              <div className="relative">
+              <div className="cv-template-thumbnail relative">
                 {t.preview}
                 {isActive && (
                   <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-[#9346F5] flex items-center justify-center shadow-sm">
@@ -234,7 +218,6 @@ export default function ResumeTemplate({ selectedTemplate, setSelectedTemplate }
                 <p className="text-[10px] text-gray-400 mt-0.5">{t.desc}</p>
               </div>
             </button>
-            <div className="px-2"><ResumeTemplateSource source={t.source} /></div>
             </div>
           );
         })}

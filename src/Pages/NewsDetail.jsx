@@ -16,6 +16,8 @@ import {
 } from "@heroicons/react/24/outline";
 import { getCategoryImg } from "../data/newsArticles.js";
 import usePublicNews from '../hooks/usePublicNews.js';
+import RichTextContent from '../Components/RichTextContent.jsx';
+import '../Components/RichText/news.scss';
 
 export default function NewsDetail() {
   const { slug } = useParams();
@@ -39,6 +41,7 @@ export default function NewsDetail() {
       article.title,
       article.summary,
       article.intro,
+      article.content ? new DOMParser().parseFromString(article.content, 'text/html').body.textContent : '',
       ...article.sections.flatMap((section) => [
         section.heading || "",
         ...(section.paragraphs || []),
@@ -53,7 +56,7 @@ export default function NewsDetail() {
   if (!article) return <Navigate to="/News" replace />;
 
   const coverImage = getCategoryImg(article.slug, article.category);
-  const tocSections = article.sections
+  const tocSections = article.content ? [...new DOMParser().parseFromString(article.content, 'text/html').querySelectorAll('h1,h2,h3')].map((heading, index) => ({ heading: heading.textContent, index })) : article.sections
     .map((section, index) => ({ ...section, index }))
     .filter((section) => section.heading);
 
@@ -102,11 +105,11 @@ export default function NewsDetail() {
                 <p className="mt-3 text-sm leading-6 text-slate-600">{article.summary}</p>
               </header>
 
-              <div className="my-5 border-l-4 border-violet-600 bg-violet-50 px-4 py-3 text-sm font-medium leading-6 text-slate-700">
+              {article.intro && <div className="my-5 border-l-4 border-violet-600 bg-violet-50 px-4 py-3 text-sm font-medium leading-6 text-slate-700">
                 {article.intro}
-              </div>
+              </div>}
 
-              <div>
+              {article.content ? <RichTextContent article content={article.content} className="news-rich-text my-5" /> : <div>
                 {article.sections.map((section, index) => (
                   <section
                     id={`section-${index}`}
@@ -137,7 +140,7 @@ export default function NewsDetail() {
                     )}
                   </section>
                 ))}
-              </div>
+              </div>}
 
               <footer className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <Link

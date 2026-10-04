@@ -119,14 +119,14 @@ function Login() {
               {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
             </div>
 
-            <label className="flex cursor-pointer items-center text-sm text-gray-700">
+            <div className="flex flex-wrap items-center justify-between gap-3"><label className="flex cursor-pointer items-center text-sm text-gray-700">
               <input
                 type="checkbox"
                 {...register("rememberMe")}
                 className="h-4 w-4 cursor-pointer rounded border-gray-300 text-[#9346F5] focus:ring-[#9346F5]"
               />
               <span className="ml-2">Ghi nhớ đăng nhập</span>
-            </label>
+            </label><Link to="/forgot-password" className="text-xs font-semibold text-violet-700 hover:underline">Quên mật khẩu?</Link></div>
 
             <button
               type="submit"

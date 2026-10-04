@@ -12,6 +12,7 @@ import ScrollToTop from "../Components/ScrollToTop.jsx";
 import RoleAccessGuard from "../Components/RoleAccessGuard.jsx";
 import { CompanyAwarePage } from "./CompanyPortalShell.jsx";
 const Login = lazy(() => import("./Login.jsx"));
+const ForgotPassword = lazy(() => import('./ForgotPassword.jsx'));
 const WelcomePage = lazy(() => import("./WelcomePage.jsx"));
 const Register = lazy(() => import("./Register.jsx"));
 const MainMenu = lazy(() => import("./MainMenu.jsx"));
@@ -63,6 +64,7 @@ function App() {
                 <Route element={<RoleAccessGuard />}>
                 <Route path="/" element={<WelcomePage />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/MainMenu" element={<MainMenu />} />
                 <Route path="/Jobs" element={<Jobs />} />

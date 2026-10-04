@@ -37,13 +37,14 @@ import { createJobRestoreHandler } from './services/jobRestoreService.js';
 import { adminJobStatus } from '../shared/adminJobStatus.js';
 import { deactivateAccount } from './services/accountDeletionService.js';
 import { createAccountAuthMiddleware } from './services/accountAuthService.js';
-import { createPasswordChangeHandler } from './services/passwordChangeService.js';
+import { createPasswordChangeHandler, createDemoPasswordResetHandler, isDemoPasswordResetEnabled } from './services/passwordChangeService.js';
 import { sanitizeRichText } from "./utils/richTextSanitizer.js";
 import { cleanAiText } from "./utils/aiDataSanitizer.js";
 import { sanitizeResumeLayout } from "./utils/resumeLayout.js";
 import { sanitizeCustomSections } from "./utils/resumeCustomSections.js";
 import { normalizeSkillNames } from "../shared/resumeCustomSections.js";
 import { RESUME_TEMPLATE_KEYS } from "../shared/resumeTemplates.js";
+import { normalizeResumePageCount } from "../shared/resumePages.js";
 import { updateApplicationStatus, ApplicationStatusLockedError } from "./services/applicationStatusService.js";
 import { captureApplicationResume, freezeLegacyResumeApplications, ensureApplicationResumeSnapshot, applicationResumeData, createApplicationResumeHandler } from "./services/applicationResumeService.js";
 import aiRoutes from "./routes/aiRoutes.js";
@@ -580,6 +581,7 @@ const sanitizeResumeData = (source) => {
     award: cleanDescriptions(data.award),
     customSections,
     layout: sanitizeResumeLayout(data.layout, customSections),
+    pageCount: normalizeResumePageCount(data.pageCount),
   };
 };
 
@@ -982,6 +984,11 @@ app.put("/api/user/password", authMiddleware, rateLimit({
   legacyHeaders: false,
   message: { message: "Bạn đã thử đổi mật khẩu quá nhiều lần. Vui lòng thử lại sau 15 phút." },
 }), createPasswordChangeHandler({ UserModel: User, comparePassword: bcrypt.compare, hashPassword: bcrypt.hash }));
+
+app.post('/api/forgot-password', rateLimit({
+  windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false,
+  message: { message: 'Bạn đã thử đặt lại mật khẩu quá nhiều lần. Vui lòng thử lại sau 15 phút.' },
+}), createDemoPasswordResetHandler({ enabled: isDemoPasswordResetEnabled(), UserModel: User, comparePassword: bcrypt.compare, hashPassword: bcrypt.hash }));
 
 app.post("/api/logout", (req, res) => {
   res.clearCookie("token", cookieOptions);

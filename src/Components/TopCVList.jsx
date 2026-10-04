@@ -6,17 +6,18 @@ import {
   UserGroupIcon,
 } from "@heroicons/react/24/outline";
 import { useNavigate } from "react-router-dom";
+import { RESUME_TEMPLATES } from "../../shared/resumeTemplates.js";
 
 const tabs = ["Dùng nhiều", "Xem nhiều", "Mới nhất"];
 
 const cvTemplates = [
-  { rank: 1, name: "Modern Pro", uses: "23,1k", views: "58,7k", accent: "bg-slate-800", paper: "bg-slate-50" },
-  { rank: 2, name: "Creative Blue", uses: "18,6k", views: "46,2k", accent: "bg-blue-600", paper: "bg-blue-50" },
-  { rank: 3, name: "Minimal Green", uses: "15,4k", views: "38,1k", accent: "bg-emerald-600", paper: "bg-emerald-50" },
-  { rank: 4, name: "Elegant Rose", uses: "12,7k", views: "31,6k", accent: "bg-rose-300", paper: "bg-rose-50" },
-  { rank: 5, name: "Tech Dark", uses: "11,2k", views: "27,8k", accent: "bg-slate-900", paper: "bg-slate-200" },
-  { rank: 6, name: "Classic Light", uses: "9,8k", views: "22,4k", accent: "bg-violet-400", paper: "bg-violet-50" },
-];
+  { id: "professional", rank: 1, uses: "23,1k", views: "58,7k" },
+  { id: "modern", rank: 2, uses: "18,6k", views: "46,2k" },
+  { id: "creative", rank: 3, uses: "15,4k", views: "38,1k" },
+  { id: "editorial", rank: 4, uses: "12,7k", views: "31,6k" },
+  { id: "technology", rank: 5, uses: "11,2k", views: "27,8k" },
+  { id: "classic", rank: 6, uses: "9,8k", views: "22,4k" },
+].map((stats) => ({ ...RESUME_TEMPLATES.find((template) => template.id === stats.id), ...stats }));
 
 function ResumePreview({ template }) {
   return (
@@ -43,7 +44,7 @@ function CVCard({ template, onClick }) {
       <span className="absolute left-1.5 top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-violet-600 text-[9px] font-bold text-white shadow-sm">{template.rank}</span>
       <ResumePreview template={template} />
       <div className="min-w-0 self-center">
-        <h3 className="truncate text-xs font-semibold text-slate-800 group-hover:text-violet-700">{template.name}</h3>
+        <h3 className="break-words text-xs font-semibold leading-5 text-slate-800 group-hover:text-violet-700">{template.name}</h3>
         <div className="mt-2 space-y-1 text-[9px] text-slate-400">
           <div className="flex items-center gap-1"><UserGroupIcon className="h-3 w-3" />{template.uses} lượt dùng</div>
           <div className="flex items-center gap-1"><EyeIcon className="h-3 w-3" />{template.views} lượt xem</div>

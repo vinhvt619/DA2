@@ -14,7 +14,6 @@ import {
 } from "@heroicons/react/24/outline";
 import Header from "../Components/Header.jsx";
 import ResumePreview from "../Components/ResumePreview.jsx";
-import ResumeTemplateSource from "../Components/ResumeTemplateSource.jsx";
 import { showToast } from "../utils/toast.js";
 import { formatDate } from "../utils/dateTime.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -202,7 +201,6 @@ function TemplateCard({ template, onSelect }) {
         <h3 className="text-sm font-semibold text-slate-900 group-hover:text-violet-700">{template.name}</h3>
         <span className="mt-1 text-[10px] font-medium text-violet-600">{template.category}</span>
         <p className="mt-2 line-clamp-4 flex-1 text-[10px] leading-4 text-slate-500">{template.description}</p>
-        <ResumeTemplateSource source={template.source} />
         <button type="button" onClick={() => onSelect(template.id)} className="mt-3 flex h-9 w-full items-center justify-center gap-1 rounded-md border border-violet-300 text-[11px] font-semibold text-violet-700 transition hover:bg-violet-50">Dùng mẫu <ArrowRightIcon className="h-3.5 w-3.5" /></button>
       </div>
     </article>
@@ -343,8 +341,9 @@ export default function ResumeSelection() {
 
       {resumeToPrint && (
         <div className="resume-library-print-root" aria-hidden="true">
-          <div ref={printContentRef} className="cv-wrapper bg-white">
+          <div ref={printContentRef} className={`cv-wrapper ${resumeToPrint.pageCount === 2 ? "cv-document" : ""} bg-white`}>
             <ResumePreview
+              pageCount={resumeToPrint.pageCount}
               selectedTemplate={resumeToPrint.selectedTemplate || "modern"}
               layout={resumeToPrint.layout}
               customSections={resumeToPrint.customSections || []}

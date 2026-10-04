@@ -1,0 +1,17 @@
+.cv-wrapper.cv-document { height: auto; min-height: 0; max-height: none; overflow: visible; background: transparent; box-shadow: none; }
+.cv-resume-pages { position: relative; display: flex; flex-direction: column; gap: 20px; }
+.cv-resume-page { flex: none; width: 210mm; height: 297mm; overflow: hidden; background: #fff; box-shadow: 0 3px 12px #00000015; }
+.cv-pagination-source { position: absolute; top: 0; left: -100000px; width: 210mm; height: 297mm; opacity: 0; pointer-events: none; }
+.cv-paged-window { min-width: 0; overflow: hidden; }
+.cv-paged-flow { column-count: 2; column-gap: 0; column-fill: auto; }
+.cv-paged-flow > section { break-inside: auto !important; page-break-inside: auto !important; }
+.cv-paged-flow h3 { break-after: avoid; }
+.cv-paged-flow p, .cv-paged-flow li { orphans: 2; widows: 2; }
+.cv-pagination-error { margin: 0; padding: 12px 16px; border: 1px solid #f5b8b8; border-radius: 4px; background: #fff2f2; color: #a32323; font: 14px/1.5 Arial, sans-serif; }
+@media print {
+  .cv-wrapper.cv-document { height: auto !important; min-height: 0 !important; max-height: none !important; overflow: visible !important; }
+  .cv-resume-pages { display: block; }
+  .cv-pagination-source, .cv-pagination-error { display: none !important; }
+  .cv-resume-page { width: 210mm; height: 297mm; margin: 0; box-shadow: none; break-after: page; }
+  .cv-resume-page:last-of-type { break-after: auto; }
+}

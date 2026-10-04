@@ -7,19 +7,13 @@ import {
   ShieldCheckIcon,
   UserMinusIcon,
 } from "@heroicons/react/24/outline";
-import InputPassword from "../Components/InputPassword.jsx";
+import PasswordUpdateForm from '../Components/PasswordUpdateForm.jsx';
 import StyledSelect from "../Components/StyledSelect.jsx";
 import { showToast } from "../utils/toast.js";
 import SettingsPageLayout, {
   SettingsCard,
   SettingsPageHeader,
 } from "../Components/SettingsLayout.jsx";
-
-const passwordFields = [
-  { key: "oldPassword", label: "Mật khẩu hiện tại" },
-  { key: "newPassword", label: "Mật khẩu mới" },
-  { key: "newPassword2", label: "Nhập lại mật khẩu mới" },
-];
 
 function SettingSwitch({ checked, onChange, label }) {
   return (
@@ -64,74 +58,6 @@ function PrivacyRow({ icon: Icon, title, description, danger = false, children }
 export default function SettingAndPrivate() {
   const [profileVisibility, setProfileVisibility] = useState("recruiters");
   const [jobAlerts, setJobAlerts] = useState(true);
-  const [updatingPassword, setUpdatingPassword] = useState(false);
-  const [contact, setContact] = useState("");
-  const [showPassword, setShowPassword] = useState({
-    oldPassword: false,
-    newPassword: false,
-    newPassword2: false,
-  });
-  const [password, setPassword] = useState({
-    oldPassword: "",
-    newPassword: "",
-    newPassword2: "",
-  });
-
-  const handleUpdatePassword = async (event) => {
-    event.preventDefault();
-    if (updatingPassword) return;
-    if (!contact.trim()) {
-      showToast("Vui lòng nhập email hoặc số điện thoại đã lưu trong tài khoản.", "error");
-      return;
-    }
-    if (!password.oldPassword || !password.newPassword || !password.newPassword2) {
-      showToast("Vui lòng nhập đầy đủ thông tin mật khẩu.", "error");
-      return;
-    }
-
-    if (password.newPassword.length < 8) {
-      showToast("Mật khẩu mới phải có ít nhất 8 ký tự.", "error");
-      return;
-    }
-
-    if (password.newPassword !== password.newPassword2) {
-      showToast("Mật khẩu mới không khớp.", "error");
-      return;
-    }
-    if (password.newPassword === password.oldPassword) {
-      showToast("Mật khẩu mới phải khác mật khẩu hiện tại.", "error");
-      return;
-    }
-
-    try {
-      setUpdatingPassword(true);
-      const response = await fetch("/api/user/password", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          oldPassword: password.oldPassword,
-          newPassword: password.newPassword,
-          contact: contact.trim(),
-        }),
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        showToast(data.message || "Không thể cập nhật mật khẩu.", "error");
-        return;
-      }
-
-      setPassword({ oldPassword: "", newPassword: "", newPassword2: "" });
-      setContact("");
-      showToast("Đổi mật khẩu thành công.", "success");
-    } catch {
-      showToast("Lỗi kết nối đến máy chủ.", "error");
-    } finally {
-      setUpdatingPassword(false);
-    }
-  };
-
   return (
     <SettingsPageLayout>
       <div className="w-full space-y-4">
@@ -197,70 +123,13 @@ export default function SettingAndPrivate() {
             <div>
               <h2 className="text-sm font-bold text-slate-900">Thay đổi mật khẩu</h2>
               <p className="mt-1 text-[11px] leading-4 text-slate-400">
-                Nhập đúng email hoặc số điện thoại đã lưu trong tài khoản và mật khẩu hiện tại để đổi mật khẩu.
+                Nhập email hoặc số điện thoại của tài khoản, mật khẩu mới và xác nhận mật khẩu mới.
               </p>
             </div>
           </div>
 
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_240px]">
-            <form onSubmit={handleUpdatePassword} aria-label="Thay đổi mật khẩu">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <label htmlFor="password-contact" className="mb-1.5 block text-xs font-semibold text-slate-700">
-                    Email hoặc số điện thoại xác nhận
-                  </label>
-                  <input
-                    id="password-contact"
-                    name="contact"
-                    type="text"
-                    required
-                    maxLength={254}
-                    autoComplete="off"
-                    aria-describedby="password-contact-help"
-                    value={contact}
-                    onChange={(event) => setContact(event.target.value)}
-                    placeholder="Nhập email hoặc số điện thoại của tài khoản"
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-                  />
-                  <p id="password-contact-help" className="mt-1.5 text-[11px] leading-4 text-slate-500">
-                    Chỉ cần nhập một trong hai. Nếu chưa lưu số điện thoại, hãy sử dụng email tài khoản.
-                  </p>
-                </div>
-                {passwordFields.map((field, index) => (
-                  <div key={field.key} className={index === 0 ? "sm:col-span-2" : ""}>
-                    <label
-                      htmlFor={field.key}
-                      className="mb-1.5 block text-xs font-semibold text-slate-700"
-                    >
-                      {field.label}
-                    </label>
-                    <InputPassword
-                      id={field.key}
-                      name={field.key}
-                      value={password[field.key]}
-                      show={showPassword[field.key]}
-                      placeholder={field.label}
-                      autoComplete={index === 0 ? "off" : "new-password"}
-                      preventAutofill={index === 0}
-                      onChange={(event) =>
-                        setPassword((previous) => ({ ...previous, [field.key]: event.target.value }))
-                      }
-                      onToggle={() =>
-                        setShowPassword((previous) => ({ ...previous, [field.key]: !previous[field.key] }))
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-
-              <button
-                type="submit"
-                disabled={updatingPassword}
-                className="mt-5 inline-flex min-h-10 items-center justify-center rounded-xl bg-violet-600 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                {updatingPassword ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
-              </button>
-            </form>
+            <PasswordUpdateForm />
 
             <aside className="rounded-xl border border-violet-100 bg-violet-50/70 p-4" aria-label="Yêu cầu mật khẩu">
               <p className="text-xs font-bold text-slate-800">Mật khẩu an toàn</p>

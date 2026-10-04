@@ -21,6 +21,7 @@ import { requestAi } from "../utils/aiApi.js";
 import { normalizeResumeDateValue } from "../utils/dateInput.js";
 import { normalizeCustomSections, normalizeSkillNames } from "../../shared/resumeCustomSections.js";
 import { RESUME_TEMPLATE_NAMES as TEMPLATE_NAMES } from "../../shared/resumeTemplates.js";
+import { normalizeResumePageCount, RESUME_PAGE_COUNTS } from "../../shared/resumePages.js";
 import { showToast } from "../utils/toast.js";
 import {
   mergeAiSection,
@@ -96,6 +97,7 @@ const normalizeResume = (data = {}) => ({
   award: mapIds(data.award),
   hobby: mapIds(data.hobby),
   selectedTemplate: normalizeTemplate(data.selectedTemplate),
+  pageCount: normalizeResumePageCount(data.pageCount),
   customSections: normalizeCustomSections(data.customSections),
   layout: normalizeResumeLayout(data.layout, normalizeCustomSections(data.customSections)),
 });
@@ -121,7 +123,7 @@ export default function CreateResume() {
   const initialResume = useMemo(() => normalizeResume({ selectedTemplate: location.state?.template }), [location.state?.template]);
   const { value: resumeData, setters, update: updateResume, reset: resetResume, undo, redo, canUndo, canRedo } = useResumeHistory(initialResume);
   const { title, selectedTemplate, image, bio, personalInfo, profile, experience, education, skill,
-    language, certificate, project, award, hobby, layout, customSections } = resumeData;
+    language, certificate, project, award, hobby, layout, customSections, pageCount } = resumeData;
   const { title: setTitle, selectedTemplate: setSelectedTemplate, image: setImage, bio: setBio,
     personalInfo: setPersonalInfo, profile: setProfile, experience: setExperience, education: setEducation,
     skill: setSkill, language: setLanguage, certificate: setCertificate, project: setProject,
@@ -518,6 +520,15 @@ export default function CreateResume() {
           <button type="button" onClick={() => setIsLayoutEditorOpen(true)} disabled={historyDisabled} aria-label="Chỉnh bố cục CV" title="Chỉnh bố cục CV" className="grid h-8 w-8 place-items-center rounded-md border border-slate-200 text-slate-600 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40"><Squares2X2Icon className="h-4 w-4" /></button>
         </div>
         <div className="flex min-w-0 w-full items-center gap-2 sm:w-auto sm:flex-1">
+          <fieldset className="flex shrink-0 items-center gap-2" disabled={historyDisabled}>
+            <legend className="sr-only">Số trang A4</legend>
+            <div className="flex rounded-md border border-slate-200 p-0.5">
+              {RESUME_PAGE_COUNTS.map((count) => <label key={count} className={`relative cursor-pointer rounded px-2.5 py-1 text-xs font-semibold ${pageCount === count ? "bg-violet-100 text-violet-700" : "text-slate-500 hover:bg-slate-50"}`}>
+                <input type="radio" name="resume-page-count" value={count} checked={pageCount === count} onChange={() => setters.pageCount(count)} className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0" />
+                <span className="peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-violet-600">{count} trang</span>
+              </label>)}
+            </div>
+          </fieldset>
           <button
             type="button"
             onClick={handleBack}
@@ -848,8 +859,9 @@ export default function CreateResume() {
                 {TEMPLATE_NAMES[selectedTemplate]}
               </div>
 
-              <div ref={printContentRef} className="cv-wrapper mb-10 rounded-sm bg-white shadow-lg print:w-full print:shadow-none">
+              <div ref={printContentRef} className={`cv-wrapper ${pageCount === 2 ? "cv-document" : ""} mb-10 rounded-sm bg-white shadow-lg print:w-full print:shadow-none`}>
                 <ResumePreview
+                  pageCount={pageCount}
                   selectedTemplate={selectedTemplate}
                   layout={layout}
                   customSections={customSections}

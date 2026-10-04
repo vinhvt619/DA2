@@ -4,6 +4,7 @@ import { companyAccountStatus, isVerifiedCompany } from '../../shared/companyPol
 import { fetchJson } from '../utils/http.js';
 import { showToast } from '../utils/toast.js';
 import { useConfirmDialog } from '../context/ConfirmDialogContext.jsx';
+import AdminDetailDialog from '../Components/AdminDetailDialog.jsx';
 
 const labels = { pending: 'Chờ duyệt tài khoản', approved: 'Đã duyệt tài khoản', rejected: 'Tài khoản bị từ chối' };
 const inputClass = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-100';
@@ -73,18 +74,18 @@ export default function AdminCompanies() {
       <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={form.verified} onChange={(event) => setForm({ ...form, verified: event.target.checked })} /><span>Gắn nhãn đã xác minh — cho phép đăng tin ngay</span></label>
       <button disabled={Boolean(busy)} className={buttonClass} type="submit">{busy === 'create' ? 'Đang tạo...' : 'Tạo tài khoản'}</button>
     </form>}
-    {selected && <section className="space-y-4 rounded-xl border border-violet-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-3"><h2 className="font-bold">{selected.fullName || selected.username}</h2><button className={buttonClass} onClick={() => setSelectedId('')}>Đóng chi tiết</button></div>
+    {selected && <AdminDetailDialog title={selected.fullName || selected.username} busy={Boolean(busy)} onClose={() => setSelectedId('')}><div className="space-y-4">
+      {error && <p role="alert" className="text-red-700">{error}</p>}
       <dl className="grid gap-3 text-sm sm:grid-cols-2">{[['Tên đăng nhập', selected.username], ['Email', selected.email], ['Mã số thuế', selected.companyTaxCode], ['Website', selected.companyWebsite], ['Địa chỉ', selected.address], ['Điện thoại', selected.phoneNumber]].map(([label, value]) => <div key={label}><dt className="text-xs text-slate-500">{label}</dt><dd className="break-words">{value || 'Chưa cập nhật'}</dd></div>)}</dl>
       <p className="text-sm">{labels[companyAccountStatus(selected)]} · {isVerifiedCompany(selected) ? 'Đã xác minh: đăng tin ngay' : 'Chưa xác minh: tin cần admin duyệt'}</p>
       {selected.companyAccountRejectionReason && <p className="text-sm text-red-600">Lý do: {selected.companyAccountRejectionReason}</p>}
-      {companyAccountStatus(selected) !== 'approved' && <label className="block space-y-1 text-sm"><span>Lý do từ chối tài khoản</span><textarea className={inputClass} value={reason} onChange={(event) => setReason(event.target.value)} maxLength={2000} /></label>}
+      {companyAccountStatus(selected) !== 'approved' && <label className="block space-y-1 text-sm"><span>Lý do từ chối tài khoản</span><textarea name="company-rejection-reason" className={inputClass} value={reason} onChange={(event) => setReason(event.target.value)} maxLength={2000} /></label>}
       <div className="flex flex-wrap gap-2">
         {companyAccountStatus(selected) !== 'approved' && <><button disabled={Boolean(busy)} className={buttonClass} onClick={() => update('approve')}>Duyệt tài khoản</button><button disabled={Boolean(busy)} className={buttonClass} onClick={() => update('reject')}>Từ chối tài khoản</button></>}
         {companyAccountStatus(selected) === 'approved' && !selected.isBanned && <button disabled={Boolean(busy)} className={buttonClass} onClick={() => update(isVerifiedCompany(selected) ? 'unverify' : 'verify')}>{isVerifiedCompany(selected) ? 'Thu hồi xác minh' : 'Xác minh doanh nghiệp'}</button>}
         <button disabled={Boolean(busy)} className={buttonClass} onClick={() => update(selected.isBanned ? 'restore' : 'suspend')}>{selected.isBanned ? 'Mở khóa tài khoản' : 'Khóa tài khoản'}</button>
       </div>
-    </section>}
+    </div></AdminDetailDialog>}
     <section className="rounded-xl border border-violet-100 bg-white shadow-sm">
       {loading ? <p className="p-8 text-center text-sm text-slate-500">Đang tải doanh nghiệp...</p> : !visible.length ? <p className="p-8 text-center text-sm text-slate-500">Không có doanh nghiệp phù hợp.</p> : <ul className="divide-y divide-slate-100">{visible.map((company) => <li key={company._id} className="flex flex-col justify-between gap-3 p-5 sm:flex-row sm:items-center">
         <div className="min-w-0"><p className="font-semibold">{company.fullName || company.username}</p><p className="break-words text-xs text-slate-500">{company.email}</p><p className="mt-2 text-xs text-slate-600">{company.isBanned ? 'Đã khóa' : labels[companyAccountStatus(company)]} · {isVerifiedCompany(company) ? 'Đã xác minh' : 'Chưa xác minh'} · {company.jobCount || 0} tin</p></div>

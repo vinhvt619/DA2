@@ -13,7 +13,10 @@ import RichTextContent from "./RichTextContent.jsx";
 import { normalizeCustomSections, normalizeSkillNames } from "../../shared/resumeCustomSections.js";
 import { getTemplateLayout, isTemplateLayoutCustomized, customSectionKey, RESUME_SECTION_LABELS } from "../utils/resumeLayout.js";
 import { RESUME_TEMPLATE_KEYS, ADDITIONAL_RESUME_TEMPLATES } from "../../shared/resumeTemplates.js";
+import "./ResumeTypography.css";
 import "./AdditionalResumeTemplates.css";
+import ResumePages from "./ResumePages.jsx";
+import { normalizeResumePageCount } from "../../shared/resumePages.js";
 
 const safeExternalUrl = (value) => {
   if (typeof value !== "string" || !value.trim()) return undefined;
@@ -1023,7 +1026,7 @@ const TemplateBio = ({ bio, headingClass, bodyClass = "text-slate-600" }) => {
     <section className="break-inside-avoid">
       <TemplateSectionTitle className={headingClass}>Giới thiệu</TemplateSectionTitle>
       <RichTextContent
-        className={`text-[11px] leading-[1.75] ${bodyClass}`}
+        className={`cv-section-body text-[11px] leading-[1.75] ${bodyClass}`}
         content={bio}
       />
     </section>
@@ -1042,17 +1045,17 @@ const TemplateExperience = ({ items, headingClass, dateClass = "text-slate-500",
             <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
               <div className="min-w-0">
                 <h4 className={`text-[13px] font-bold ${titleClass}`}>{item.title}</h4>
-                <p className={`mt-0.5 text-[11px] font-semibold ${secondaryClass}`}>
+                <p className={`cv-item-meta mt-0.5 text-[11px] font-semibold ${secondaryClass}`}>
                   {item.company}{item.location ? ` • ${item.location}` : ""}
                 </p>
               </div>
-              <span className={`shrink-0 text-[10px] font-semibold ${dateClass}`}>
+              <span className={`cv-item-date shrink-0 text-[10px] font-semibold ${dateClass}`}>
                 {formatDateRange(item.startDate, item.endDate)}
               </span>
             </div>
             {item.description && (
               <RichTextContent
-                className={`mt-2 pl-3 text-[11px] leading-[1.65] ${secondaryClass}`}
+                className={`cv-item-description mt-2 pl-3 text-[11px] leading-[1.65] ${secondaryClass}`}
                 content={item.description}
               />
             )}
@@ -1079,12 +1082,12 @@ const TemplateEducation = ({
         {items.map((item, index) => (
           <article key={item.id || `${item.title}-${index}`} className="break-inside-avoid">
             <h4 className={`text-[12px] font-bold leading-5 ${titleClass}`}>{item.title}</h4>
-            <p className={`mt-0.5 text-[10px] font-semibold leading-4 ${secondaryClass}`}>{item.company}</p>
-            <p className={`mt-1 text-[10px] ${dateClass}`}>
+            <p className={`cv-item-meta mt-0.5 text-[10px] font-semibold leading-4 ${secondaryClass}`}>{item.company}</p>
+            <p className={`cv-item-date mt-1 text-[10px] ${dateClass}`}>
               {formatDateRange(item.startDate, item.endDate)}
             </p>
             {(item.major || item.score) && (
-              <p className={`mt-1 text-[10px] leading-4 ${secondaryClass}`}>
+              <p className={`cv-item-meta mt-1 text-[10px] leading-4 ${secondaryClass}`}>
                 {[item.major, item.score].filter(Boolean).join(" • ")}
               </p>
             )}
@@ -1106,12 +1109,12 @@ const TemplateProjects = ({ items, headingClass, accentClass = "text-violet-700"
           <article key={item.id || `${item.title}-${index}`} className="break-inside-avoid">
             <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
               <h4 className={`text-[12px] font-bold ${titleClass}`}>{item.title}</h4>
-              {item.date && <span className={`shrink-0 text-[10px] font-semibold ${accentClass}`}>{formatResumeDate(item.date)}</span>}
+              {item.date && <span className={`cv-item-date shrink-0 text-[10px] font-semibold ${accentClass}`}>{formatResumeDate(item.date)}</span>}
             </div>
-            {item.link && <p className={`mt-1 truncate text-[10px] ${accentClass}`}>{item.link}</p>}
+            {item.link && <p className={`cv-item-meta mt-1 truncate text-[10px] ${accentClass}`}>{item.link}</p>}
             {item.description && (
               <RichTextContent
-                className={`mt-1.5 pl-3 text-[11px] leading-[1.65] ${secondaryClass}`}
+                className={`cv-item-description mt-1.5 pl-3 text-[11px] leading-[1.65] ${secondaryClass}`}
                 content={item.description}
               />
             )}
@@ -1133,12 +1136,12 @@ const TemplateCredentials = ({ items, title, headingClass, metaKey, titleClass =
           <article key={item.id || `${item.title}-${index}`} className="break-inside-avoid">
             <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
               <h4 className={`text-[11px] font-bold leading-4 ${titleClass}`}>{item.title}</h4>
-              {item.date && <span className={`shrink-0 text-[9px] font-semibold ${dateClass}`}>{formatResumeDate(item.date)}</span>}
+              {item.date && <span className={`cv-item-date shrink-0 text-[9px] font-semibold ${dateClass}`}>{formatResumeDate(item.date)}</span>}
             </div>
-            {item[metaKey] && <p className={`mt-0.5 text-[10px] font-semibold ${secondaryClass}`}>{item[metaKey]}</p>}
+            {item[metaKey] && <p className={`cv-item-meta mt-0.5 text-[10px] font-semibold ${secondaryClass}`}>{item[metaKey]}</p>}
             {item.description && (
               <RichTextContent
-                className={`mt-1 text-[10px] leading-4 ${secondaryClass}`}
+                className={`cv-item-description mt-1 text-[10px] leading-4 ${secondaryClass}`}
                 content={item.description}
               />
             )}
@@ -1162,14 +1165,14 @@ const TemplateSimpleList = ({
   return (
     <section>
       <TemplateSectionTitle className={headingClass}>{title}</TemplateSectionTitle>
-      <div className="space-y-2.5">
+      <div className="cv-simple-list space-y-2.5">
         {items.map((item, index) => (
           <div key={item.id || `${item.title}-${index}`} className="break-inside-avoid">
             <div className="flex items-center gap-2">
               <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
-              <span className={`text-[11px] font-bold ${titleClass}`}>{item.title}</span>
+              <span className={`cv-list-title text-[11px] font-bold ${titleClass}`}>{item.title}</span>
             </div>
-            {item.description && <p className={`mt-0.5 pl-3.5 text-[9px] leading-4 ${secondaryClass}`}>{item.description}</p>}
+            {item.description && <p className={`cv-item-meta mt-0.5 pl-3.5 text-[9px] leading-4 ${secondaryClass}`}>{item.description}</p>}
           </div>
         ))}
       </div>
@@ -1182,7 +1185,7 @@ const TemplatePlainSkills = ({ items, headingClass, titleClass = "text-slate-900
   return (
     <section>
       <TemplateSectionTitle className={headingClass}>Kỹ năng</TemplateSectionTitle>
-      <ul className={`list-disc space-y-1.5 pl-3.5 text-[11px] leading-[1.5] ${titleClass}`}>
+      <ul className={`cv-skill-list list-disc space-y-1.5 pl-3.5 text-[11px] leading-[1.5] ${titleClass}`}>
         {items.map((item, index) => <li key={item.id || `${item.title}-${index}`} className="break-inside-avoid break-words">{item.title}</li>)}
       </ul>
     </section>
@@ -1528,13 +1531,13 @@ const DynamicResumeSection = ({ section, data, theme, compact }) => {
     return (
       <section data-custom-section={item.id}>
         <h3 className={`mb-3 border-b pb-1 text-xs font-bold uppercase break-words ${theme.accent}`}>{theme.reference ? <ReferenceSectionLabel>{item.title}</ReferenceSectionLabel> : item.title}</h3>
-        <div className={`space-y-3 text-[10px] leading-[1.55] ${theme.body || "text-slate-700"}`}>
+        <div className={`cv-section-body space-y-3 text-[10px] leading-[1.55] ${theme.body || "text-slate-700"}`}>
           {item.items.map((entry) => <article key={entry.id} className="break-inside-avoid break-words">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
               {entry.title && <h4 className={`min-w-0 font-bold ${theme.title || "text-slate-900"}`}>{entry.title}</h4>}
-              {item.fields.dates && (entry.startDate || entry.endDate) && <span className="text-[9px]">{formatDateRange(entry.startDate, entry.endDate)}</span>}
+              {item.fields.dates && (entry.startDate || entry.endDate) && <span className="cv-item-date text-[9px]">{formatDateRange(entry.startDate, entry.endDate)}</span>}
             </div>
-            {(item.fields.organization || item.fields.location) && <p>{[item.fields.organization && entry.organization, item.fields.location && entry.location].filter(Boolean).join(" · ")}</p>}
+            {(item.fields.organization || item.fields.location) && <p className="cv-item-meta">{[item.fields.organization && entry.organization, item.fields.location && entry.location].filter(Boolean).join(" · ")}</p>}
             {item.fields.link && safeExternalUrl(entry.link) && <a href={safeExternalUrl(entry.link)} target="_blank" rel="noopener noreferrer" className={`block break-all underline ${theme.secondary}`}>{entry.link}</a>}
             {item.fields.description && entry.description && <RichTextContent content={entry.description} className="mt-1" />}
             {entry.details.filter((detail) => detail.label && detail.value).map((detail, index) => <p key={`${detail.id}-${index}`} className="mt-0.5 whitespace-pre-wrap"><span className="font-semibold">{detail.label}: </span>{detail.value}</p>)}
@@ -1607,21 +1610,21 @@ const CustomResumeContacts = ({ data, dark = false, centered = false }) => (
 );
 
 const CustomResumeAvatar = ({ data, className, placeholder = false }) => data.image ? (
-  <img src={data.image} alt="Profile" className={`shrink-0 object-cover ${className}`} />
+  <img data-resume-static src={data.image} alt="Profile" className={`shrink-0 object-cover ${className}`} />
 ) : placeholder ? (
-  <div className={`flex shrink-0 items-center justify-center text-2xl font-bold ${className}`}>
+  <div data-resume-static className={`flex shrink-0 items-center justify-center text-2xl font-bold ${className}`}>
     {data.personalInfo.fullName?.charAt(0) || "?"}
   </div>
 ) : null;
 
 const ADDITIONAL_TEMPLATE_THEMES = {
-  executive: { accent: "cv-reference-heading text-neutral-700", secondary: "text-neutral-500", reference: true },
-  timeline: { accent: "cv-reference-heading text-red-950", secondary: "text-red-800", reference: true },
-  editorial: { accent: "cv-reference-heading text-red-500", secondary: "text-neutral-600", reference: true },
-  technology: { accent: "cv-reference-heading text-neutral-500", secondary: "text-neutral-500", reference: true },
-  graduate: { accent: "cv-reference-heading text-black", secondary: "text-neutral-700", reference: true },
-  nordic: { accent: "cv-reference-heading text-slate-500", secondary: "text-sky-700", reference: true },
-  portfolio: { accent: "cv-reference-heading text-neutral-600", secondary: "text-sky-800", reference: true },
+  executive: { accent: "text-neutral-800", secondary: "text-neutral-600" },
+  timeline: { accent: "text-teal-800", secondary: "text-teal-700" },
+  editorial: { accent: "text-rose-900", secondary: "text-neutral-600" },
+  technology: { accent: "text-blue-800", secondary: "text-blue-700" },
+  graduate: { accent: "text-neutral-900", secondary: "text-neutral-600" },
+  nordic: { accent: "text-sky-800", secondary: "text-neutral-600" },
+  portfolio: { accent: "text-teal-900", secondary: "text-teal-700" },
 };
 
 const AdditionalTemplate = ({ selectedTemplate, layout, thumbnail = false, ...data }) => {
@@ -1630,20 +1633,18 @@ const AdditionalTemplate = ({ selectedTemplate, layout, thumbnail = false, ...da
   const theme = ADDITIONAL_TEMPLATE_THEMES[selectedTemplate];
   const renderZone = (sections) => (thumbnail ? sections.slice(0, 3) : sections).map((section) => thumbnail ? (
     <section key={section}>
-      <h3 className="mb-3 border-b pb-1 text-xs font-bold uppercase"><ReferenceSectionLabel>{RESUME_SECTION_LABELS[section]}</ReferenceSectionLabel></h3>
+      <h3 className="mb-3 border-b pb-1 text-xs font-bold uppercase">{RESUME_SECTION_LABELS[section]}</h3>
       <div className="space-y-2"><div className="h-2 w-3/4 bg-slate-300" /><div className="h-1.5 bg-slate-200" /><div className="h-1.5 w-5/6 bg-slate-200" /></div>
     </section>
   ) : <DynamicResumeSection key={section} section={section} data={data} theme={theme} />);
-  const centered = ["executive", "editorial", "technology", "graduate"].includes(selectedTemplate);
-  const nameWords = (data.personalInfo.fullName || "").trim().split(/\s+/);
-  const splitName = ["executive", "technology"].includes(selectedTemplate);
-  const avatar = ["timeline", "nordic", "portfolio"].includes(selectedTemplate) ? <CustomResumeAvatar data={data} placeholder={selectedTemplate === "portfolio" || thumbnail} className="cv-reference-avatar h-24 w-24 rounded-full bg-gray-300 text-sky-800" /> : null;
+  const centered = ["editorial", "graduate"].includes(selectedTemplate);
+  const avatar = ["timeline", "nordic", "portfolio"].includes(selectedTemplate) ? <CustomResumeAvatar data={data} placeholder={selectedTemplate === "portfolio" || thumbnail} className="cv-reference-avatar h-24 w-24 rounded-full bg-gray-100 text-teal-800" /> : null;
   const header = (
     <header className="cv-new-header">
       <div className="cv-new-identity">
         {avatar}
         <div className="min-w-0 flex-1">
-          <h1 className="cv-new-name">{splitName ? <><span>{nameWords.slice(0, -1).join(" ")} </span><strong>{nameWords.at(-1)}</strong></> : data.personalInfo.fullName}</h1>
+          <h1 className="cv-new-name">{data.personalInfo.fullName}</h1>
           <h2 className="cv-new-job">{data.personalInfo.jobTitle}</h2>
         </div>
       </div>
@@ -1668,7 +1669,7 @@ export function AdditionalResumeThumbnail({ template }) {
   return <AdditionalTemplate selectedTemplate={template} thumbnail customSections={[]} profile={[]} personalInfo={{ fullName: "Họ và tên", jobTitle: "Vị trí công việc", email: "email@example.com" }} />;
 }
 
-const CustomizableTemplate = ({ selectedTemplate, layout, ...data }) => {
+const CustomizableTemplate = ({ selectedTemplate, layout, paginated = false, ...data }) => {
   const zones = getTemplateLayout(layout, selectedTemplate, data.customSections);
   const theme = CUSTOM_TEMPLATE_THEMES[selectedTemplate] || CUSTOM_TEMPLATE_THEMES.modern;
   const compact = selectedTemplate === "compact";
@@ -1726,7 +1727,7 @@ const CustomizableTemplate = ({ selectedTemplate, layout, ...data }) => {
             <h1 className="mb-1 break-words text-xl font-bold uppercase leading-tight tracking-tight">{name}</h1>
             <h2 className="text-xs font-medium uppercase tracking-widest text-gray-400">{jobTitle}</h2>
           </header>
-          <section>
+          <section data-resume-static>
             <TemplateSectionTitle className={DARK_SIDEBAR_THEME.accent}>Liên hệ</TemplateSectionTitle>
             <CustomResumeContacts data={data} dark />
           </section>
@@ -1773,7 +1774,7 @@ const CustomizableTemplate = ({ selectedTemplate, layout, ...data }) => {
   }
 
   // Keep the default full-width introduction unless the user explicitly moved it.
-  const fullWidthBio = !isTemplateLayoutCustomized(layout, selectedTemplate) && zones.main.includes("bio");
+  const fullWidthBio = !paginated && !isTemplateLayoutCustomized(layout, selectedTemplate) && zones.main.includes("bio");
   const mainSections = fullWidthBio ? zones.main.filter((section) => section !== "bio") : zones.main;
   return (
     <div data-resume-template="elegant" className="cv-print-layout cv-basic-layout h-full min-h-0 min-w-0 w-full overflow-hidden bg-white p-10 font-sans text-slate-800 print:p-8">
@@ -1789,6 +1790,7 @@ const CustomizableTemplate = ({ selectedTemplate, layout, ...data }) => {
 
 export default function ResumePreview({
   selectedTemplate = "modern",
+  pageCount = 1,
   layout,
   customSections = [],
   image,
@@ -1823,6 +1825,12 @@ export default function ResumePreview({
     language,
     certificate,
   };
+
+  if (normalizeResumePageCount(pageCount) === 2) {
+    return <ResumePages>{ADDITIONAL_RESUME_TEMPLATES.some((item) => item.id === template)
+      ? <AdditionalTemplate selectedTemplate={template} layout={layout} {...commonProps} />
+      : <CustomizableTemplate selectedTemplate={template} layout={layout} paginated {...commonProps} />}</ResumePages>;
+  }
 
   return (
     <AutoFitResumePage>
