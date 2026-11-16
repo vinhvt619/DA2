@@ -267,57 +267,83 @@ export const AI_RESPONSE_SCHEMAS = {
       ],
     },
   },
+  interview_session_questions: {
+    name: "interview_session_questions",
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        questions: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              id: { type: "string" },
+              kind: { type: "string", enum: ["general", "technical", "behavioral"] },
+              competencyId: { type: "string" },
+              prompt: { type: "string" },
+            },
+            required: ["id", "kind", "competencyId", "prompt"],
+          },
+        },
+      },
+      required: ["questions"],
+    },
+  },
+  interview_session_grade: {
+    name: "interview_session_grade",
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        followUp: { type: "string" },
+        improvement: { type: "string" },
+        ratings: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              criterionId: { type: "string" },
+              rating: { type: "integer", minimum: 0, maximum: 4 },
+              explanation: { type: "string" },
+              evidence: { type: "string" },
+            },
+            required: ["criterionId", "rating", "explanation", "evidence"],
+          },
+        },
+      },
+      required: ["followUp", "improvement", "ratings"],
+    },
+  },
   interview_practice: {
     name: "interview_practice_turn",
     schema: {
       type: "object",
       additionalProperties: false,
       properties: {
-        message: {
-          type: "string",
-          description:
-            "Loi noi tiep theo cua nha tuyen dung AI bang tieng Viet.",
-        },
-        questionNumber: {
-          type: "integer",
-          minimum: 1,
-          maximum: 12,
-        },
-        isComplete: { type: "boolean" },
-        feedback: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            score: score,
-            strengths: stringArray,
-            improvements: stringArray,
+        question: { type: "string", description: "Một câu hỏi tiếng Việt theo năng lực được giao. Để trống khi buổi luyện đã kết thúc." },
+        ratings: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              criterionId: { type: "string" },
+              rating: { type: "integer", minimum: 0, maximum: 4 },
+              explanation: { type: "string" },
+            },
+            required: ["criterionId", "rating", "explanation"],
           },
-          required: ["score", "strengths", "improvements"],
         },
-        finalSummary: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            overallScore: score,
-            strengths: stringArray,
-            improvements: stringArray,
-            recommendation: { type: "string" },
-          },
-          required: [
-            "overallScore",
-            "strengths",
-            "improvements",
-            "recommendation",
-          ],
-        },
+        strengths: stringArray,
+        improvements: stringArray,
+        summaryStrengths: stringArray,
+        summaryImprovements: stringArray,
+        recommendation: { type: "string" },
       },
-      required: [
-        "message",
-        "questionNumber",
-        "isComplete",
-        "feedback",
-        "finalSummary",
-      ],
+      required: ["question", "ratings", "strengths", "improvements", "summaryStrengths", "summaryImprovements", "recommendation"],
     },
   },
 };

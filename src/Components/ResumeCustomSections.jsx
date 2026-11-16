@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { PencilIcon, PlusIcon, TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { ArrowDownIcon, ArrowUpIcon, PencilIcon, PlusIcon, TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { CUSTOM_SECTION_FIELDS, DEFAULT_CUSTOM_FIELDS } from "../../shared/resumeCustomSections.js";
 import { useConfirmDialog } from "../context/ConfirmDialogContext.jsx";
 import Editor from "./RichText/Editor";
@@ -104,6 +104,17 @@ export default function ResumeCustomSections({ sections = [], onChange }) {
     }));
     setDraft(null);
   };
+  const moveEntry = (sectionId, entryId, offset) => {
+    onChange((current) => current.map((section) => {
+      if (section.id !== sectionId) return section;
+      const index = section.items.findIndex((entry) => entry.id === entryId);
+      const target = index + offset;
+      if (index < 0 || target < 0 || target >= section.items.length) return section;
+      const items = [...section.items];
+      [items[index], items[target]] = [items[target], items[index]];
+      return { ...section, items };
+    }));
+  };
   return <section className="border-t border-slate-100 pt-5">
     <div className="space-y-5">
       {sections.map((section) => <section key={section.id} className="space-y-3 border-b border-slate-100 pb-5">
@@ -114,13 +125,19 @@ export default function ResumeCustomSections({ sections = [], onChange }) {
             if (await confirm(`Xóa mục "${section.title}" và tất cả nội dung bên trong khỏi CV?`)) onChange((current) => current.filter((item) => item.id !== section.id));
           }} className={`${iconClass} hover:text-rose-600`}><TrashIcon className="h-4 w-4" /></button>
         </div>
-        {section.items.map((entry) => <article key={entry.id} className="rounded-lg border border-slate-200 p-3">
+        {section.items.map((entry, index) => <article key={entry.id} className="rounded-lg border border-slate-200 p-3">
           <div className="flex items-start gap-2">
             <div className="min-w-0 flex-1 break-words">
               <h4 className="text-sm font-semibold">{entry.title || section.title}</h4>
               {section.fields.organization && entry.organization && <p className="text-xs text-slate-500">{entry.organization}</p>}
               {section.fields.dates && (entry.startDate || entry.endDate) && <p className="mt-1 text-xs text-slate-500">{[entry.startDate, entry.endDate].filter(Boolean).join(" – ")}</p>}
             </div>
+            {section.items.length > 1 && (
+              <div className="flex">
+                <button type="button" disabled={index === 0} aria-label={"Đưa " + (entry.title || section.title) + " lên"} title="Đưa lên" onClick={() => moveEntry(section.id, entry.id, -1)} className={iconClass + " disabled:opacity-30"}><ArrowUpIcon className="h-4 w-4" /></button>
+                <button type="button" disabled={index === section.items.length - 1} aria-label={"Đưa " + (entry.title || section.title) + " xuống"} title="Đưa xuống" onClick={() => moveEntry(section.id, entry.id, 1)} className={iconClass + " disabled:opacity-30"}><ArrowDownIcon className="h-4 w-4" /></button>
+              </div>
+            )}
             <button type="button" aria-label={`Chỉnh sửa nội dung ${entry.title || section.title}`} title="Chỉnh sửa nội dung" onClick={() => setDraft({ section, entry })} className={iconClass}><PencilIcon className="h-4 w-4" /></button>
             <button type="button" aria-label={`Xóa nội dung ${entry.title || section.title}`} title="Xóa nội dung" onClick={async () => {
               if (await confirm(`Xóa nội dung "${entry.title || section.title}"?`)) onChange((current) => current.map((item) => item.id === section.id ? { ...item, items: item.items.filter((child) => child.id !== entry.id) } : item));

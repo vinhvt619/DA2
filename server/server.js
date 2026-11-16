@@ -22,7 +22,7 @@ import HiddenChat from "./models/HiddenChat.js";
 import ChatReadState from "./models/ChatReadState.js";
 import { createNotification, createNotificationsBulk, setNotificationPublisher } from "./utils/notificationService.js";
 import { createNotificationPublisher, createNotificationRelayHandler } from "./services/notificationRealtime.js";
-import { validatePdfUpload } from "./utils/pdfValidation.js";
+
 import { isJobDeleted, isJobUnavailable } from "./utils/jobAvailability.js";
 import { createPublicJobsHandler } from "./services/publicJobsService.js";
 import { jobSubmissionPolicy, normalizeJobExpiry } from "./utils/jobModeration.js";
@@ -39,14 +39,19 @@ import { deactivateAccount } from './services/accountDeletionService.js';
 import { createAccountAuthMiddleware } from './services/accountAuthService.js';
 import { createPasswordChangeHandler, createDemoPasswordResetHandler, isDemoPasswordResetEnabled } from './services/passwordChangeService.js';
 import { sanitizeRichText } from "./utils/richTextSanitizer.js";
-import { cleanAiText } from "./utils/aiDataSanitizer.js";
+
 import { sanitizeResumeLayout } from "./utils/resumeLayout.js";
 import { sanitizeCustomSections } from "./utils/resumeCustomSections.js";
 import { normalizeSkillNames } from "../shared/resumeCustomSections.js";
 import { RESUME_TEMPLATE_KEYS } from "../shared/resumeTemplates.js";
 import { normalizeResumePageCount } from "../shared/resumePages.js";
-import { updateApplicationStatus, ApplicationStatusLockedError } from "./services/applicationStatusService.js";
-import { captureApplicationResume, freezeLegacyResumeApplications, ensureApplicationResumeSnapshot, applicationResumeData, createApplicationResumeHandler } from "./services/applicationResumeService.js";
+import {
+  createCompanyApplicationsHandler,
+  createMyApplicationsHandler,
+  createUpdateApplicationStatusHandler,
+} from "./services/applicationStatusService.js";
+import { createApplyJobHandler, createApplyFileJobHandler } from "./services/applicationSubmissionService.js";
+import { freezeLegacyResumeApplications, ensureApplicationResumeSnapshot, applicationResumeData, createApplicationResumeHandler } from "./services/applicationResumeService.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import { runJobExpiryCheck } from "./cron/jobExpiryCron.js";
 import openapiSpec from "./openapi.js";
@@ -1338,33 +1343,10 @@ app.get("/api/jobs/my", authMiddleware, async (req, res) => {
 });
 
 // Get applications received by the logged-in company
-app.get("/api/jobs/applications", authMiddleware, async (req, res) => {
-  try {
-    const jobs = await Job.find({ companyId: req.user.id });
-    const jobIds = jobs.map((j) => j._id);
-
-    const applications = await Application.find({ jobId: { $in: jobIds } })
-      .populate("jobId", "title company status deletedAt")
-      .sort({ createdAt: -1 });
-
-    res.status(200).json(applications);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+app.get("/api/jobs/applications", authMiddleware, createCompanyApplicationsHandler({ Application, Job }));
 
 // Get applications for the logged-in candidate
-app.get("/api/jobs/applications/mine", authMiddleware, async (req, res) => {
-  try {
-    const applications = await Application.find({ candidateId: req.user.id })
-      .populate("jobId", "title company location type salary status expiryDate deletedAt")
-      .sort({ createdAt: -1 });
-
-    res.status(200).json(applications);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+app.get("/api/jobs/applications/mine", authMiddleware, createMyApplicationsHandler({ Application }));
 
 app.get("/api/jobs/applications/:id/resume", authMiddleware, createApplicationResumeHandler({
   Application, Resume, Job, sanitizeResumeData,
@@ -1454,201 +1436,22 @@ app.post("/api/jobs", authMiddleware, async (req, res) => {
 });
 
 // Submit a CV application
-app.post("/api/jobs/apply", authMiddleware, async (req, res) => {
-  try {
-    const { jobId, resumeId, coverLetter } = req.body;
-    if (!jobId || !resumeId) {
-      return res.status(400).json({ message: "Thieu thong tin ung tuyen" });
-    }
-
-    const job = await Job.findById(jobId);
-    if (!job) {
-      return res.status(404).json({ message: "Khong tim thay cong viec" });
-    }
-    if (isJobUnavailable(job)) {
-      return res.status(410).json({ message: "Tin tuyen dung da het han, da dong hoac da bi xoa" });
-    }
-
-    const resume = await Resume.findOne({
-      _id: resumeId,
-      userId: req.user.id,
-      isVirtual: { $ne: true },
-    });
-    if (!resume) {
-      return res.status(404).json({ message: "Khong tim thay CV" });
-    }
-
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: "Nguoi dung khong ton tai" });
-    }
-
-    const alreadyApplied = await Application.findOne({
-      jobId,
-      candidateId: req.user.id,
-    });
-    if (alreadyApplied) {
-      return res
-        .status(400)
-        .json({ message: "Ban da nop CV cho cong viec nay roi" });
-    }
-
-    const newApp = new Application({
-      jobId,
-      candidateId: req.user.id,
-      resumeId,
-      ...captureApplicationResume(resume),
-      fullName: resume.personalInfo?.fullName || user.fullName || user.username,
-      email: resume.personalInfo?.email || user.email,
-      phone: resume.personalInfo?.phone || user.phoneNumber || "",
-      coverLetter: cleanAiText(coverLetter, 5000),
-      status: "Pending",
-      jobSnapshot: {
-        title: job.title,
-        company: job.company,
-        location: job.location,
-        type: job.type,
-        salary: job.salary,
-      },
-    });
-
-    await newApp.save();
-
-    if (job) {
-      await createNotificationsBulk([
-        {
-          recipient: job.companyId,
-          recipientRole: 'company',
-          type: 'NEW_APPLICATION',
-          title: 'Có ứng viên mới ứng tuyển',
-          message: `${newApp.fullName} vừa ứng tuyển vào vị trí của bạn`,
-          link: '/CompanyDashboard'
-        },
-        {
-          recipient: req.user.id,
-          recipientRole: 'employee',
-          type: 'APPLICATION_SUBMITTED',
-          title: 'Nộp hồ sơ thành công',
-          message: `Bạn đã ứng tuyển thành công vào vị trí ${job.title}`,
-          link: '/UserDashboard'
-        }
-      ]);
-    }
-
-    res
-      .status(201)
-      .json({ message: "Nop ho so ung tuyen thanh cong", application: newApp });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-
-});
+app.post("/api/jobs/apply", authMiddleware, createApplyJobHandler({
+  Application,
+  Resume,
+  Job,
+  User,
+  createNotificationsBulk,
+}));
 
 // Submit application with local PDF upload
-app.post("/api/jobs/apply-file", authMiddleware, async (req, res) => {
-  try {
-    const { jobId, fileData, fileName, coverLetter } = req.body;
-    if (!jobId || !fileData || !fileName) {
-      return res.status(400).json({ message: "Thieu thong tin ung tuyen" });
-    }
-
-    const pdfValidation = validatePdfUpload({ fileData, fileName });
-    if (!pdfValidation.valid) {
-      return res.status(400).json({ message: pdfValidation.message });
-    }
-    const normalizedFileName = pdfValidation.fileName;
-
-    const job = await Job.findById(jobId);
-    if (!job) {
-      return res.status(404).json({ message: "Khong tim thay cong viec" });
-    }
-    if (isJobUnavailable(job)) {
-      return res.status(410).json({ message: "Tin tuyen dung da het han, da dong hoac da bi xoa" });
-    }
-
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: "Nguoi dung khong ton tai" });
-    }
-
-    // Kiem tra xem da ung tuyen chua
-    const alreadyApplied = await Application.findOne({
-      jobId,
-      candidateId: req.user.id,
-    });
-    if (alreadyApplied) {
-      return res.status(400).json({ message: "Ban da nop CV cho cong viec nay roi" });
-    }
-
-    // Tao Resume ao tu file
-    const virtualResume = new Resume({
-      userId: req.user.id,
-      title: `File CV - ${normalizedFileName}`,
-      pdfData: fileData,
-      fileName: normalizedFileName,
-      isVirtual: true,
-      personalInfo: {
-        fullName: user.fullName || user.username,
-        email: user.email,
-        phone: user.phoneNumber || "",
-      }
-    });
-    await virtualResume.save();
-
-    // Tao Application
-    const newApp = new Application({
-      jobId,
-      candidateId: req.user.id,
-      resumeId: virtualResume._id,
-      ...captureApplicationResume(virtualResume),
-      fullName: user.fullName || user.username,
-      email: user.email,
-      phone: user.phoneNumber || "",
-      coverLetter: cleanAiText(coverLetter, 5000),
-      status: "Pending",
-      jobSnapshot: {
-        title: job.title,
-        company: job.company,
-        location: job.location,
-        type: job.type,
-        salary: job.salary,
-      },
-    });
-    try {
-      await newApp.save();
-    } catch (error) {
-      await Resume.deleteOne({ _id: virtualResume._id });
-      throw error;
-    }
-
-    if (job) {
-      await createNotificationsBulk([
-        {
-          recipient: job.companyId,
-          recipientRole: 'company',
-          type: 'NEW_APPLICATION',
-          title: 'Có ứng viên mới ứng tuyển',
-          message: `${newApp.fullName} vừa ứng tuyển vào vị trí của bạn`,
-          link: '/CompanyDashboard'
-        },
-        {
-          recipient: req.user.id,
-          recipientRole: 'employee',
-          type: 'APPLICATION_SUBMITTED',
-          title: 'Nộp hồ sơ thành công',
-          message: `Bạn đã ứng tuyển thành công vào vị trí ${job.title}`,
-          link: '/UserDashboard'
-        }
-      ]);
-    }
-
-    res.status(201).json({ message: "Nop ho so ung tuyen thanh cong", application: newApp });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-
+app.post("/api/jobs/apply-file", authMiddleware, createApplyFileJobHandler({
+  Application,
+  Resume,
+  Job,
+  User,
+  createNotificationsBulk,
+}));
 
 // Get job by ID
 app.get("/api/jobs/:id", async (req, res) => {
@@ -1806,55 +1609,12 @@ app.delete("/api/jobs/:id", authMiddleware, async (req, res) => {
 });
 
 // Update application status
-app.put("/api/jobs/applications/:id", authMiddleware, async (req, res) => {
-  try {
-    const { status } = req.body;
-    if (!["Pending", "Reviewing", "Interview", "Offered", "Rejected", "Accepted"].includes(status)) {
-      return res.status(400).json({ message: "Trang thai khong hop le" });
-    }
-
-    const application = await Application.findById(req.params.id);
-    if (!application) {
-      return res
-        .status(404)
-        .json({ message: "Khong tim thay ho so ung tuyen" });
-    }
-
-    const job = await Job.findById(application.jobId);
-    if (!job || job.companyId.toString() !== req.user.id) {
-      const requester = await User.findById(req.user.id);
-      if (!requester || requester.role !== "admin") {
-        return res
-          .status(403)
-          .json({
-            message: "Ban khong co quyen thay doi trang thai ho so nay",
-          });
-      }
-    }
-
-    const updatedApplication = await updateApplicationStatus(Application, application._id, status);
-
-    const jobTitleMsg = job ? job.title : "một công việc";
-    await createNotification({
-      recipient: application.candidateId,
-      recipientRole: 'employee',
-      type: 'APPLICATION_STATUS_CHANGED',
-      title: 'Trạng thái hồ sơ đã thay đổi',
-      message: `Hồ sơ ứng tuyển vị trí ${jobTitleMsg} của bạn đã chuyển sang trạng thái: ${status}`,
-      link: '/UserDashboard'
-    });
-
-    res
-      .status(200)
-      .json({ message: "Cap nhat trang thai ho so thanh cong", application: updatedApplication });
-  } catch (error) {
-    if (error instanceof ApplicationStatusLockedError) {
-      return res.status(409).json({ code: error.code, message: error.message });
-    }
-    res.status(500).json({ error: error.message });
-  }
-});
-
+app.put("/api/jobs/applications/:id", authMiddleware, createUpdateApplicationStatusHandler({
+  Application,
+  Job,
+  User,
+  createNotification,
+}));
 // ==========================================
 // NOTIFICATION ENDPOINTS
 // ==========================================

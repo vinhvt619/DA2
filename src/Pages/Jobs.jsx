@@ -19,40 +19,12 @@ import { useSavedJobs } from "../context/SavedJobsContext.jsx";
 import usePublicJobs from "../hooks/usePublicJobs.js";
 import usePublicNews from '../hooks/usePublicNews.js';
 import { getProfileCompletion } from "../utils/profileCompletion.js";
-
-const categoryOptions = [
-  { value: "", label: "Tất cả ngành nghề" },
-  { value: "it", label: "Công nghệ thông tin" },
-  { value: "design", label: "Thiết kế" },
-  { value: "marketing", label: "Marketing" },
-];
-
-const locationOptions = [
-  { value: "", label: "Tất cả địa điểm" },
-  { value: "ho chi minh", label: "TP. Hồ Chí Minh" },
-  { value: "ha noi", label: "Hà Nội" },
-  { value: "da nang", label: "Đà Nẵng" },
-  { value: "hai phong", label: "Hải Phòng" },
-];
-
-const workTypeOptions = [
-  { value: "full-time", label: "Toàn thời gian" },
-  { value: "intern", label: "Thực tập" },
-  { value: "remote", label: "Làm từ xa" },
-  { value: "part-time", label: "Bán thời gian" },
-];
-
-function normalizeText(value = "") {
-  return value
-    .toLocaleLowerCase("vi-VN")
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .replace(/đ/g, "d");
-}
-
-function normalizeLocation(value = "") {
-  return normalizeText(value).replace(/\btp\.?\s*hcm\b/g, "ho chi minh");
-}
+import {
+  CATEGORY_OPTIONS,
+  LOCATION_OPTIONS,
+  WORK_TYPE_OPTIONS,
+  toPublicJobsSearchParams,
+} from "../../shared/jobQueryPolicy.js";
 
 function shuffleArray(array) {
   const next = [...array];
@@ -61,11 +33,6 @@ function shuffleArray(array) {
     [next[i], next[j]] = [next[j], next[i]];
   }
   return next;
-}
-
-function getSalaryMaximum(salary = "") {
-  const values = salary.match(/\d+/g)?.map(Number) ?? [0];
-  return Math.max(...values);
 }
 
 function getShortLocation(location = "") {
@@ -230,63 +197,53 @@ function Jobs() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [searchKeyword, setSearchKeyword] = useState(location.state?.searchKeyword || "");
+  const [debouncedKeyword, setDebouncedKeyword] = useState(location.state?.searchKeyword || "");
   const [searchLocation, setSearchLocation] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedWorkTypes, setSelectedWorkTypes] = useState([]);
   const [sortMode, setSortMode] = useState("newest");
   const [showFilters, setShowFilters] = useState(false);
   const [showWorkTypeOptions, setShowWorkTypeOptions] = useState(false);
-  const { jobs: allJobs, isLoading, error: jobsError, refetch: refetchJobs } = usePublicJobs();
-  const [recommendedJobs, setRecommendedJobs] = useState([]);
 
   useEffect(() => {
     if (location.state?.searchKeyword !== undefined) {
       setSearchKeyword(location.state.searchKeyword);
+      setDebouncedKeyword(location.state.searchKeyword);
     }
   }, [location.state?.searchKeyword]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedKeyword(searchKeyword.normalize("NFC").trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchKeyword]);
+
+  const {
+    jobs: matchingJobs,
+    total: matchingTotal,
+    isLoading,
+    isFetching,
+    error: jobsError,
+    refetch: refetchJobs,
+  } = usePublicJobs({
+    keyword: debouncedKeyword,
+    location: searchLocation,
+    category: selectedCategory,
+    workTypes: selectedWorkTypes,
+    sort: sortMode,
+    limit: 6,
+  });
+
+  const [recommendedJobs, setRecommendedJobs] = useState([]);
+
   const refreshRecommendedJobs = useCallback(() => {
-    setRecommendedJobs(shuffleArray(allJobs).slice(0, 3));
-  }, [allJobs]);
+    setRecommendedJobs(shuffleArray(matchingJobs).slice(0, 3));
+  }, [matchingJobs]);
 
   useEffect(() => {
     refreshRecommendedJobs();
   }, [refreshRecommendedJobs]);
-
-  const filteredJobs = useMemo(() => {
-    const keyword = normalizeText(searchKeyword.trim());
-    const place = normalizeLocation(searchLocation.trim());
-
-    return allJobs.filter((job) => {
-      const searchableText = normalizeText(
-        [job.title, job.company, ...(job.tags ?? [])].filter(Boolean).join(" "),
-      );
-      const jobLocation = normalizeLocation(job.location);
-      const jobType = normalizeText(
-        [job.type, job.workModel, ...(job.tags ?? [])].filter(Boolean).join(" "),
-      );
-
-      const matchesKeyword = !keyword || searchableText.includes(keyword);
-      const matchesLocation = !place || jobLocation.includes(place);
-      const matchesCategory = !selectedCategory || searchableText.includes(selectedCategory);
-      const matchesWorkType =
-        selectedWorkTypes.length === 0 ||
-        selectedWorkTypes.some((workType) => jobType.includes(workType));
-
-      return matchesKeyword && matchesLocation && matchesCategory && matchesWorkType;
-    });
-  }, [allJobs, searchKeyword, searchLocation, selectedCategory, selectedWorkTypes]);
-
-  const sortedJobs = useMemo(() => {
-    const next = [...filteredJobs];
-    if (sortMode === "salary") {
-      next.sort((a, b) => getSalaryMaximum(b.salary) - getSalaryMaximum(a.salary));
-    }
-    if (sortMode === "match") {
-      next.sort((a, b) => (b.tags?.length ?? 0) - (a.tags?.length ?? 0));
-    }
-    return next;
-  }, [filteredJobs, sortMode]);
 
   const profileProgress = getProfileCompletion(currentUser);
 
@@ -301,7 +258,7 @@ function Jobs() {
   const selectedWorkTypeLabel = useMemo(() => {
     if (selectedWorkTypes.length === 0) return "Tất cả hình thức";
     if (selectedWorkTypes.length === 1) {
-      return workTypeOptions.find((option) => option.value === selectedWorkTypes[0])?.label;
+      return WORK_TYPE_OPTIONS.find((option) => option.value === selectedWorkTypes[0])?.label;
     }
     return `${selectedWorkTypes.length} hình thức đã chọn`;
   }, [selectedWorkTypes]);
@@ -324,7 +281,15 @@ function Jobs() {
 
   const submitSearch = (event) => {
     event.preventDefault();
-    navigate("/AllJobs", { state: { searchKeyword: searchKeyword.trim() } });
+    const params = toPublicJobsSearchParams({
+      keyword: searchKeyword.normalize("NFC").trim(),
+      location: searchLocation,
+      category: selectedCategory,
+      workTypes: selectedWorkTypes,
+      sort: sortMode,
+      page: 1,
+    });
+    navigate({ pathname: "/AllJobs", search: params.toString() });
   };
 
   return (
@@ -404,7 +369,7 @@ function Jobs() {
                             onChange={(event) => setSearchLocation(event.target.value)}
                             className="h-9 w-full appearance-none rounded-lg border border-slate-300 bg-white pl-8 pr-7 text-[11px] text-slate-700 outline-none focus:border-violet-400"
                           >
-                            {locationOptions.map((option) => (
+                            {LOCATION_OPTIONS.map((option) => (
                               <option key={option.value} value={option.value}>
                                 {option.label}
                               </option>
@@ -422,7 +387,7 @@ function Jobs() {
                             onChange={(event) => setSelectedCategory(event.target.value)}
                             className="h-9 w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 pr-7 text-[11px] text-slate-700 outline-none focus:border-violet-400"
                           >
-                            {categoryOptions.map((option) => (
+                            {CATEGORY_OPTIONS.map((option) => (
                               <option key={option.value} value={option.value}>
                                 {option.label}
                               </option>
@@ -460,7 +425,7 @@ function Jobs() {
                             aria-multiselectable="true"
                             className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-lg border border-violet-100 bg-white p-1.5 shadow-[0_12px_28px_rgba(76,29,149,0.14)]"
                           >
-                            {workTypeOptions.map((option) => {
+                            {WORK_TYPE_OPTIONS.map((option) => {
                               const checked = selectedWorkTypes.includes(option.value);
                               return (
                                 <label
@@ -506,7 +471,11 @@ function Jobs() {
                 <div>
                   <h2 className="text-sm font-semibold text-slate-900">Việc làm phù hợp</h2>
                   <p className="mt-0.5 text-[10px] text-slate-400">
-                    {filteredJobs.length} cơ hội đang mở
+                    {isLoading
+                      ? "Đang tải việc làm phù hợp..."
+                      : jobsError
+                        ? "Không thể tải danh sách việc làm"
+                        : `${matchingTotal} cơ hội đang mở`}
                   </p>
                 </div>
 
@@ -525,7 +494,7 @@ function Jobs() {
                 </label>
               </div>
 
-              <div>
+              <div aria-busy={isLoading || isFetching}>
                 {isLoading ? (
                   <>
                     <JobSkeleton />
@@ -537,8 +506,8 @@ function Jobs() {
                     Không thể tải danh sách việc làm.
                     <button type="button" onClick={() => refetchJobs()} className="ml-2 font-semibold underline">Thử lại</button>
                   </div>
-                ) : sortedJobs.length > 0 ? (
-                  sortedJobs
+                ) : matchingJobs.length > 0 ? (
+                  matchingJobs
                     .slice(0, 5)
                     .map((job, index) => <MainJobCard key={job.id} job={job} isNew={index < 2} />)
                 ) : (
@@ -561,11 +530,21 @@ function Jobs() {
                 )}
               </div>
 
-              {!isLoading && sortedJobs.length > 5 && (
+              {!isLoading && !jobsError && (matchingTotal > 5 || matchingJobs.length > 5) && (
                 <div className="border-t border-slate-100 px-4 py-2.5 text-center">
                   <button
                     type="button"
-                    onClick={() => navigate("/AllJobs", { state: { searchKeyword } })}
+                    onClick={() => {
+                      const params = toPublicJobsSearchParams({
+                        keyword: searchKeyword.normalize("NFC").trim(),
+                        location: searchLocation,
+                        category: selectedCategory,
+                        workTypes: selectedWorkTypes,
+                        sort: sortMode,
+                        page: 1,
+                      });
+                      navigate({ pathname: "/AllJobs", search: params.toString() });
+                    }}
                     className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-semibold text-violet-700 transition hover:bg-violet-50"
                   >
                     Xem thêm việc làm

@@ -27,7 +27,16 @@ import { useConfirmDialog } from "../context/ConfirmDialogContext.jsx";
 import { showToast } from "../utils/toast.js";
 import { formatDate } from "../utils/dateTime.js";
 import NotificationBell from "../Components/NotificationBell.jsx";
+import ApplicationStatusBadge from "../Components/ApplicationStatusBadge.jsx";
+import ApplicationTimelineDialog from "../Components/ApplicationTimeline.jsx";
+import {
+  APPLICATION_STATUS_OPTIONS,
+  getApplicationStatusMeta,
+  mergeUpdatedApplicationRecord,
+} from "../utils/applicationStatus.js";
+import { getApplicationJobInfo, normalizeIdString } from "../utils/applicationSubmission.js";
 import { companyAccountStatus, isApprovedCompany, isVerifiedCompany } from '../../shared/companyPolicy.js';
+import { getAllowedNextApplicationStatuses, isValidApplicationStatus } from '../../shared/applicationStatusPolicy.js';
 
 function PortalCard({ children, className = "" }) {
   return <section className={`rounded-[10px] border-[0.5px] border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.01)] ${className}`}>{children}</section>;
@@ -71,59 +80,81 @@ function JobStatusToggle({ isActive, onToggle }) {
   );
 }
 
-function AppStatusBadge({ status }) {
-  const map = {
-    Pending: "bg-amber-50 text-amber-700",
-    Reviewing: "bg-violet-50 text-violet-700",
-    Interview: "bg-sky-50 text-sky-700",
-    Offered: "bg-emerald-50 text-emerald-700",
-    Accepted: "bg-emerald-50 text-emerald-700",
-    Rejected: "bg-red-50 text-red-700",
-  };
-  const labels = {
-    Pending: "Chờ duyệt",
-    Reviewing: "Đang xem xét",
-    Interview: "Phỏng vấn",
-    Offered: "Đã đề nghị",
-    Accepted: "Đã nhận",
-    Rejected: "Đã từ chối",
-  };
-  return <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold ${map[status] || "bg-slate-100 text-slate-600"}`}>{labels[status] || "Chờ duyệt"}</span>;
-}
-
-const applicationStatusOptions = [
-  { value: "Pending", label: "Chờ duyệt", dot: "bg-amber-500" },
-  { value: "Reviewing", label: "Đang xem xét", dot: "bg-violet-500" },
-  { value: "Interview", label: "Phỏng vấn", dot: "bg-sky-500" },
-  { value: "Offered", label: "Đã đề nghị", dot: "bg-emerald-500" },
-  { value: "Rejected", label: "Đã từ chối", dot: "bg-rose-500" },
-];
-
 function ApplicationStatusSelect({ value = "Pending", onChange, disabled = false }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
-  const selected = applicationStatusOptions.find((option) => option.value === value) || applicationStatusOptions[0];
-  const locked = value === "Rejected";
+  const isKnownStatus = isValidApplicationStatus(value);
+  const selectedMeta = getApplicationStatusMeta(value);
+  const selectedOption = APPLICATION_STATUS_OPTIONS.find((option) => option.value === value);
+  const selected = selectedOption || {
+    value: value ?? "",
+    label: selectedMeta.label,
+    dotClassName: selectedMeta.dotClassName,
+  };
+  const allowedNext = isKnownStatus ? getAllowedNextApplicationStatuses(value) : [];
+  const visibleOptions = isKnownStatus
+    ? APPLICATION_STATUS_OPTIONS.filter(
+        (option) => option.value === value || allowedNext.includes(option.value),
+      )
+    : [];
+  const locked = !isKnownStatus || value === "Rejected";
 
   useEffect(() => {
+    if (!open) return undefined;
     const closeOnOutsideClick = (event) => {
       if (!rootRef.current?.contains(event.target)) setOpen(false);
     };
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setOpen(false);
+    };
     document.addEventListener("mousedown", closeOnOutsideClick);
-    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
-  }, []);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
 
   return (
     <div ref={rootRef} className="relative">
-      <button type="button" disabled={disabled || locked} title={locked ? "Hồ sơ đã bị từ chối; không thể đổi trạng thái." : "Cập nhật trạng thái ứng tuyển"} onClick={() => setOpen((current) => !current)} aria-haspopup="listbox" aria-expanded={open && !disabled && !locked} className="flex h-8 w-full items-center justify-between rounded-[8px] border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-700 transition hover:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50">
-        <span className="flex items-center gap-2"><span className={`h-1.5 w-1.5 rounded-full ${selected.dot}`} />{selected.label}</span>
-        <ChevronDownIcon className={`h-3.5 w-3.5 text-slate-400 transition ${open ? "rotate-180" : ""}`} />
+      <button
+        type="button"
+        disabled={disabled || locked}
+        title={
+          !isKnownStatus
+            ? "Trạng thái hồ sơ chưa hợp lệ; không thể cập nhật tự động."
+            : value === "Rejected"
+              ? "Hồ sơ đã bị từ chối; không thể đổi trạng thái."
+              : "Cập nhật trạng thái ứng tuyển"
+        }
+        onClick={() => setOpen((current) => !current)}
+        aria-haspopup="listbox"
+        aria-expanded={open && !disabled && !locked}
+        className="flex h-8 w-full items-center justify-between rounded-[8px] border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-700 transition hover:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${selected.dotClassName}`} />
+          <span className="truncate">{selected.label}</span>
+        </span>
+        <ChevronDownIcon className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition ${open ? "rotate-180" : ""}`} />
       </button>
       {open && !disabled && !locked && (
         <div role="listbox" className="absolute right-0 top-[36px] z-40 w-full min-w-[150px] overflow-hidden rounded-[8px] border border-slate-200 bg-white p-1 shadow-lg shadow-slate-200/60">
-          {applicationStatusOptions.map((option) => (
-            <button key={option.value} type="button" role="option" aria-selected={value === option.value} onClick={() => { onChange(option.value); setOpen(false); }} className={`flex w-full items-center gap-2 rounded-[6px] px-2.5 py-2 text-left text-[11px] font-semibold transition ${value === option.value ? "bg-violet-50 text-violet-700" : "text-slate-600 hover:bg-slate-50"}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${option.dot}`} />
+          {visibleOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={value === option.value}
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center gap-2 rounded-[6px] px-2.5 py-2 text-left text-[11px] font-semibold transition ${
+                value === option.value ? "bg-violet-50 text-violet-700" : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${option.dotClassName}`} />
               {option.label}
             </button>
           ))}
@@ -137,7 +168,7 @@ function CompanyOverview({ currentUser, stats, jobs, applications, getJobStatus,
   const [notificationOpen, setNotificationOpen] = useState(false);
   const pipelineSummary = useMemo(() => {
     const groups = [
-      { label: "Chờ duyệt", count: applications.filter((app) => !app.status || app.status === "Pending").length, color: "#7c3aed" },
+      { label: "Chờ xử lý", count: applications.filter((app) => !app.status || app.status === "Pending").length, color: "#7c3aed" },
       { label: "Đang xem xét", count: applications.filter((app) => app.status === "Reviewing").length, color: "#22a06b" },
       { label: "Phỏng vấn", count: applications.filter((app) => app.status === "Interview").length, color: "#f59e0b" },
       { label: "Hoàn tất", count: applications.filter((app) => ["Offered", "Accepted", "Rejected"].includes(app.status)).length, color: "#ef5b55" },
@@ -160,7 +191,7 @@ function CompanyOverview({ currentUser, stats, jobs, applications, getJobStatus,
     { icon: BriefcaseIcon, label: "Tin đang tuyển", value: stats.activeJobs, delta: "+12%", deltaClass: "bg-emerald-50 text-emerald-700" },
     { icon: DocumentTextIcon, label: "Tổng ứng viên", value: stats.totalApps, delta: "+8%", deltaClass: "bg-emerald-50 text-emerald-700" },
     { icon: CalendarDaysIcon, label: "Phỏng vấn tuần này", value: stats.interviews, delta: "0%", deltaClass: "bg-slate-100 text-slate-500" },
-    { icon: FunnelIcon, label: "Chờ duyệt", value: stats.pending, delta: stats.pending ? `+${stats.pending}` : "0", deltaClass: "bg-amber-50 text-amber-700" },
+    { icon: FunnelIcon, label: "Chờ xử lý", value: stats.pending, delta: stats.pending ? `+${stats.pending}` : "0", deltaClass: "bg-amber-50 text-amber-700" },
   ];
 
   return (
@@ -214,25 +245,29 @@ function CompanyOverview({ currentUser, stats, jobs, applications, getJobStatus,
                 <tr><th className="px-5 py-2.5">Ứng viên</th><th className="px-3 py-2.5">Vị trí ứng tuyển</th><th className="px-3 py-2.5">Trạng thái</th><th className="px-5 py-2.5 text-right">Hành động</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {applications.slice(0, 4).map((app) => (
-                  <tr key={app._id} className="transition hover:bg-violet-50/30">
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-3">
-                        <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-violet-100 text-[10px] font-black text-violet-700">{app.fullName?.charAt(0)?.toUpperCase() || "U"}</div>
-                        <div className="min-w-0"><p className="truncate text-[12px] font-bold text-slate-800">{app.fullName || "Ứng viên"}</p><p className="max-w-[170px] truncate text-[10px] text-slate-400">{app.email}</p></div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5 text-[11px] font-medium text-slate-600">{app.jobId?.title || "Tin đã xóa"}</td>
-                    <td className="px-3 py-2.5"><AppStatusBadge status={app.status} /></td>
-                    <td className="px-4 py-2.5 text-right">
-                      <div className="flex justify-end gap-1.5">
-                        <button type="button" onClick={() => navigate(`/resume/view/application/${app._id}`)} className="rounded-[7px] bg-violet-100 px-2 py-1 text-[10px] font-bold text-violet-700 transition hover:bg-violet-200">Xem CV</button>
-                        {app.coverLetter && <button type="button" onClick={() => onViewCoverLetter(app)} className="rounded-[7px] border border-sky-200 px-2 py-1 text-[10px] font-bold text-sky-700 transition hover:bg-sky-50">Thư ứng tuyển</button>}
-                        <button type="button" onClick={() => (app.candidateId?._id || app.candidateId) && navigate(`/profile/${app.candidateId?._id || app.candidateId}`)} disabled={!(app.candidateId?._id || app.candidateId)} className="rounded-[7px] border border-slate-200 px-2 py-1 text-[10px] font-bold text-slate-600 transition hover:border-violet-200 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40">Trang cá nhân</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {applications.slice(0, 4).map((app) => {
+                  const jobInfo = getApplicationJobInfo(app);
+                  const candidateId = normalizeIdString(app.candidateId);
+                  return (
+                    <tr key={app._id} className="transition hover:bg-violet-50/30">
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-3">
+                          <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-violet-100 text-[10px] font-black text-violet-700">{app.fullName?.charAt(0)?.toUpperCase() || "U"}</div>
+                          <div className="min-w-0"><p className="truncate text-[12px] font-bold text-slate-800">{app.fullName || "Ứng viên"}</p><p className="max-w-[170px] truncate text-[10px] text-slate-400">{app.email}</p></div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-[11px] font-medium text-slate-600">{jobInfo.title}</td>
+                      <td className="px-3 py-2.5"><ApplicationStatusBadge status={app.status} size="xs" /></td>
+                      <td className="px-4 py-2.5 text-right">
+                        <div className="flex justify-end gap-1.5">
+                          <button type="button" onClick={() => navigate(`/resume/view/application/${app._id}`)} className="rounded-[7px] bg-violet-100 px-2 py-1 text-[10px] font-bold text-violet-700 transition hover:bg-violet-200">Xem CV</button>
+                          {app.coverLetter && <button type="button" onClick={() => onViewCoverLetter(app)} className="rounded-[7px] border border-sky-200 px-2 py-1 text-[10px] font-bold text-sky-700 transition hover:bg-sky-50">Thư ứng tuyển</button>}
+                          <button type="button" onClick={() => candidateId && navigate(`/profile/${candidateId}`)} disabled={!candidateId} className="rounded-[7px] border border-slate-200 px-2 py-1 text-[10px] font-bold text-slate-600 transition hover:border-violet-200 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40">Trang cá nhân</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             {applications.length === 0 && <div className="p-10 text-center text-[13px] font-medium text-slate-400">Chưa có hồ sơ ứng tuyển.</div>}
@@ -308,7 +343,24 @@ export default function CompanyDashboard() {
   const [loading, setLoading] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
   const [selectedCoverLetter, setSelectedCoverLetter] = useState(null);
+  const [selectedTimelineAppId, setSelectedTimelineAppId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+
+  const selectedTimelineApp = useMemo(
+    () => applications.find((app) => app._id === selectedTimelineAppId) || null,
+    [applications, selectedTimelineAppId],
+  );
+
+  useEffect(() => {
+    if (!selectedCoverLetter) return undefined;
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setSelectedCoverLetter(null);
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [selectedCoverLetter]);
   const [editingJobId, setEditingJobId] = useState(null);
   const [jobStatusFilter, setJobStatusFilter] = useState("All");
   const [selectedJobFilter, setSelectedJobFilter] = useState("");
@@ -421,8 +473,9 @@ export default function CompanyDashboard() {
 
   const filteredApplications = useMemo(() => {
     return applications.filter((app) => {
-      const jobOk = !selectedJobFilter || app.jobId?._id === selectedJobFilter || app.jobId === selectedJobFilter;
-      const searchOk = !candidateSearch || `${app.fullName} ${app.email} ${app.jobId?.title || ""}`.toLowerCase().includes(candidateSearch.toLowerCase());
+      const jobInfo = getApplicationJobInfo(app);
+      const jobOk = !selectedJobFilter || jobInfo.jobId === selectedJobFilter;
+      const searchOk = !candidateSearch || `${app.fullName} ${app.email} ${jobInfo.title}`.toLowerCase().includes(candidateSearch.toLowerCase());
       return jobOk && searchOk;
     });
   }, [applications, selectedJobFilter, candidateSearch]);
@@ -581,7 +634,7 @@ export default function CompanyDashboard() {
 
   const handleUpdateStatus = async (appId, status) => {
     const current = applications.find((app) => app._id === appId);
-    if (!current || current.status === "Rejected" || current.status === status || statusUpdateIdsRef.current.has(appId)) return;
+    if (!current || !isValidApplicationStatus(current.status) || current.status === "Rejected" || current.status === status || statusUpdateIdsRef.current.has(appId)) return;
     statusUpdateIdsRef.current.add(appId);
     setUpdatingApplicationIds((ids) => [...ids, appId]);
     try {
@@ -598,8 +651,14 @@ export default function CompanyDashboard() {
         if (res.status === 409) await fetchDashboardData();
         return;
       }
-      setApplications((items) => items.map((app) => app._id === appId
-        ? { ...app, status: data.application?.status || status } : app));
+      if (!isValidApplicationStatus(data?.application?.status)) {
+        showToast("Phản hồi cập nhật trạng thái không hợp lệ. Đang tải lại dữ liệu...", "error");
+        await fetchDashboardData();
+        return;
+      }
+      setApplications((items) =>
+        items.map((app) => (app._id === appId ? mergeUpdatedApplicationRecord(app, data) : app)),
+      );
       showToast("Đã cập nhật trạng thái hồ sơ!", "success");
     } catch {
       showToast("Lỗi kết nối đến máy chủ", "error");
@@ -770,18 +829,23 @@ export default function CompanyDashboard() {
                         <button onClick={() => setActiveTab("applications")} className="text-[12px] font-semibold text-violet-600 hover:text-violet-800">View all</button>
                       </div>
                       <div className="divide-y divide-violet-100">
-                        {applications.slice(0, 4).map((app) => (
-                          <div key={app._id} className="flex items-center justify-between gap-4 px-6 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="grid h-9 w-9 place-items-center rounded-full bg-violet-100 text-xs font-black text-violet-700">{app.fullName?.charAt(0) || "U"}</div>
-                              <div>
-                                <p className="text-[13px] font-bold text-slate-800">{app.fullName}</p>
-                        <p className="text-[11px] font-medium text-slate-400">{app.jobId?.title || "Tin tuyển dụng đã xóa"}</p>
+                        {applications.slice(0, 4).map((app) => {
+                          const jobInfo = getApplicationJobInfo(app);
+                          return (
+                            <div key={app._id} className="flex items-center justify-between gap-4 px-6 py-3">
+                              <div className="flex min-w-0 items-center gap-3">
+                                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-violet-100 text-xs font-black text-violet-700">{app.fullName?.charAt(0) || "U"}</div>
+                                <div className="min-w-0">
+                                  <p className="truncate text-[13px] font-bold text-slate-800">{app.fullName}</p>
+                                  <p className="truncate text-[11px] font-medium text-slate-400">
+                                    {jobInfo.title}{jobInfo.isJobDeleted ? " · Tin đã xoá" : ""}
+                                  </p>
+                                </div>
                               </div>
+                              <ApplicationStatusBadge status={app.status} size="xs" />
                             </div>
-                            <AppStatusBadge status={app.status} />
-                          </div>
-                        ))}
+                          );
+                        })}
                         {applications.length === 0 && <div className="p-10 text-center text-sm font-medium text-slate-400">Chưa có hồ sơ ứng tuyển.</div>}
                       </div>
                     </PortalCard>
@@ -900,27 +964,42 @@ export default function CompanyDashboard() {
                     </aside>
 
                     <section className="space-y-3">
-                      {filteredApplications.map((app, index) => (
-                        <PortalCard key={app._id} className="p-3">
-                          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px] md:items-center">
-                            <div className="flex gap-3">
-                              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-violet-100 text-[12px] font-black text-violet-700">{app.fullName?.charAt(0) || "U"}</div>
-                              <div className="min-w-0">
-                                <h2 className="text-[15px] font-black leading-tight">{app.fullName}</h2>
-                                <p className="mt-0.5 text-[11px] font-semibold text-[#665d70]">{app.email}</p>
-                                <p className="mt-0.5 text-[11px] text-[#665d70]">Ứng tuyển: {app.jobId?.title || "Tin tuyển dụng đã xóa"}</p>
-                                <div className="mt-1.5 flex flex-wrap gap-1.5"><AppStatusBadge status={app.status} /><span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-[#665d70]">Phù hợp {96 - index * 8}%</span></div>
+                      {filteredApplications.map((app, index) => {
+                        const jobInfo = getApplicationJobInfo(app);
+                        const candidateId = normalizeIdString(app.candidateId);
+                        return (
+                          <PortalCard key={app._id} className="p-3">
+                            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px] md:items-center">
+                              <div className="flex min-w-0 gap-3">
+                                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-violet-100 text-[12px] font-black text-violet-700">{app.fullName?.charAt(0) || "U"}</div>
+                                <div className="min-w-0">
+                                  <h2 className="truncate text-[15px] font-black leading-tight">{app.fullName}</h2>
+                                  <p className="mt-0.5 truncate text-[11px] font-semibold text-[#665d70]">{app.email}</p>
+                                  <p className="mt-0.5 truncate text-[11px] text-[#665d70]">
+                                    Ứng tuyển: {jobInfo.title}
+                                  </p>
+                                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                    <ApplicationStatusBadge status={app.status} size="xs" />
+                                    {jobInfo.isJobDeleted && (
+                                      <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                                        Tin đã bị xoá · Giữ snapshot
+                                      </span>
+                                    )}
+                                    <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-[#665d70]">Phù hợp {96 - index * 8}%</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button type="button" onClick={() => navigate(`/resume/view/application/${app._id}`)} className="rounded-[8px] bg-violet-100 px-2 py-1.5 text-[11px] font-black text-violet-700 transition hover:bg-violet-200">Xem CV</button>
+                                <button type="button" onClick={() => candidateId && navigate(`/profile/${candidateId}`)} disabled={!candidateId} className="rounded-[8px] border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-600 transition hover:border-violet-200 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40">Trang cá nhân</button>
+                                <button type="button" onClick={() => setSelectedTimelineAppId(app._id)} className="col-span-2 rounded-[8px] border border-violet-200 bg-white px-2 py-1.5 text-[11px] font-bold text-violet-700 transition hover:bg-violet-50">Xem tiến trình</button>
+                                {app.coverLetter && <button type="button" onClick={() => setSelectedCoverLetter(app)} className="col-span-2 rounded-[8px] border border-sky-200 bg-sky-50 px-2 py-1.5 text-[11px] font-bold text-sky-700 transition hover:bg-sky-100">Xem thư ứng tuyển</button>}
+                                <div className="col-span-2"><ApplicationStatusSelect value={app.status} disabled={updatingApplicationIds.includes(app._id)} onChange={(nextStatus) => handleUpdateStatus(app._id, nextStatus)} /></div>
                               </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <button type="button" onClick={() => navigate(`/resume/view/application/${app._id}`)} className="rounded-[8px] bg-violet-100 px-2 py-1.5 text-[11px] font-black text-violet-700 transition hover:bg-violet-200">Xem CV</button>
-                              <button type="button" onClick={() => (app.candidateId?._id || app.candidateId) && navigate(`/profile/${app.candidateId?._id || app.candidateId}`)} disabled={!(app.candidateId?._id || app.candidateId)} className="rounded-[8px] border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-600 transition hover:border-violet-200 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40">Trang cá nhân</button>
-                              {app.coverLetter && <button type="button" onClick={() => setSelectedCoverLetter(app)} className="col-span-2 rounded-[8px] border border-sky-200 bg-sky-50 px-2 py-1.5 text-[11px] font-bold text-sky-700 transition hover:bg-sky-100">Xem thư ứng tuyển</button>}
-                              <div className="col-span-2"><ApplicationStatusSelect value={app.status} disabled={updatingApplicationIds.includes(app._id)} onChange={(nextStatus) => handleUpdateStatus(app._id, nextStatus)} /></div>
-                            </div>
-                          </div>
-                        </PortalCard>
-                      ))}
+                          </PortalCard>
+                        );
+                      })}
                       {filteredApplications.length === 0 && <PortalCard className="p-10 text-center text-sm font-semibold text-[#665d70]">Chưa có hồ sơ phù hợp.</PortalCard>}
                     </section>
                   </div>
@@ -1096,7 +1175,7 @@ export default function CompanyDashboard() {
             <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
               <div>
                 <h2 id="cover-letter-title" className="text-base font-bold text-slate-900">Thư ứng tuyển</h2>
-                <p className="mt-1 text-xs text-slate-500">{selectedCoverLetter.fullName} · {selectedCoverLetter.jobId?.title || "Tin tuyển dụng"}</p>
+                <p className="mt-1 text-xs text-slate-500">{selectedCoverLetter.fullName} · {getApplicationJobInfo(selectedCoverLetter).title}</p>
               </div>
               <button type="button" onClick={() => setSelectedCoverLetter(null)} aria-label="Đóng thư ứng tuyển" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800">
                 <XMarkIcon className="h-5 w-5" />
@@ -1108,6 +1187,15 @@ export default function CompanyDashboard() {
           </section>
         </div>
       )}
+      <ApplicationTimelineDialog
+        application={selectedTimelineApp}
+        viewerRole="company"
+        onClose={() => setSelectedTimelineAppId(null)}
+        onViewCoverLetter={(app) => {
+          setSelectedTimelineAppId(null);
+          setSelectedCoverLetter(app);
+        }}
+      />
     </div>
   );
 }

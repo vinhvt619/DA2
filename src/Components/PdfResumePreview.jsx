@@ -4,6 +4,28 @@ import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
+function clonePdfDocumentSource(inputSource) {
+  if (!inputSource || typeof inputSource !== "object") {
+    return inputSource;
+  }
+  if (inputSource.data instanceof ArrayBuffer) {
+    return { ...inputSource, data: new Uint8Array(inputSource.data).slice() };
+  }
+  if (ArrayBuffer.isView(inputSource.data)) {
+    const view = new Uint8Array(
+      inputSource.data.buffer,
+      inputSource.data.byteOffset,
+      inputSource.data.byteLength,
+    );
+    return { ...inputSource, data: view.slice() };
+  }
+  return inputSource;
+}
+
+function loadPdfDocument(source) {
+  return getDocument(source);
+}
+
 function PdfPage({ document, pageNumber }) {
   const canvasRef = useRef(null);
   const [pageError, setPageError] = useState("");
@@ -14,6 +36,9 @@ function PdfPage({ document, pageNumber }) {
 
     const renderPage = async () => {
       try {
+        if (canvasRef.current) {
+          delete canvasRef.current.dataset.pdfRendered;
+        }
         const page = await document.getPage(pageNumber);
         if (!active || !canvasRef.current) return;
 
@@ -30,6 +55,9 @@ function PdfPage({ document, pageNumber }) {
           background: "rgb(255, 255, 255)",
         });
         await renderTask.promise;
+        if (active && canvasRef.current) {
+          canvasRef.current.dataset.pdfRendered = "true";
+        }
       } catch (error) {
         if (active && error?.name !== "RenderingCancelledException") {
           console.error(`Không thể hiển thị trang PDF ${pageNumber}:`, error);
@@ -72,7 +100,8 @@ export default function PdfResumePreview({ source }) {
     if (!source) return undefined;
 
     let active = true;
-    const loadingTask = getDocument(source);
+    // Clone binary buffers per mount so PDF.js worker transfer cannot detach caller bytes.
+    const loadingTask = loadPdfDocument(clonePdfDocumentSource(source));
 
     setPdfDocument(null);
     setError("");
@@ -89,7 +118,14 @@ export default function PdfResumePreview({ source }) {
 
     return () => {
       active = false;
-      loadingTask.destroy();
+      try {
+        const destroyResult = loadingTask.destroy();
+        if (destroyResult && typeof destroyResult.catch === "function") {
+          destroyResult.catch(() => {});
+        }
+      } catch {
+        // Ignore cleanup errors on already-disposed loading tasks.
+      }
     };
   }, [source]);
 

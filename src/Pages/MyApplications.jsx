@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowPathIcon,
   BriefcaseIcon,
@@ -9,45 +9,20 @@ import {
   ExclamationTriangleIcon,
   MapPinIcon,
 } from "@heroicons/react/24/outline";
+import ApplicationStatusBadge from "../Components/ApplicationStatusBadge.jsx";
+import ApplicationTimelineDialog from "../Components/ApplicationTimeline.jsx";
 import Header from "../Components/Header.jsx";
 import StickyProfile from "../Components/SitckyProfile.jsx";
+import { useMyApplications } from "../hooks/useMyApplications.js";
+import {
+  buildApplicationTimeline,
+  getApplicationStatusMeta,
+} from "../utils/applicationStatus.js";
+import { getApplicationJobInfo } from "../utils/applicationSubmission.js";
 import { formatDate } from "../utils/dateTime.js";
 
 const ACTIVE_STATUSES = new Set(["Pending", "Reviewing", "Interview", "Offered"]);
 const COMPLETED_STATUSES = new Set(["Accepted", "Rejected"]);
-
-const STATUS_CONFIG = {
-  Pending: {
-    label: "Chờ xử lý",
-    className: "border-amber-200 bg-amber-50 text-amber-700",
-    description: "Hồ sơ đã được gửi và đang chờ nhà tuyển dụng xử lý.",
-  },
-  Reviewing: {
-    label: "Đang xem xét",
-    className: "border-sky-200 bg-sky-50 text-sky-700",
-    description: "Nhà tuyển dụng đang xem xét hồ sơ của bạn.",
-  },
-  Interview: {
-    label: "Phỏng vấn",
-    className: "border-violet-200 bg-violet-50 text-violet-700",
-    description: "Hồ sơ đã chuyển sang giai đoạn phỏng vấn.",
-  },
-  Offered: {
-    label: "Đã đề nghị",
-    className: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700",
-    description: "Nhà tuyển dụng đã gửi đề nghị cho vị trí này.",
-  },
-  Accepted: {
-    label: "Đã nhận",
-    className: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    description: "Bạn đã được nhận vào vị trí này.",
-  },
-  Rejected: {
-    label: "Từ chối",
-    className: "border-rose-200 bg-rose-50 text-rose-700",
-    description: "Hồ sơ chưa phù hợp với vị trí tuyển dụng.",
-  },
-};
 
 const tabs = [
   { id: "all", label: "Tất cả" },
@@ -72,33 +47,25 @@ function ApplicationSkeleton() {
 
 export default function MyApplications() {
   const navigate = useNavigate();
-  const [applications, setApplications] = useState([]);
   const [activeTab, setActiveTab] = useState("all");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const fetchApplications = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await fetch("/api/jobs/applications/mine", {
-        credentials: "include",
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || data.error || "Không thể tải hồ sơ ứng tuyển.");
-      }
-      setApplications(Array.isArray(data) ? data : []);
-    } catch (requestError) {
-      setError(requestError.message || "Không thể tải hồ sơ ứng tuyển.");
-    } finally {
-      setLoading(false);
-    }
+  const [selectedTimelineAppId, setSelectedTimelineAppId] = useState(null);
+  const {
+    applications,
+    isLoading: loading,
+    error: queryError,
+    refetch,
+  } = useMyApplications();
+  const error = queryError?.message || "";
+  const selectedTimelineApp = useMemo(
+    () =>
+      selectedTimelineAppId
+        ? applications.find((item) => item._id === selectedTimelineAppId) || null
+        : null,
+    [applications, selectedTimelineAppId],
+  );
+  const handleCloseTimeline = useCallback(() => {
+    setSelectedTimelineAppId(null);
   }, []);
-
-  useEffect(() => {
-    fetchApplications();
-  }, [fetchApplications]);
 
   const counts = useMemo(() => ({
     all: applications.length,
@@ -175,7 +142,7 @@ export default function MyApplications() {
                   <p className="text-sm font-semibold text-rose-700">{error}</p>
                   <button
                     type="button"
-                    onClick={fetchApplications}
+                    onClick={() => refetch()}
                     className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-rose-700 shadow-sm ring-1 ring-rose-200 hover:bg-rose-50"
                   >
                     <ArrowPathIcon className="h-4 w-4" />
@@ -204,43 +171,53 @@ export default function MyApplications() {
               ) : (
                 <div className="grid items-start gap-3 md:grid-cols-2">
                   {visibleApplications.map((application) => {
-                    const job = application.jobId || application.jobSnapshot;
-                    const isDeleted = !application.jobId || job?.status === "Deleted" || Boolean(job?.deletedAt);
-                    const status = STATUS_CONFIG[application.status] || STATUS_CONFIG.Pending;
+                    const jobInfo = getApplicationJobInfo(application);
+                    const isDeleted = jobInfo.isJobDeleted;
+                    const status = getApplicationStatusMeta(application.status);
+                    const timeline = buildApplicationTimeline(application);
+                    const submittedLabel = timeline.submittedAt
+                      ? formatDate(timeline.submittedAt, "dd/MM/yyyy", "Không rõ")
+                      : "Không rõ";
+                    const updatedLabel = timeline.lastUpdatedAt
+                      ? formatDate(timeline.lastUpdatedAt, "dd/MM/yyyy", "")
+                      : "";
 
                     return (
                       <article
                         key={application._id}
-                        className="group flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 transition hover:border-violet-200 hover:shadow-[0_8px_24px_rgba(76,29,149,0.08)]"
+                        className="group flex h-full min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-4 transition hover:border-violet-200 hover:shadow-[0_8px_24px_rgba(76,29,149,0.08)]"
                       >
                         <div className="flex items-start gap-3">
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700">
                             <BuildingOffice2Icon className="h-5 w-5" />
                           </span>
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <h2 className="line-clamp-2 text-[13px] font-bold leading-5 text-slate-900">
-                                {job?.title || "Tin tuyển dụng đã bị xoá"}
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <h2 className="min-w-0 flex-1 line-clamp-2 text-[13px] font-bold leading-5 text-slate-900">
+                                {jobInfo.title || "Tin tuyển dụng đã bị xoá"}
                               </h2>
-                              <span className={`shrink-0 rounded-full border px-2 py-1 text-[9px] font-bold ${status.className}`}>
-                                {status.label}
-                              </span>
+                              <ApplicationStatusBadge status={application.status} size="xs" />
                             </div>
-                            <p className="mt-0.5 truncate text-[11px] font-medium text-slate-500">{job?.company || "Không còn thông tin công ty"}</p>
+                            <p className="mt-0.5 truncate text-[11px] font-medium text-slate-500">{jobInfo.company || "Không còn thông tin công ty"}</p>
                           </div>
                         </div>
 
                         <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5 text-[10px] text-slate-500">
-                          {job?.location && (
+                          {jobInfo.location && (
                             <span className="inline-flex items-center gap-1">
                               <MapPinIcon className="h-3.5 w-3.5 text-violet-400" />
-                              {job.location}
+                              {jobInfo.location}
                             </span>
                           )}
                           <span className="inline-flex items-center gap-1">
                             <ClockIcon className="h-3.5 w-3.5 text-violet-400" />
-                            Ứng tuyển {formatDate(application.createdAt)}
+                            Ứng tuyển {submittedLabel}
                           </span>
+                          {updatedLabel && (
+                            <span className="inline-flex items-center gap-1">
+                              Cập nhật {updatedLabel}
+                            </span>
+                          )}
                         </div>
 
                         <div className={`mt-3 flex min-h-[56px] items-start rounded-lg px-3 py-2.5 text-[11px] leading-4 ${
@@ -258,11 +235,28 @@ export default function MyApplications() {
                           </span>
                         </div>
 
-                        <div className="mt-2 flex min-h-8 items-center justify-end">
-                          {job?._id && !isDeleted ? (
+                        <div className="mt-3 flex min-h-8 flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => navigate(`/jobs/${job._id}`)}
+                              onClick={() => setSelectedTimelineAppId(application._id)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50/70 px-2.5 py-1 text-[11px] font-semibold text-violet-700 transition hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+                            >
+                              Xem tiến trình
+                            </button>
+                            {application._id && (
+                              <Link
+                                to={`/resume/view/application/${application._id}`}
+                                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-violet-200 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+                              >
+                                Xem CV
+                              </Link>
+                            )}
+                          </div>
+                          {jobInfo.canOpenJobDetail && jobInfo.jobId ? (
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/jobs/${jobInfo.jobId}`)}
                               className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-700 transition hover:text-violet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
                             >
                               Xem công việc
@@ -281,6 +275,11 @@ export default function MyApplications() {
           </section>
         </div>
       </main>
+      <ApplicationTimelineDialog
+        application={selectedTimelineApp}
+        viewerRole="candidate"
+        onClose={handleCloseTimeline}
+      />
     </div>
   );
 }

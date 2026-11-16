@@ -27,7 +27,15 @@ async function mockApi(page, state, role = "employee") {
       // Also exercise a stale backend response containing an admin-hidden Active job.
       const jobs = state.returnUnavailable ? [job]
         : job.status === "Active" && !job.isAdminHidden && !job.deletedAt ? [job] : [];
-      return respond(route, jobs);
+      return respond(route, {
+        data: jobs,
+        meta: {
+          page: 1,
+          limit: 8,
+          total: jobs.length,
+          totalPages: Math.max(1, Math.ceil(jobs.length / 8)),
+        },
+      });
     }
     if (pathname === "/api/admin/jobs") return respond(route, { jobs: job.deletedAt ? [] : [{
       ...job, company: { name: job.company }, status: job.isAdminHidden ? "closed" : "active",
@@ -87,15 +95,14 @@ test("Đồng bộ ẩn/hiện/xóa tin tuyển dụng", async ({ page, browser 
   } finally { await adminContext.close(); }
 });
 
-test("Tự động cập nhật danh sách việc làm qua polling", async ({ page }) => {
+test("Tự động cập nhật danh sách việc làm khi focus lại trang", async ({ page }) => {
   const state = { job: newJob() };
-  await page.clock.install();
   await mockApi(page, state);
   await page.goto("/AllJobs");
   await expect(page.getByText(sampleTitle, { exact: true })).toBeVisible();
   state.job.status = "Deleted";
   state.job.deletedAt = new Date().toISOString();
-  await page.clock.fastForward(15_100);
+  await refocus(page);
   await expect(page.getByText(sampleTitle, { exact: true })).toHaveCount(0);
 });
 

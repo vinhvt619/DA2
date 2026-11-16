@@ -8,6 +8,11 @@ import {
   captureApplicationResume, freezeLegacyResumeApplications,
   ensureApplicationResumeSnapshot, applicationResumeData, createApplicationResumeHandler,
 } from '../server/services/applicationResumeService.js';
+import {
+  createApplyJobHandler,
+  createApplyFileJobHandler,
+  isDuplicateApplicationError,
+} from '../server/services/applicationSubmissionService.js';
 
 const id = () => new mongoose.Types.ObjectId();
 const makeResume = () => new Resume({
@@ -150,4 +155,261 @@ test('application CV HTTP endpoint authorizes the exact job and serves snapshots
     }
   }
   assert.equal((await fetch(url.replace(String(application._id), 'missing'), { headers: { 'x-user': companyId, 'x-role': 'company' } })).status, 404);
+});
+
+test('Application schema declares unique compound index and only one resumeId index', () => {
+  const indexes = Application.schema.indexes();
+  const resumeIdIndexes = indexes.filter(([fields]) => Object.keys(fields).length === 1 && fields.resumeId === 1);
+  const jobCandidateIndexes = indexes.filter(([fields, opts]) => fields.jobId === 1 && fields.candidateId === 1 && opts?.unique === true);
+  assert.equal(resumeIdIndexes.length, 1);
+  assert.equal(jobCandidateIndexes.length, 1);
+});
+
+test('isDuplicateApplicationError is fail-closed and distinguishes exact { jobId, candidateId } duplicate keys from unknown or unrelated 11000 errors', () => {
+  assert.equal(isDuplicateApplicationError({ code: 11000, keyPattern: { jobId: 1, candidateId: 1 } }), true);
+  assert.equal(isDuplicateApplicationError({ code: 11000, keyValue: { jobId: 'j1', candidateId: 'c1' } }), true);
+  assert.equal(isDuplicateApplicationError({ code: 11000, message: 'E11000 duplicate key error collection: da2.applications index: jobId_1_candidateId_1 dup key: { jobId: "j1", candidateId: "c1" }' }), true);
+  assert.equal(isDuplicateApplicationError({ code: 11000 }), false);
+  assert.equal(isDuplicateApplicationError({ code: 11000, keyPattern: {} }), false);
+  assert.equal(isDuplicateApplicationError({ code: 11000, keyValue: {} }), false);
+  assert.equal(isDuplicateApplicationError({ code: 11000, keyPattern: { email: 1 } }), false);
+  assert.equal(isDuplicateApplicationError({ code: 11000, keyValue: { resumeId: 'r1' } }), false);
+  assert.equal(isDuplicateApplicationError({ code: 11000, keyPattern: { jobId: 1, candidateId: 1, resumeId: 1 } }), false);
+  assert.equal(isDuplicateApplicationError({ code: 11000, message: 'E11000 duplicate key error collection: applications index: custom_1 dup key: { note: "jobId and candidateId" }' }), false);
+  assert.equal(isDuplicateApplicationError({ code: 500 }), false);
+});
+
+test('POST /api/jobs/apply and /api/jobs/apply-file enforce employee role, return 409 ALREADY_APPLIED on preflight/11000 race, and clean up virtualResume', async (t) => {
+  const resume = makeResume();
+  const candidateId = String(resume.userId);
+  const jobId = String(id());
+  const companyId = String(id());
+  const validPdfData = `data:application/pdf;base64,${Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF', 'utf8').toString('base64')}`;
+
+  let dbLookups = 0;
+  let preflightDuplicate = false;
+  let postSaveDuplicate = false;
+  let applicationSaveError = null;
+  let resumeSaveError = null;
+  let findOneCallsForCurrentRequest = 0;
+  const savedResumes = [];
+  const deletedResumeIds = [];
+  const savedApplications = [];
+  const notifications = [];
+
+  class MockResume extends Resume {
+    async save() {
+      if (resumeSaveError) throw resumeSaveError;
+      savedResumes.push(this);
+      return this;
+    }
+    static async findOne(query) {
+      dbLookups += 1;
+      if (String(query._id) === String(resume._id) && String(query.userId) === candidateId) {
+        return resume;
+      }
+      return null;
+    }
+    static async deleteOne(query) {
+      deletedResumeIds.push(String(query._id));
+      return { deletedCount: 1 };
+    }
+  }
+
+  class MockApplication extends Application {
+    async save() {
+      if (applicationSaveError) {
+        throw applicationSaveError;
+      }
+      savedApplications.push(this);
+      return this;
+    }
+    static async findOne() {
+      dbLookups += 1;
+      findOneCallsForCurrentRequest += 1;
+      if (preflightDuplicate) {
+        return { _id: id() };
+      }
+      if (postSaveDuplicate && findOneCallsForCurrentRequest > 1) {
+        return { _id: id() };
+      }
+      return null;
+    }
+  }
+
+  const dependencies = {
+    Application: MockApplication,
+    Resume: MockResume,
+    Job: {
+      findById: async (value) => {
+        dbLookups += 1;
+        return String(value) === jobId
+          ? { _id: jobId, companyId, title: 'Backend Engineer', company: 'RabbitCV', location: 'Hà Nội', type: 'Full-time', salary: '30M', status: 'Active', approvalStatus: 'Approved' }
+          : null;
+      },
+    },
+    User: {
+      findById: async (value) => {
+        dbLookups += 1;
+        return String(value) === candidateId
+          ? { _id: candidateId, username: 'candidate', fullName: 'Nguyễn Văn A', email: 'candidate@example.test', phoneNumber: '0901234567', role: 'employee' }
+          : null;
+      },
+    },
+    createNotificationsBulk: async (items) => {
+      notifications.push(...items);
+    },
+  };
+
+  const app = express();
+  app.use(express.json());
+  const attachAuth = (req, _res, next) => {
+    findOneCallsForCurrentRequest = 0;
+    const userId = req.get('x-user');
+    const role = req.get('x-role');
+    if (userId) req.user = { id: userId, role };
+    next();
+  };
+  app.post('/api/jobs/apply', attachAuth, createApplyJobHandler(dependencies));
+  app.post('/api/jobs/apply-file', attachAuth, createApplyFileJobHandler(dependencies));
+
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise((resolve) => server.once('listening', resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+  // 1. Unauthenticated guest -> 401
+  const guestRes = await fetch(`${baseUrl}/api/jobs/apply`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jobId, resumeId: String(resume._id) }),
+  });
+  assert.equal(guestRes.status, 401);
+  assert.equal(dbLookups, 0);
+
+  // 2. Company & Admin roles -> 403 before any DB lookups or virtualResume save
+  for (const role of ['company', 'admin']) {
+    for (const [endpoint, payload] of [
+      ['/api/jobs/apply', { jobId, resumeId: String(resume._id) }],
+      ['/api/jobs/apply-file', { jobId, fileName: 'cv.pdf', fileData: validPdfData }],
+    ]) {
+      const res = await fetch(`${baseUrl}${endpoint}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-user': 'non-employee', 'x-role': role },
+        body: JSON.stringify(payload),
+      });
+      assert.equal(res.status, 403);
+      const body = await res.json();
+      assert.equal(body.code, 'CANDIDATE_ROLE_REQUIRED');
+    }
+  }
+  assert.equal(dbLookups, 0);
+  assert.equal(savedResumes.length, 0);
+
+  // 3. Employee happy path for /api/jobs/apply
+  const applyRes = await fetch(`${baseUrl}/api/jobs/apply`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-user': candidateId, 'x-role': 'employee' },
+    body: JSON.stringify({ jobId, resumeId: String(resume._id), coverLetter: 'Xin ứng tuyển' }),
+  });
+  assert.equal(applyRes.status, 201);
+  assert.equal(savedApplications.length, 1);
+  assert.equal(savedApplications[0].resumeSnapshotOrigin, 'submitted');
+  assert.equal(savedApplications[0].jobSnapshot.title, 'Backend Engineer');
+
+  // 4. Preflight duplicate -> 409 ALREADY_APPLIED
+  preflightDuplicate = true;
+  for (const [endpoint, payload] of [
+    ['/api/jobs/apply', { jobId, resumeId: String(resume._id) }],
+    ['/api/jobs/apply-file', { jobId, fileName: 'cv.pdf', fileData: validPdfData }],
+  ]) {
+    const dupRes = await fetch(`${baseUrl}${endpoint}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-user': candidateId, 'x-role': 'employee' },
+      body: JSON.stringify(payload),
+    });
+    assert.equal(dupRes.status, 409);
+    assert.equal((await dupRes.json()).code, 'ALREADY_APPLIED');
+  }
+  preflightDuplicate = false;
+
+  // 5. Concurrent Mongo 11000 race on Application.save() -> 409 ALREADY_APPLIED + virtualResume cleanup
+  const raceErr = new Error('E11000 duplicate key error collection: applications index: jobId_1_candidateId_1');
+  raceErr.code = 11000;
+  raceErr.keyPattern = { jobId: 1, candidateId: 1 };
+  applicationSaveError = raceErr;
+
+  const raceApplyRes = await fetch(`${baseUrl}/api/jobs/apply`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-user': candidateId, 'x-role': 'employee' },
+    body: JSON.stringify({ jobId, resumeId: String(resume._id) }),
+  });
+  assert.equal(raceApplyRes.status, 409);
+  assert.equal((await raceApplyRes.json()).code, 'ALREADY_APPLIED');
+
+  const raceFileRes = await fetch(`${baseUrl}/api/jobs/apply-file`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-user': candidateId, 'x-role': 'employee' },
+    body: JSON.stringify({ jobId, fileName: 'cv.pdf', fileData: validPdfData }),
+  });
+  assert.equal(raceFileRes.status, 409);
+  assert.equal((await raceFileRes.json()).code, 'ALREADY_APPLIED');
+  assert.equal(savedResumes.length, 1);
+  assert.equal(deletedResumeIds.length, 1);
+  assert.equal(deletedResumeIds[0], String(savedResumes[0]._id));
+  applicationSaveError = null;
+
+  // 6. Unrelated or unknown 11000 on Application.save() is NOT misclassified as ALREADY_APPLIED, and cleans up virtualResume
+  for (const errCase of [
+    Object.assign(new Error('Unrelated index'), { code: 11000, keyPattern: { resumeId: 1 } }),
+    Object.assign(new Error('E11000 duplicate key error collection: applications index: custom_1 dup key: { note: "jobId candidateId" }'), { code: 11000 }),
+    Object.assign(new Error('Unknown 11000 without metadata'), { code: 11000, keyPattern: {} }),
+  ]) {
+    applicationSaveError = errCase;
+    const errApplyRes = await fetch(`${baseUrl}/api/jobs/apply`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-user': candidateId, 'x-role': 'employee' },
+      body: JSON.stringify({ jobId, resumeId: String(resume._id) }),
+    });
+    assert.equal(errApplyRes.status, 500);
+
+    const prevSavedCount = savedResumes.length;
+    const prevDeletedCount = deletedResumeIds.length;
+    const errFileRes = await fetch(`${baseUrl}/api/jobs/apply-file`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-user': candidateId, 'x-role': 'employee' },
+      body: JSON.stringify({ jobId, fileName: 'cv.pdf', fileData: validPdfData }),
+    });
+    assert.equal(errFileRes.status, 500);
+    assert.equal(savedResumes.length, prevSavedCount + 1);
+    assert.equal(deletedResumeIds.length, prevDeletedCount + 1);
+    assert.equal(deletedResumeIds.at(-1), String(savedResumes.at(-1)._id));
+  }
+  applicationSaveError = null;
+
+  // 7. Unknown 11000 confirmed by targeted requery on { jobId, candidateId } returns 409 ALREADY_APPLIED
+  applicationSaveError = Object.assign(new Error('Write conflict 11000'), { code: 11000 });
+  postSaveDuplicate = true;
+  const confirmedRaceRes = await fetch(`${baseUrl}/api/jobs/apply`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-user': candidateId, 'x-role': 'employee' },
+    body: JSON.stringify({ jobId, resumeId: String(resume._id) }),
+  });
+  assert.equal(confirmedRaceRes.status, 409);
+  assert.equal((await confirmedRaceRes.json()).code, 'ALREADY_APPLIED');
+  postSaveDuplicate = false;
+  applicationSaveError = null;
+
+  // 8. Unrelated 11000 on Resume.save() is not misclassified as ALREADY_APPLIED (returns 500)
+  const unrelatedErr = new Error('Resume duplicate');
+  unrelatedErr.code = 11000;
+  unrelatedErr.keyPattern = { title: 1 };
+  resumeSaveError = unrelatedErr;
+  const resumeErrRes = await fetch(`${baseUrl}/api/jobs/apply-file`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-user': candidateId, 'x-role': 'employee' },
+    body: JSON.stringify({ jobId, fileName: 'cv.pdf', fileData: validPdfData }),
+  });
+  assert.equal(resumeErrRes.status, 500);
+  resumeSaveError = null;
 });

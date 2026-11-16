@@ -509,10 +509,14 @@ export default function PublicProfile() {
         setUserData(data.user);
 
         if (data.user?.role === "company") {
-          const jobsRes = await fetch("/api/jobs");
+          const jobsRes = await fetch(
+            `/api/jobs?companyId=${encodeURIComponent(data.user._id)}&limit=12`,
+            { cache: "no-store" },
+          );
           if (jobsRes.ok) {
-            const jobs = await jobsRes.json();
-            setCompanyJobs(jobs.filter((job) => String(job.companyId) === String(data.user._id)).slice(0, 12));
+            const json = await jobsRes.json();
+            const list = Array.isArray(json) ? json : json?.data || [];
+            setCompanyJobs(list);
           }
         }
       } catch {

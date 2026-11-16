@@ -8,13 +8,15 @@ RabbitCV là ứng dụng web kết hợp trình tạo CV và cổng tuyển d�
 
 | Vai trò | Luồng sử dụng |
 | --- | --- |
-| Ứng viên | Tạo CV theo mẫu A4, xuất PDF, tìm việc, ứng tuyển bằng CV đã lưu hoặc tải lên PDF tối đa 5 MB, theo dõi trạng thái hồ sơ. |
+| Ứng viên | Tạo CV theo mẫu A4, nhập CV từ PDF, xuất PDF có thể tìm kiếm, tìm việc, ứng tuyển bằng CV đã lưu hoặc tải lên PDF tối đa 5 MB, theo dõi trạng thái hồ sơ. |
 | Doanh nghiệp | Đăng và quản lý tin tuyển dụng, xem CV của ứng viên, cập nhật trạng thái hồ sơ và trao đổi qua chat. |
 | Quản trị viên | Kiểm duyệt tin tuyển dụng và quản lý tài khoản trên hệ thống. |
 
 Ở luồng ứng tuyển bằng CV đã lưu, hệ thống lưu một bản chụp dữ liệu CV tại thời điểm nộp. Doanh nghiệp xem đúng nội dung ứng viên đã gửi, kể cả khi ứng viên chỉnh sửa CV sau đó. Chat và thông báo cập nhật theo thời gian thực qua Socket.IO.
 
-Ứng viên cũng có thể dùng AI để nhận góp ý cho CV hoặc luyện phỏng vấn theo vị trí, cấp độ và loại phỏng vấn. Khi luyện, hệ thống hỏi từng câu, phản hồi cho câu trả lời và tổng kết buổi luyện tập. Các tính năng này cần cấu hình dịch vụ AI trên backend.
+Trình nhập CV đọc trực tiếp các trang PDF có văn bản và dùng OCR ngay trong trình duyệt cho các trang quét ảnh. Ứng viên có thể kiểm tra và sửa dữ liệu nhận dạng trước khi lưu.
+
+Ứng viên có thể luyện phỏng vấn theo vị trí mẫu, tin tuyển dụng hoặc mô tả công việc tự nhập. Chế độ luyện có hướng dẫn phản hồi sau từng câu. Chế độ mô phỏng tổng kết sau khi kết thúc buổi luyện. Dịch vụ AI trên backend cung cấp phần chấm và nhận xét.
 
 ## Công nghệ
 
@@ -25,6 +27,7 @@ RabbitCV là ứng dụng web kết hợp trình tạo CV và cổng tuyển d�
 | Cơ sở dữ liệu | MongoDB, Mongoose |
 | Phiên đăng nhập | JWT qua cookie HttpOnly |
 | Chat và thông báo | Socket.IO |
+| Nhập CV từ PDF | PDF.js, Tesseract.js |
 
 ## Chạy trên máy
 

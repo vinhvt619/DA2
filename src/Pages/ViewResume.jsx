@@ -7,6 +7,7 @@ import useCvZoom from "../hooks/useCvZoom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { ArrowLeftIcon, PrinterIcon, ChatBubbleLeftEllipsisIcon } from "@heroicons/react/24/outline";
 import useResumePrint from "../hooks/useResumePrint.js";
+import { normalizeResumePageCount } from "../../shared/resumePages.js";
 
 export default function ViewResume() {
   const { resumeId, applicationId } = useParams();
@@ -205,7 +206,7 @@ export default function ViewResume() {
             </div>
 
             {/* Wrapper chuẩn hóa */}
-            <div ref={printContentRef} className={`cv-wrapper ${resumeData.pageCount === 2 ? "cv-document" : ""} bg-white shadow-lg print:shadow-none print:w-full rounded-sm mb-10`}>
+            <div ref={printContentRef} className={`cv-wrapper ${normalizeResumePageCount(resumeData.pageCount) === 2 ? "cv-document" : ""} bg-white shadow-lg print:shadow-none print:w-full rounded-sm mb-10`}>
               <ResumePreview
                 pageCount={resumeData.pageCount}
                 selectedTemplate={resumeData.selectedTemplate || "modern"}

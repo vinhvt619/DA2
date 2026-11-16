@@ -36,59 +36,68 @@ const respondJson = (route, body, status = 200) =>
   });
 
 for (const scenario of [
-  { entry: '/login', contact: 'candidate@example.test', width: 1440, height: 900 },
-  { entry: '/register', contact: '0912345678', width: 390, height: 844 },
+  { entry: "/login", label: "desktop", username: users.candidate.username, contact: users.candidate.email, width: 1440, height: 900 },
+  { entry: "/register", label: "mobile", username: users.candidate.username, contact: users.candidate.email, width: 390, height: 844 },
 ]) {
-  test(`Quên mật khẩu demo từ ${scenario.entry} bằng ${scenario.contact.includes('@') ? 'email' : 'số điện thoại'}`, async ({ page }, testInfo) => {
+  test(`Quên mật khẩu từ ${scenario.entry} bằng tên đăng nhập và email (${scenario.label})`, async ({ page }, testInfo) => {
     await installApiMocks(page);
     const requests = [];
-    await page.route('**/api/forgot-password', (route) => {
-      const payload = route.request().postDataJSON(); requests.push(payload);
-      return payload.contact === scenario.contact ? respondJson(route, { message: 'Đổi mật khẩu thành công.' }) : respondJson(route, { message: 'Không tìm thấy tài khoản khả dụng với email hoặc số điện thoại này.' }, 400);
-    });
-    await page.route('**/api/login', (route) => {
+    await page.route("**/api/forgot-password", (route) => {
       const payload = route.request().postDataJSON();
-      return payload.username === users.candidate.username && payload.password === 'new-password' ? respondJson(route, { user: users.candidate }) : respondJson(route, { message: 'Mật khẩu không chính xác.' }, 400);
+      requests.push(payload);
+      return payload.username === scenario.username && payload.contact === scenario.contact
+        ? respondJson(route, { message: "Đổi mật khẩu thành công." })
+        : respondJson(route, { message: "Tên đăng nhập hoặc email không khớp với tài khoản khả dụng." }, 400);
+    });
+    await page.route("**/api/login", (route) => {
+      const payload = route.request().postDataJSON();
+      return payload.username === scenario.username && payload.password === "new-password"
+        ? respondJson(route, { user: users.candidate })
+        : respondJson(route, { message: "Mật khẩu không chính xác." }, 400);
     });
     await page.setViewportSize({ width: scenario.width, height: scenario.height });
     await page.goto(scenario.entry);
-    await page.getByRole('link', { name: 'Quên mật khẩu?', exact: true }).click();
+    await page.getByRole("link", { name: "Quên mật khẩu?", exact: true }).click();
     await expect(page).toHaveURL(/\/forgot-password$/);
-    const form = page.getByRole('form', { name: 'Đặt lại mật khẩu' });
-    await expect(form.getByLabel('Mật khẩu hiện tại', { exact: true })).toHaveCount(0);
-    await form.getByLabel('Email hoặc số điện thoại xác nhận').fill(scenario.contact);
-    await form.getByLabel('Mật khẩu mới', { exact: true }).fill('new-password');
-    await form.getByLabel('Xác nhận mật khẩu mới', { exact: true }).fill('not-matching');
-    await form.getByRole('button', { name: 'Đặt lại mật khẩu', exact: true }).click();
-    await expect(form.getByText('Mật khẩu mới không khớp.', { exact: true })).toBeVisible();
+    const form = page.getByRole("form", { name: "Đặt lại mật khẩu" });
+    await expect(form.getByLabel("Mật khẩu hiện tại", { exact: true })).toHaveCount(0);
+    await form.getByLabel("Tên đăng nhập", { exact: true }).fill(scenario.username);
+    await form.getByLabel("Email của tài khoản", { exact: true }).fill(scenario.contact);
+    await form.getByLabel("Mật khẩu mới", { exact: true }).fill("new-password");
+    await form.getByLabel("Xác nhận mật khẩu mới", { exact: true }).fill("not-matching");
+    await form.getByRole("button", { name: "Đặt lại mật khẩu", exact: true }).click();
+    await expect(form.getByText("Mật khẩu mới không khớp.", { exact: true })).toBeVisible();
     expect(requests).toHaveLength(0);
-    await form.getByLabel('Xác nhận mật khẩu mới', { exact: true }).fill('new-password');
-    await form.getByLabel('Email hoặc số điện thoại xác nhận').fill('unknown@example.test');
-    await form.getByRole('button', { name: 'Đặt lại mật khẩu', exact: true }).click();
-    await expect(form.getByRole('alert')).toContainText('Không tìm thấy tài khoản');
-    await form.getByLabel('Email hoặc số điện thoại xác nhận').fill(scenario.contact);
+    await form.getByLabel("Xác nhận mật khẩu mới", { exact: true }).fill("new-password");
+    await form.getByLabel("Email của tài khoản", { exact: true }).fill("unknown@example.test");
+    await form.getByRole("button", { name: "Đặt lại mật khẩu", exact: true }).click();
+    await expect(form.getByRole("alert")).toContainText("Tên đăng nhập hoặc email không khớp");
+    await expect(form.getByLabel("Tên đăng nhập", { exact: true })).toHaveValue(scenario.username);
+    await expect(form.getByLabel("Mật khẩu mới", { exact: true })).toHaveValue("new-password");
+    await form.getByLabel("Email của tài khoản", { exact: true }).fill(scenario.contact);
     await page.screenshot({ path: testInfo.outputPath(`forgot-password-${scenario.width}.png`), fullPage: true });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await form.getByRole('button', { name: 'Đặt lại mật khẩu', exact: true }).click();
+    await form.getByRole("button", { name: "Đặt lại mật khẩu", exact: true }).click();
     await expect(page).toHaveURL(/\/login$/);
-    expect(requests[1]).toEqual({ contact: scenario.contact, newPassword: 'new-password', confirmPassword: 'new-password' });
-    await page.getByLabel('Tên đăng nhập').fill(users.candidate.username);
-    await page.getByRole('textbox', { name: 'Mật khẩu', exact: true }).fill('new-password');
-    await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+    expect(requests[1]).toEqual({ username: scenario.username, contact: scenario.contact, newPassword: "new-password", confirmPassword: "new-password" });
+    await page.getByLabel("Tên đăng nhập").fill(scenario.username);
+    await page.getByRole("textbox", { name: "Mật khẩu", exact: true }).fill("new-password");
+    await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
     await expect(page).toHaveURL(/\/MainMenu$/);
   });
 }
 
-test('Quên mật khẩu hiển thị lỗi khi môi trường không bật demo', async ({ page }) => {
+test("Quên mật khẩu hiển thị lỗi khi môi trường không bật demo", async ({ page }) => {
   await installApiMocks(page);
-  await page.route('**/api/forgot-password', (route) => respondJson(route, { message: 'Đổi mật khẩu trực tiếp chỉ được bật cho môi trường demo.' }, 403));
-  await page.goto('/forgot-password');
-  const form = page.getByRole('form', { name: 'Đặt lại mật khẩu' });
-  await form.getByLabel('Email hoặc số điện thoại xác nhận').fill('candidate@example.test');
-  await form.getByLabel('Mật khẩu mới', { exact: true }).fill('new-password');
-  await form.getByLabel('Xác nhận mật khẩu mới', { exact: true }).fill('new-password');
-  await form.getByRole('button', { name: 'Đặt lại mật khẩu', exact: true }).click();
-  await expect(form.getByRole('alert')).toContainText('chỉ được bật cho môi trường demo');
+  await page.route("**/api/forgot-password", (route) => respondJson(route, { message: "Đổi mật khẩu trực tiếp chỉ được bật cho môi trường demo." }, 403));
+  await page.goto("/forgot-password");
+  const form = page.getByRole("form", { name: "Đặt lại mật khẩu" });
+  await form.getByLabel("Tên đăng nhập", { exact: true }).fill(users.candidate.username);
+  await form.getByLabel("Email của tài khoản", { exact: true }).fill("candidate@example.test");
+  await form.getByLabel("Mật khẩu mới", { exact: true }).fill("new-password");
+  await form.getByLabel("Xác nhận mật khẩu mới", { exact: true }).fill("new-password");
+  await form.getByRole("button", { name: "Đặt lại mật khẩu", exact: true }).click();
+  await expect(form.getByRole("alert")).toContainText("chỉ được bật cho môi trường demo");
   await expect(page).toHaveURL(/\/forgot-password$/);
 });
 

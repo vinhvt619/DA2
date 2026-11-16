@@ -272,6 +272,14 @@ input[type="password"]::-ms-clear {
     page-break-inside: avoid !important;
   }
 
+  .cv-wrapper h1,
+  .cv-wrapper h2,
+  .cv-wrapper h3,
+  .cv-wrapper h4 {
+    letter-spacing: normal !important;
+    font-weight: 700 !important;
+  }
+
   .cv-wrapper {
     zoom: 1 !important;
     transform: none !important;

@@ -7,6 +7,7 @@ import {
   ClockIcon,
   DocumentTextIcon,
   DocumentArrowDownIcon,
+  DocumentArrowUpIcon,
   MagnifyingGlassIcon,
   PencilSquareIcon,
   PlusIcon,
@@ -14,6 +15,7 @@ import {
 } from "@heroicons/react/24/outline";
 import Header from "../Components/Header.jsx";
 import ResumePreview from "../Components/ResumePreview.jsx";
+import ResumePdfOcrImportDialog from "../Components/ResumePdfOcrImportDialog.jsx";
 import { showToast } from "../utils/toast.js";
 import { formatDate } from "../utils/dateTime.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -21,6 +23,7 @@ import { useConfirmDialog } from "../context/ConfirmDialogContext.jsx";
 import { SAMPLE_CVS } from "../data/sampleCV.js";
 import useResumePrint from "../hooks/useResumePrint.js";
 import { RESUME_TEMPLATES as TEMPLATES } from "../../shared/resumeTemplates.js";
+import { normalizeResumePageCount } from "../../shared/resumePages.js";
 
 const FILTERS = ["Tất cả", "Hiện đại", "Tối giản", "Chuyên nghiệp", "Thanh lịch", "Sáng tạo"];
 
@@ -219,6 +222,7 @@ export default function ResumeSelection() {
   const [sortOrder, setSortOrder] = useState("newest");
   const [templateFilter, setTemplateFilter] = useState("Tất cả");
   const [resumeToPrint, setResumeToPrint] = useState(null);
+  const [isOcrImportOpen, setIsOcrImportOpen] = useState(false);
   const printContentRef = useRef(null);
   const activePrintIdRef = useRef(null);
   const printResume = useResumePrint({
@@ -238,6 +242,12 @@ export default function ResumeSelection() {
     void printResume();
     return undefined;
   }, [printResume, resumeToPrint]);
+
+  useEffect(() => {
+    if (!currentUser || (currentUser.role && currentUser.role !== "employee")) {
+      setIsOcrImportOpen(false);
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     if (!isAuthChecked) return;
@@ -286,9 +296,12 @@ export default function ResumeSelection() {
     if (!(await confirmDialog("Bạn có chắc chắn muốn xóa bản CV này không?"))) return;
     try {
       const response = await fetch(`/api/resume/${id}`, { method: "DELETE", credentials: "include" });
+      const data = await response.json().catch(() => ({}));
       if (response.ok) {
         setSavedResumes((current) => current.filter((cv) => cv._id !== id));
         showToast("Đã xóa CV thành công.", "info");
+      } else if (data?.message) {
+        showToast(data.message, "error");
       }
     } catch (error) {
       console.error("Lỗi xóa CV:", error);
@@ -310,7 +323,19 @@ export default function ResumeSelection() {
             <h1 className="text-2xl font-semibold tracking-[-0.02em] text-slate-950 sm:text-[28px]">CV của tôi</h1>
             <p className="mt-1.5 text-xs text-slate-500 sm:text-sm">Quản lý CV đã lưu hoặc chọn một mẫu để bắt đầu.</p>
           </div>
-          <button type="button" onClick={() => navigate("/resume", { state: { template: "modern" } })} className="inline-flex h-10 items-center justify-center gap-2 self-start rounded-lg bg-violet-600 px-4 text-xs font-semibold text-white transition hover:bg-violet-700 sm:self-auto"><PlusIcon className="h-4 w-4" />Tạo CV mới</button>
+          <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+            {(!currentUser?.role || currentUser.role === "employee") && (
+              <button
+                type="button"
+                onClick={() => setIsOcrImportOpen(true)}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-violet-300 bg-white px-4 text-xs font-semibold text-violet-700 transition hover:bg-violet-50"
+              >
+                <DocumentArrowUpIcon className="h-4 w-4" />
+                Nhập CV từ PDF
+              </button>
+            )}
+            <button type="button" onClick={() => navigate("/resume", { state: { template: "modern" } })} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 text-xs font-semibold text-white transition hover:bg-violet-700"><PlusIcon className="h-4 w-4" />Tạo CV mới</button>
+          </div>
         </header>
 
         <section className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_2px_8px_rgba(15,23,42,0.035)]">
@@ -339,9 +364,22 @@ export default function ResumeSelection() {
       </main>
       </div>
 
+      <ResumePdfOcrImportDialog
+        open={isOcrImportOpen}
+        onOpenChange={setIsOcrImportOpen}
+        userId={currentUser?._id || null}
+        onCreated={(createdResume) => {
+          setSavedResumes((current) => [
+            createdResume,
+            ...current.filter((item) => item._id !== createdResume._id),
+          ]);
+          navigate(`/resume/${createdResume._id}`);
+        }}
+      />
+
       {resumeToPrint && (
         <div className="resume-library-print-root" aria-hidden="true">
-          <div ref={printContentRef} className={`cv-wrapper ${resumeToPrint.pageCount === 2 ? "cv-document" : ""} bg-white`}>
+          <div ref={printContentRef} className={`cv-wrapper ${normalizeResumePageCount(resumeToPrint.pageCount) === 2 ? "cv-document" : ""} bg-white`}>
             <ResumePreview
               pageCount={resumeToPrint.pageCount}
               selectedTemplate={resumeToPrint.selectedTemplate || "modern"}

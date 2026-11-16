@@ -1,4 +1,5 @@
 import { RESUME_TEMPLATE_KEYS } from "../../shared/resumeTemplates.js";
+import { IMPORTED_SKILL_GROUPS_ID } from "../../shared/resumeCustomSections.js";
 export { RESUME_TEMPLATE_KEYS } from "../../shared/resumeTemplates.js";
 
 export const RESUME_SECTION_KEYS = [
@@ -97,12 +98,20 @@ export const normalizeTemplateLayout = (layout, template = "modern", customSecti
   const keys = [...RESUME_SECTION_KEYS, ...customKeys];
   const main = uniqueKnownSections(layout?.main, seen, keys);
   const sidebar = uniqueKnownSections(layout?.sidebar, seen, keys);
+  const importedSkills = customSectionKey(IMPORTED_SKILL_GROUPS_ID);
+  const placeImportedSkills = customKeys.includes(importedSkills) && !seen.has(importedSkills);
 
   for (const section of [...fallback.main, ...fallback.sidebar, ...customKeys]) {
     if (seen.has(section)) continue;
     const target = fallback.sidebar.includes(section) ? sidebar : main;
     target.push(section);
     seen.add(section);
+  }
+
+  if (placeImportedSkills) {
+    main.splice(main.indexOf(importedSkills), 1);
+    const skillZone = sidebar.includes("skill") ? sidebar : main;
+    skillZone.splice(skillZone.indexOf("skill") + 1, 0, importedSkills);
   }
 
   if (safeTemplate === "compact") {

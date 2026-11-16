@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { createPracticeState, practiceContext, publicPracticeSession } from "../server/utils/interviewSession.js";
 
 for (const width of [1440, 390]) {
   test(`Interview uses browser microphone without a device selector (${width}px)`, async ({ page }, testInfo) => {
@@ -22,9 +23,15 @@ for (const width of [1440, 390]) {
       let body;
       if (path === "/api/me") {
         body = { user: { _id: "speech-test", username: "speech-test", fullName: "Speech test", role: "employee", desiredJob: "Developer" } };
-      } else if (path === "/api/ai/interview/turn") {
+      } else if (path.endsWith("/sessions/current")) {
+        body = { session: null };
+      } else if (path.endsWith("/sessions/context")) {
+        body = { context: practiceContext({ kind: "preset", preset: "frontend" }), version: "test" };
+      } else if (path.endsWith("/interview/sessions")) {
         turns++;
-        body = { result: { message: "Interview question", questionNumber: 1 } };
+        const request = route.request().postDataJSON();
+        const state = createPracticeState(request.settings, practiceContext(request.source), request.competencyIds);
+        body = { session: publicPracticeSession({ state, _id: "speech-session", revision: 0 }) };
       } else if (path.includes("unread-count")) {
         body = { count: 0 };
       } else {
@@ -33,7 +40,7 @@ for (const width of [1440, 390]) {
       return route.fulfill({ contentType: "application/json", body: JSON.stringify(body) });
     });
     await page.goto("/ai-interview");
-    await page.getByRole("textbox", { name: "Vị trí ứng tuyển" }).fill("Developer");
+    await page.getByRole("button", { name: "Xem yêu cầu để luyện" }).click();
     await page.getByRole("button", { name: "Bắt đầu phỏng vấn", exact: true }).click();
     const mic = page.getByRole("button", { name: "Trả lời bằng mic", exact: true });
     await expect(mic).toBeVisible();

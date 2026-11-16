@@ -2,6 +2,7 @@ export const CUSTOM_SECTION_FIELDS = {
   organization: "Tổ chức / Đơn vị", location: "Địa điểm", dates: "Thời gian", link: "Liên kết", description: "Mô tả",
 };
 export const DEFAULT_CUSTOM_FIELDS = Object.fromEntries(Object.keys(CUSTOM_SECTION_FIELDS).map((key) => [key, true]));
+export const IMPORTED_SKILL_GROUPS_ID = "ocr-skill-groups";
 const text = (value, length) => typeof value === "string" ? value.trim().slice(0, length) : "";
 const validId = (value) => typeof value === "string" && /^[a-zA-Z0-9_-]{1,80}$/.test(value);
 
