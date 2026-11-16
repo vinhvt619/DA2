@@ -1,11 +1,14 @@
+import * as Dialog from "@radix-ui/react-dialog";
 import {
+  ArrowTopRightOnSquareIcon,
+  ExclamationTriangleIcon,
   PlusIcon,
   SparklesIcon,
   XMarkIcon,
   TrashIcon,
   PencilIcon,
 } from "@heroicons/react/24/outline";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Editor from "./RichText/Editor";
 import ResumeCustomSections from "./ResumeCustomSections.jsx";
@@ -19,29 +22,12 @@ import {
   normalizeResumeDateValue,
   parseMonthDisplayValue,
 } from "../utils/dateInput.js";
-
-const REVIEW_CATEGORY_LABELS = {
-  content: "Nội dung",
-  clarity: "Rõ ràng",
-  impact: "Thuyết phục",
-  completeness: "Hoàn thiện",
-  ats: "ATS",
-};
-
-const REVIEW_PRIORITY_STYLES = {
-  high: {
-    label: "Ưu tiên cao",
-    className: "bg-red-50 text-red-700 ring-red-200",
-  },
-  medium: {
-    label: "Ưu tiên vừa",
-    className: "bg-amber-50 text-amber-700 ring-amber-200",
-  },
-  low: {
-    label: "Ưu tiên thấp",
-    className: "bg-slate-100 text-slate-600 ring-slate-200",
-  },
-};
+import {
+  REVIEW_CATEGORY_LABELS,
+  REVIEW_PRIORITY_STYLES,
+  isReviewResultEmpty,
+  resolveReviewSectionTarget,
+} from "../utils/resumeReview.js";
 
 const renderInPortal = (content) =>
   typeof document === "undefined" ? content : createPortal(content, document.body);
@@ -92,6 +78,15 @@ export default function ResumeForm({
   onReviewResume,
   isReviewingResume = false,
   resumeReview = null,
+  onOpenReviewModal,
+  onTriggerReview,
+  onCloseReviewModal,
+  onRestoreCachedReview,
+  onJumpToReviewTarget,
+  onReviewDialogCloseAutoFocus,
+  reviewSession = null,
+  isReviewStale = false,
+  highlightedSectionKey = null,
 }) {
   const [confirmState, setConfirmState] = useState({
     isOpen: false,
@@ -107,7 +102,8 @@ export default function ResumeForm({
   const [isModalProjectOpen, setIsModalProjectOpen] = useState(false);
   const [isModalAwardOpen, setIsModalAwardOpen] = useState(false);
   const [isModalHobbyOpen, setIsModalHobbyOpen] = useState(false);
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [localReviewModalOpen, setLocalReviewModalOpen] = useState(false);
+  const reviewTriggerRef = useRef(null);
   const [editingId, setEditingId] = useState(null);
   const [isCurrentExperience, setIsCurrentExperience] = useState(false);
   const [newProfile, setNewProfile] = useState({
@@ -380,10 +376,90 @@ setNewSkill({ title: item.title });
     });
   };
 
-  const handleOpenResumeReview = async () => {
-    setIsReviewModalOpen(true);
+  const effectiveReviewOpen = reviewSession
+    ? Boolean(reviewSession.open)
+    : localReviewModalOpen;
+  const effectiveReviewStep = reviewSession
+    ? reviewSession.step
+    : isReviewingResume
+      ? "loading"
+      : resumeReview
+        ? "result"
+        : "idle";
+  const effectiveReviewResult = reviewSession
+    ? reviewSession.result
+    : resumeReview;
+  const effectiveReviewError = reviewSession?.errorMessage || "";
+  const isEffectiveReviewLoading = effectiveReviewStep === "loading";
+  const hasCachedReviewResult = Boolean(effectiveReviewResult);
+  const isEmptyReviewResult =
+    effectiveReviewResult && isReviewResultEmpty(effectiveReviewResult);
+
+  const closeAllItemModals = () => {
+    setIsModalProfileOpen(false);
+    setIsModalExperienceOpen(false);
+    setIsModalEducationOpen(false);
+    setIsModalSkillOpen(false);
+    setIsModalLanguageOpen(false);
+    setIsModalCertificateOpen(false);
+    setIsModalProjectOpen(false);
+    setIsModalAwardOpen(false);
+    setIsModalHobbyOpen(false);
+  };
+
+  const handleOpenReviewClick = async () => {
+    if (onOpenReviewModal) {
+      onOpenReviewModal();
+      return;
+    }
+    setLocalReviewModalOpen(true);
     const completed = await onReviewResume?.();
-    if (completed === false) setIsReviewModalOpen(false);
+    if (completed === false) setLocalReviewModalOpen(false);
+  };
+
+  const handleTriggerReviewClick = () => {
+    (onTriggerReview || onReviewResume)?.();
+  };
+
+  const handleCloseReviewClick = () => {
+    if (onCloseReviewModal) {
+      onCloseReviewModal();
+      return;
+    }
+    setLocalReviewModalOpen(false);
+  };
+
+  const handleJumpTarget = (target) => {
+    if (!target) return;
+    closeAllItemModals();
+    onJumpToReviewTarget?.(target);
+  };
+
+  const handleReviewModalCloseAutoFocus = (event) => {
+    onReviewDialogCloseAutoFocus?.(event);
+    if (event.defaultPrevented) return;
+    event.preventDefault();
+    const triggerEl = reviewTriggerRef.current;
+    if (!triggerEl || triggerEl.disabled) return;
+    triggerEl.focus({ preventScroll: true });
+    window.requestAnimationFrame(() => {
+      if (reviewTriggerRef.current && !reviewTriggerRef.current.disabled) {
+        reviewTriggerRef.current.focus({ preventScroll: true });
+      }
+    });
+  };
+
+  const getSectionContainerClass = (sectionKey, baseClass = "") => {
+    const isHighlighted = highlightedSectionKey === sectionKey;
+    return [
+      baseClass,
+      "scroll-mt-16 transition-all duration-300",
+      isHighlighted
+        ? "rounded-xl bg-violet-50/40 ring-2 ring-violet-400/80 ring-offset-2 p-2.5 -mx-2.5"
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
   };
 
   return (
@@ -393,68 +469,147 @@ setNewSkill({ title: item.title });
         <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
           Thông tin CV
         </p>
-        <button
-          type="button"
-          onClick={handleOpenResumeReview}
-          disabled={isReviewingResume}
-          className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-2.5 text-[11px] font-bold text-violet-700 transition hover:border-violet-300 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <SparklesIcon className="h-4 w-4" />
-          {isReviewingResume ? "Đang review..." : "Review toàn bộ CV"}
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {hasCachedReviewResult && !isEffectiveReviewLoading && (
+            <span
+              className={`hidden rounded-full px-2 py-0.5 text-[10px] font-semibold sm:inline-flex ${
+                isReviewStale
+                  ? "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200"
+                  : "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200"
+              }`}
+            >
+              {isReviewStale ? "Bản review cũ" : "Đã có kết quả"}
+            </span>
+          )}
+          <button
+            ref={reviewTriggerRef}
+            type="button"
+            onClick={handleOpenReviewClick}
+            disabled={isEffectiveReviewLoading}
+            className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-2.5 text-[11px] font-bold text-violet-700 transition hover:border-violet-300 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <SparklesIcon className="h-4 w-4" />
+            {isEffectiveReviewLoading ? "Đang review..." : "Review toàn bộ CV"}
+          </button>
+        </div>
       </div>
 
-      {isReviewModalOpen && renderInPortal(
-        <div
-          className="fixed inset-0 z-[999] grid place-items-center bg-slate-950/45 p-3 sm:p-5"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="resume-review-title"
-        >
-          <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
+      <Dialog.Root
+        open={effectiveReviewOpen}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) handleCloseReviewClick();
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[1000] bg-slate-950/45 backdrop-blur-[1px]" />
+          <Dialog.Content
+            onCloseAutoFocus={handleReviewModalCloseAutoFocus}
+            className="fixed left-1/2 top-1/2 z-[1001] flex max-h-[90dvh] w-[calc(100vw-1.5rem)] max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl focus:outline-none"
+          >
             <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
               <div className="flex min-w-0 items-center gap-2">
                 <SparklesIcon className="h-5 w-5 shrink-0 text-violet-600" />
-                <h2
-                  id="resume-review-title"
-                  className="truncate text-sm font-bold text-slate-900"
-                >
+                <Dialog.Title className="truncate text-sm font-bold text-slate-900">
                   Review toàn bộ CV
-                </h2>
+                </Dialog.Title>
               </div>
-              <button
-                type="button"
-                aria-label="Đóng kết quả review"
-                onClick={() => setIsReviewModalOpen(false)}
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
+              <Dialog.Close asChild>
+                <button
+                  type="button"
+                  aria-label="Đóng kết quả review"
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </Dialog.Close>
             </div>
+            <Dialog.Description className="sr-only">
+              Xem đánh giá CV theo tiêu chí, điểm mạnh, góp ý chỉnh sửa theo mục và mở nhanh đúng mục để tự cập nhật.
+            </Dialog.Description>
 
-            <div className="flex-1 overflow-y-auto">
-              {isReviewingResume ? (
-                <div className="grid min-h-[320px] place-items-center px-5 py-12">
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {effectiveReviewStep === "loading" ? (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="grid min-h-[300px] place-items-center px-5 py-12"
+                >
                   <div className="text-center">
                     <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-violet-200 border-t-violet-600" />
                     <p className="mt-3 text-sm font-semibold text-slate-700">
                       Đang phân tích CV...
                     </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Bạn có thể đóng cửa sổ này để hủy lượt review đang chạy.
+                    </p>
                   </div>
                 </div>
-              ) : resumeReview ? (
+              ) : effectiveReviewStep === "error" ? (
+                <div className="px-4 py-6 sm:px-5">
+                  <div
+                    role="alert"
+                    className="rounded-xl border border-red-200 bg-red-50/90 p-4 text-red-900"
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-bold text-red-900">
+                          Không thể hoàn tất review CV
+                        </h3>
+                        <p className="mt-1 text-xs leading-5 text-red-800">
+                          {effectiveReviewError ||
+                            "Không thể review CV lúc này. Vui lòng thử lại."}
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={handleTriggerReviewClick}
+                            className="inline-flex h-8 items-center rounded-md bg-red-700 px-3 text-xs font-bold text-white transition hover:bg-red-800"
+                          >
+                            Thử lại
+                          </button>
+                          {hasCachedReviewResult && onRestoreCachedReview && (
+                            <button
+                              type="button"
+                              onClick={onRestoreCachedReview}
+                              className="inline-flex h-8 items-center rounded-md border border-red-200 bg-white px-3 text-xs font-semibold text-red-800 transition hover:bg-red-100/60"
+                            >
+                              Xem kết quả trước đó
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : effectiveReviewResult ? (
                 <div className="px-4 py-4 sm:px-5 sm:py-5">
+                  {isReviewStale && (
+                    <div
+                      role="status"
+                      data-review-stale-banner
+                      className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs leading-5 text-amber-900"
+                    >
+                      <strong className="font-bold">Bản review cũ:</strong>{" "}
+                      Nhận xét này được tạo từ phiên bản CV trước khi bạn chỉnh sửa. Bạn vẫn có thể xem lại góp ý bên dưới hoặc bấm{" "}
+                      <strong>Review lại</strong> ở cuối hộp thoại để cập nhật đánh giá mới.
+                    </div>
+                  )}
+
                   <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center">
                     <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-lg bg-violet-700 text-white">
                       <strong className="text-2xl">
-                        {Math.round(resumeReview.overallScore || 0)}
+                        {Math.round(effectiveReviewResult.overallScore || 0)}
                       </strong>
                       <span className="text-[10px] font-bold uppercase">
                         Điểm CV
                       </span>
                     </div>
                     <p className="text-sm leading-6 text-slate-600">
-                      {resumeReview.summary}
+                      {effectiveReviewResult.summary ||
+                        (isEmptyReviewResult
+                          ? "AI chưa trả về nhận xét chi tiết nào cho phiên bản CV hiện tại."
+                          : "Chưa có nhận xét tổng quan.")}
                     </p>
                   </div>
 
@@ -466,7 +621,9 @@ setNewSkill({ title: item.title });
                           className="px-2 py-2 text-center sm:border-r sm:last:border-r-0"
                         >
                           <strong className="block text-base text-slate-900">
-                            {Math.round(resumeReview.categories?.[key] || 0)}
+                            {Math.round(
+                              effectiveReviewResult.categories?.[key] || 0,
+                            )}
                           </strong>
                           <span className="text-[10px] font-semibold text-slate-500">
                             {label}
@@ -476,83 +633,150 @@ setNewSkill({ title: item.title });
                     )}
                   </div>
 
-                  {resumeReview.strengths?.length > 0 && (
+                  {isEmptyReviewResult && (
+                    <div
+                      data-review-empty-state
+                      className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600"
+                    >
+                      Chưa có điểm tốt, đề xuất chỉnh sửa hay mục còn thiếu cụ thể nào được trả về cho phiên bản CV này. Bạn có thể tự chỉnh sửa tiếp hoặc bấm{" "}
+                      <strong>Review lại</strong> sau khi bổ sung thêm nội dung.
+                    </div>
+                  )}
+
+                  {effectiveReviewResult.strengths?.length > 0 && (
                     <section className="border-b border-slate-200 py-5">
                       <h3 className="text-xs font-bold uppercase text-emerald-700">
                         Điểm tốt
                       </h3>
                       <ul className="mt-3 space-y-2">
-                        {resumeReview.strengths.map((strength) => (
-                          <li
-                            key={strength}
-                            className="flex gap-2 text-sm leading-5 text-slate-700"
-                          >
-                            <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
-                            {strength}
-                          </li>
-                        ))}
+                        {effectiveReviewResult.strengths.map(
+                          (strength, idx) => (
+                            <li
+                              key={`${idx}-${strength}`}
+                              className="flex gap-2 text-sm leading-5 text-slate-700"
+                            >
+                              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                              {strength}
+                            </li>
+                          ),
+                        )}
                       </ul>
                     </section>
                   )}
 
-                  {resumeReview.improvements?.length > 0 && (
+                  {effectiveReviewResult.improvements?.length > 0 && (
                     <section className="border-b border-slate-200 py-5">
                       <h3 className="text-xs font-bold uppercase text-slate-800">
                         Điểm cần sửa và cách sửa
                       </h3>
                       <div className="mt-3 space-y-3">
-                        {resumeReview.improvements.map((item, index) => {
-                          const priority =
-                            REVIEW_PRIORITY_STYLES[item.priority] ||
-                            REVIEW_PRIORITY_STYLES.medium;
-                          return (
-                            <article
-                              key={`${item.section}-${index}`}
-                              className="rounded-lg border border-slate-200 p-3"
-                            >
-                              <div className="flex flex-wrap items-center gap-2">
-                                <h4 className="text-sm font-bold text-slate-900">
-                                  {item.section}
-                                </h4>
-                                <span
-                                  className={`rounded px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-inset ${priority.className}`}
-                                >
-                                  {priority.label}
-                                </span>
-                              </div>
-                              <p className="mt-2 text-xs leading-5 text-slate-600">
-                                <strong className="text-slate-800">
-                                  Cần sửa:
-                                </strong>{" "}
-                                {item.issue}
-                              </p>
-                              <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                                <strong className="text-violet-700">
-                                  Cách sửa:
-                                </strong>{" "}
-                                {item.fix}
-                              </p>
-                            </article>
-                          );
-                        })}
+                        {effectiveReviewResult.improvements.map(
+                          (item, index) => {
+                            const priority =
+                              REVIEW_PRIORITY_STYLES[item.priority] ||
+                              REVIEW_PRIORITY_STYLES.medium;
+                            const target = resolveReviewSectionTarget(
+                              item.section,
+                            );
+                            return (
+                              <article
+                                key={`${item.section}-${index}`}
+                                data-review-improvement
+                                data-review-section={item.section}
+                                data-review-target-key={target?.key || ""}
+                                className="rounded-lg border border-slate-200 p-3"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <h4 className="text-sm font-bold text-slate-900">
+                                      {item.section}
+                                    </h4>
+                                    <span
+                                      className={`rounded px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-inset ${priority.className}`}
+                                    >
+                                      {priority.label}
+                                    </span>
+                                  </div>
+                                  {target ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleJumpTarget(target)}
+                                      className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-violet-200 bg-violet-50 px-2.5 text-[11px] font-bold text-violet-700 transition hover:border-violet-300 hover:bg-violet-100"
+                                    >
+                                      <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+                                      {target.actionLabel}
+                                    </button>
+                                  ) : (
+                                    <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                                      Tham khảo chung
+                                    </span>
+                                  )}
+                                </div>
+                                {item.issue && (
+                                  <p className="mt-2 text-xs leading-5 text-slate-600">
+                                    <strong className="text-slate-800">
+                                      Cần sửa:
+                                    </strong>{" "}
+                                    {item.issue}
+                                  </p>
+                                )}
+                                {item.fix && (
+                                  <p className="mt-1.5 text-xs leading-5 text-slate-600">
+                                    <strong className="text-violet-700">
+                                      Cách sửa:
+                                    </strong>{" "}
+                                    {item.fix}
+                                  </p>
+                                )}
+                              </article>
+                            );
+                          },
+                        )}
                       </div>
                     </section>
                   )}
 
-                  {resumeReview.missingSections?.length > 0 && (
+                  {effectiveReviewResult.missingSections?.length > 0 && (
                     <section className="pt-5">
                       <h3 className="text-xs font-bold uppercase text-amber-700">
                         Mục còn thiếu
                       </h3>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {resumeReview.missingSections.map((section) => (
-                          <span
-                            key={section}
-                            className="rounded bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-200"
-                          >
-                            {section}
-                          </span>
-                        ))}
+                        {effectiveReviewResult.missingSections.map(
+                          (section) => {
+                            const target =
+                              resolveReviewSectionTarget(section);
+                            return target ? (
+                              <div
+                                key={section}
+                                data-review-missing-section
+                                data-review-section={section}
+                                data-review-target-key={target.key}
+                                className="inline-flex items-center gap-2 rounded-md bg-amber-50 py-1 pl-2.5 pr-1 text-xs font-semibold text-amber-900 ring-1 ring-inset ring-amber-200"
+                              >
+                                <span>{section}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleJumpTarget(target)}
+                                  aria-label={`${target.actionLabel} ${section}`}
+                                  className="inline-flex items-center gap-1 rounded bg-white px-2 py-0.5 text-[11px] font-bold text-violet-700 ring-1 ring-inset ring-violet-200 transition hover:bg-violet-50"
+                                >
+                                  <ArrowTopRightOnSquareIcon className="h-3 w-3" />
+                                  {target.actionLabel}
+                                </button>
+                              </div>
+                            ) : (
+                              <span
+                                key={section}
+                                data-review-missing-section
+                                data-review-section={section}
+                                className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200"
+                              >
+                                {section}
+                              </span>
+                            );
+                          },
+                        )}
                       </div>
                     </section>
                   )}
@@ -563,24 +787,26 @@ setNewSkill({ title: item.title });
             <div className="flex shrink-0 justify-end gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 sm:px-5">
               <button
                 type="button"
-                onClick={() => setIsReviewModalOpen(false)}
+                onClick={handleCloseReviewClick}
                 className="h-8 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
               >
                 Đóng
               </button>
-              <button
-                type="button"
-                onClick={onReviewResume}
-                disabled={isReviewingResume}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md bg-violet-700 px-3 text-xs font-bold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-violet-300"
-              >
-                <SparklesIcon className="h-4 w-4" />
-                Review lại
-              </button>
+              {effectiveReviewStep !== "error" && (
+                <button
+                  type="button"
+                  onClick={handleTriggerReviewClick}
+                  disabled={isEffectiveReviewLoading}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md bg-violet-700 px-3 text-xs font-bold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-violet-300"
+                >
+                  <SparklesIcon className="h-4 w-4" />
+                  Review lại
+                </button>
+              )}
             </div>
-          </div>
-        </div>
-      )}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       <div className="p-5 space-y-6">
       {/* Avatar */}
@@ -607,12 +833,29 @@ setNewSkill({ title: item.title });
           className="hidden"
         />
       </div>
-      <div className="w-full">
-        <div className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Thông tin cá nhân</div>
+      <section
+        data-resume-section="personalInfo"
+        aria-labelledby="resume-section-heading-personalInfo"
+        className={getSectionContainerClass("personalInfo", "w-full")}
+      >
+        <h3
+          id="resume-section-heading-personalInfo"
+          data-resume-section-heading="personalInfo"
+          tabIndex={-1}
+          className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3 focus:outline-none"
+        >
+          Thông tin cá nhân
+        </h3>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Họ và tên</label>
+            <label
+              htmlFor="resume-personal-fullName"
+              className="block text-xs font-semibold text-gray-500 mb-1.5"
+            >
+              Họ và tên
+            </label>
             <input
+              id="resume-personal-fullName"
               className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/10 transition-all"
               value={personalInfo.fullName}
               onChange={(e) => setPersonalInfo({ ...personalInfo, fullName: e.target.value })}
@@ -620,8 +863,14 @@ setNewSkill({ title: item.title });
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Tiêu đề / Vị trí</label>
+            <label
+              htmlFor="resume-personal-jobTitle"
+              className="block text-xs font-semibold text-gray-500 mb-1.5"
+            >
+              Tiêu đề / Vị trí
+            </label>
             <input
+              id="resume-personal-jobTitle"
               className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/10 transition-all"
               value={personalInfo.jobTitle}
               onChange={(e) => setPersonalInfo({ ...personalInfo, jobTitle: e.target.value })}
@@ -630,8 +879,14 @@ setNewSkill({ title: item.title });
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Email</label>
+              <label
+                htmlFor="resume-personal-email"
+                className="block text-xs font-semibold text-gray-500 mb-1.5"
+              >
+                Email
+              </label>
               <input
+                id="resume-personal-email"
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/10 transition-all"
                 value={personalInfo.email}
                 onChange={(e) => setPersonalInfo({ ...personalInfo, email: e.target.value })}
@@ -639,8 +894,14 @@ setNewSkill({ title: item.title });
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Trang web</label>
+              <label
+                htmlFor="resume-personal-website"
+                className="block text-xs font-semibold text-gray-500 mb-1.5"
+              >
+                Trang web
+              </label>
               <input
+                id="resume-personal-website"
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/10 transition-all"
                 value={personalInfo.website}
                 onChange={(e) => setPersonalInfo({ ...personalInfo, website: e.target.value })}
@@ -648,8 +909,14 @@ setNewSkill({ title: item.title });
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Điện thoại</label>
+              <label
+                htmlFor="resume-personal-phone"
+                className="block text-xs font-semibold text-gray-500 mb-1.5"
+              >
+                Điện thoại
+              </label>
               <input
+                id="resume-personal-phone"
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/10 transition-all"
                 value={personalInfo.phone}
                 onChange={(e) => setPersonalInfo({ ...personalInfo, phone: e.target.value })}
@@ -657,8 +924,14 @@ setNewSkill({ title: item.title });
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Địa điểm</label>
+              <label
+                htmlFor="resume-personal-location"
+                className="block text-xs font-semibold text-gray-500 mb-1.5"
+              >
+                Địa điểm
+              </label>
               <input
+                id="resume-personal-location"
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-[#9346F5] focus:outline-none focus:ring-2 focus:ring-[#9346F5]/10 transition-all"
                 value={personalInfo.location}
                 onChange={(e) => setPersonalInfo({ ...personalInfo, location: e.target.value })}
@@ -667,14 +940,25 @@ setNewSkill({ title: item.title });
             </div>
           </div>
         </div>
-      </div>
+      </section>
       <div className="border-t border-gray-100" />
-      <div>
-        <div className="mb-3 text-xs font-bold uppercase tracking-widest text-gray-600">Tiểu sử</div>
+      <section
+        data-resume-section="bio"
+        aria-labelledby="resume-section-heading-bio"
+        className={getSectionContainerClass("bio")}
+      >
+        <h3
+          id="resume-section-heading-bio"
+          data-resume-section-heading="bio"
+          tabIndex={-1}
+          className="mb-3 text-xs font-bold uppercase tracking-widest text-gray-600 focus:outline-none"
+        >
+          Tiểu sử
+        </h3>
         <div className="rounded-xl border border-gray-200 overflow-hidden">
           <Editor content={bio} onChange={setBio} className="min-h-[160px]" />
         </div>
-      </div>
+      </section>
       <div className="border-t border-gray-100" />
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -833,15 +1117,28 @@ setNewSkill({ title: item.title });
           </div>
         </div>
       )}
+      </div>
 
       <div className="border-t border-gray-100 my-4" />
-      <div>
+      <section
+        data-resume-section="experience"
+        aria-labelledby="resume-section-heading-experience"
+        className={getSectionContainerClass("experience")}
+      >
         <div className="flex items-center justify-between mb-3 mt-4">
-          <div className="text-xs font-bold text-gray-600 uppercase tracking-widest">Kinh nghiệm làm việc</div>
+          <h3
+            id="resume-section-heading-experience"
+            data-resume-section-heading="experience"
+            tabIndex={-1}
+            className="text-xs font-bold text-gray-600 uppercase tracking-widest focus:outline-none"
+          >
+            Kinh nghiệm làm việc
+          </h3>
         </div>
       {experience.map((item) => (
         <div
           key={item.id}
+          data-resume-section-item
           className="border border-gray-200 p-3 px-4 hover:bg-gray-50 cursor-pointer rounded-xl mt-2 relative group"
           onClick={() => handleEditExperience(item)}
         >
@@ -869,7 +1166,9 @@ setNewSkill({ title: item.title });
           />
         </div>
       ))}
-      <div
+      <button
+        type="button"
+        data-resume-add-button="experience"
         className="mt-3 w-full flex items-center justify-center gap-1.5 border border-dashed border-gray-200 hover:border-[#9346F5] text-gray-400 hover:text-[#9346F5] py-2 cursor-pointer rounded-xl text-xs font-semibold hover:bg-violet-50/30 transition-all"
         onClick={() => {
           setEditingId(null);
@@ -887,7 +1186,7 @@ setNewSkill({ title: item.title });
       >
         <PlusIcon className="w-4 h-4" />
         Thêm kinh nghiệm làm việc
-      </div>
+      </button>
       {isModalExperienceOpen && renderInPortal(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
@@ -1075,11 +1374,25 @@ setNewSkill({ title: item.title });
           </div>
         </div>
       )}
+      </section>
       <div className="border-t border-gray-100 my-4"></div>
-      <div className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Học vấn</div>
+      <section
+        data-resume-section="education"
+        aria-labelledby="resume-section-heading-education"
+        className={getSectionContainerClass("education")}
+      >
+        <h3
+          id="resume-section-heading-education"
+          data-resume-section-heading="education"
+          tabIndex={-1}
+          className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3 focus:outline-none"
+        >
+          Học vấn
+        </h3>
       {education.map((item) => (
         <div
           key={item.id}
+          data-resume-section-item
           className="border border-gray-200 p-3 px-4 hover:bg-gray-50 cursor-pointer rounded-xl mt-2 relative group"
           onClick={() => handleEditEducation(item)}
         >
@@ -1113,7 +1426,9 @@ setNewSkill({ title: item.title });
         </div>
       ))}
 
-      <div
+      <button
+        type="button"
+        data-resume-add-button="education"
         className="mt-3 w-full flex items-center justify-center gap-1.5 border border-dashed border-gray-200 hover:border-[#9346F5] text-gray-400 hover:text-[#9346F5] py-2 cursor-pointer rounded-xl text-xs font-semibold hover:bg-violet-50/30 transition-all"
         onClick={() => {
           setEditingId(null);
@@ -1132,7 +1447,7 @@ setNewSkill({ title: item.title });
       >
         <PlusIcon className="w-4 h-4" />
         Thêm học vấn
-      </div>
+      </button>
       {isModalEducationOpen && renderInPortal(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
@@ -1333,11 +1648,25 @@ setNewSkill({ title: item.title });
           </div>
         </div>
       )}
+      </section>
       <div className="border-t border-gray-100 my-4"></div>
-      <div className="font-semibold ">Kỹ năng</div>
+      <section
+        data-resume-section="skill"
+        aria-labelledby="resume-section-heading-skill"
+        className={getSectionContainerClass("skill")}
+      >
+        <h3
+          id="resume-section-heading-skill"
+          data-resume-section-heading="skill"
+          tabIndex={-1}
+          className="font-semibold focus:outline-none"
+        >
+          Kỹ năng
+        </h3>
       {skill.map((item) => (
         <div
           key={item.id}
+          data-resume-section-item
           className="border border-gray-200 p-3 px-4 hover:bg-gray-50 cursor-pointer rounded-xl mt-2 relative group"
           onClick={() => handleEditSkill(item)}
         >
@@ -1357,7 +1686,9 @@ setNewSkill({ title: item.title });
           </div>
         </div>
       ))}
-      <div
+      <button
+        type="button"
+        data-resume-add-button="skill"
         className="mt-3 w-full flex items-center justify-center gap-1.5 border border-dashed border-gray-200 hover:border-[#9346F5] text-gray-400 hover:text-[#9346F5] py-2 cursor-pointer rounded-xl text-xs font-semibold hover:bg-violet-50/30 transition-all"
         onClick={() => {
           setEditingId(null);
@@ -1367,7 +1698,7 @@ setNewSkill({ title: "" });
       >
         <PlusIcon className="w-4 h-4" />
         Thêm kỹ năng
-      </div>
+      </button>
       {isModalSkillOpen && renderInPortal(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div role="dialog" aria-modal="true" aria-labelledby="skill-dialog-title" className="bg-white rounded-lg shadow-2xl w-full max-w-md overflow-hidden">
@@ -1403,11 +1734,25 @@ setNewSkill({ title: "" });
           </div>
         </div>
       )}
+      </section>
       <div className="border-t border-gray-100 my-4"></div>
-      <div className="font-semibold ">Ngoại ngữ</div>
+      <section
+        data-resume-section="language"
+        aria-labelledby="resume-section-heading-language"
+        className={getSectionContainerClass("language")}
+      >
+        <h3
+          id="resume-section-heading-language"
+          data-resume-section-heading="language"
+          tabIndex={-1}
+          className="font-semibold focus:outline-none"
+        >
+          Ngoại ngữ
+        </h3>
       {language.map((item) => (
         <div
           key={item.id}
+          data-resume-section-item
           className="border border-gray-200 p-3 px-4 hover:bg-gray-50 cursor-pointer rounded-xl mt-2 relative group"
           onClick={() => handleEditLanguage(item)}
         >
@@ -1427,7 +1772,9 @@ setNewSkill({ title: "" });
           </div>
         </div>
       ))}
-      <div
+      <button
+        type="button"
+        data-resume-add-button="language"
         className="mt-3 w-full flex items-center justify-center gap-1.5 border border-dashed border-gray-200 hover:border-[#9346F5] text-gray-400 hover:text-[#9346F5] py-2 cursor-pointer rounded-xl text-xs font-semibold hover:bg-violet-50/30 transition-all"
         onClick={() => {
           setEditingId(null);
@@ -1440,7 +1787,7 @@ setNewSkill({ title: "" });
       >
         <PlusIcon className="w-4 h-4" />
         Thêm ngoại ngữ
-      </div>
+      </button>
       {isModalLanguageOpen && renderInPortal(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
@@ -1542,11 +1889,25 @@ setNewSkill({ title: "" });
           </div>
         </div>
       )}
+      </section>
       <div className="border-t border-gray-100 my-4"></div>
-      <div className="font-semibold ">Chứng chỉ</div>
+      <section
+        data-resume-section="certificate"
+        aria-labelledby="resume-section-heading-certificate"
+        className={getSectionContainerClass("certificate")}
+      >
+        <h3
+          id="resume-section-heading-certificate"
+          data-resume-section-heading="certificate"
+          tabIndex={-1}
+          className="font-semibold focus:outline-none"
+        >
+          Chứng chỉ
+        </h3>
       {certificate.map((item) => (
         <div
           key={item.id}
+          data-resume-section-item
           className="border border-gray-200 p-3 px-4 hover:bg-gray-50 cursor-pointer rounded-xl mt-2 relative group"
           onClick={() => handleEditCertificate(item)}
         >
@@ -1571,7 +1932,9 @@ setNewSkill({ title: "" });
           />
         </div>
       ))}
-      <div
+      <button
+        type="button"
+        data-resume-add-button="certificate"
         className="mt-3 w-full flex items-center justify-center gap-1.5 border border-dashed border-gray-200 hover:border-[#9346F5] text-gray-400 hover:text-[#9346F5] py-2 cursor-pointer rounded-xl text-xs font-semibold hover:bg-violet-50/30 transition-all"
         onClick={() => {
           setEditingId(null);
@@ -1586,7 +1949,7 @@ setNewSkill({ title: "" });
       >
         <PlusIcon className="w-4 h-4" />
         Thêm chứng chỉ
-      </div>
+      </button>
       {isModalCertificateOpen && renderInPortal(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
@@ -1727,11 +2090,25 @@ setNewSkill({ title: "" });
           </div>
         </div>
       )}
+      </section>
       <div className="border-t border-gray-100 my-4"></div>
-      <div className="font-semibold ">Dự án</div>
+      <section
+        data-resume-section="project"
+        aria-labelledby="resume-section-heading-project"
+        className={getSectionContainerClass("project")}
+      >
+        <h3
+          id="resume-section-heading-project"
+          data-resume-section-heading="project"
+          tabIndex={-1}
+          className="font-semibold focus:outline-none"
+        >
+          Dự án
+        </h3>
       {project.map((item) => (
         <div
           key={item.id}
+          data-resume-section-item
           className="border border-gray-200 p-3 px-4 hover:bg-gray-50 cursor-pointer rounded-xl mt-2 relative group"
           onClick={() => handleEditProject(item)}
         >
@@ -1755,7 +2132,9 @@ setNewSkill({ title: "" });
           />
         </div>
       ))}
-      <div
+      <button
+        type="button"
+        data-resume-add-button="project"
         className="mt-3 w-full flex items-center justify-center gap-1.5 border border-dashed border-gray-200 hover:border-[#9346F5] text-gray-400 hover:text-[#9346F5] py-2 cursor-pointer rounded-xl text-xs font-semibold hover:bg-violet-50/30 transition-all"
         onClick={() => {
           setEditingId(null);
@@ -1770,7 +2149,7 @@ setNewSkill({ title: "" });
       >
         <PlusIcon className="w-4 h-4" />
         Thêm dự án
-      </div>
+      </button>
       {isModalProjectOpen && renderInPortal(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
@@ -1911,11 +2290,25 @@ setNewSkill({ title: "" });
           </div>
         </div>
       )}
+      </section>
       <div className="border-t border-gray-100 my-4"></div>
-      <div className="font-semibold ">Giải thưởng</div>
+      <section
+        data-resume-section="award"
+        aria-labelledby="resume-section-heading-award"
+        className={getSectionContainerClass("award")}
+      >
+        <h3
+          id="resume-section-heading-award"
+          data-resume-section-heading="award"
+          tabIndex={-1}
+          className="font-semibold focus:outline-none"
+        >
+          Giải thưởng
+        </h3>
       {award.map((item) => (
         <div
           key={item.id}
+          data-resume-section-item
           className="border border-gray-200 p-3 px-4 hover:bg-gray-50 cursor-pointer rounded-xl mt-2 relative group"
           onClick={() => handleEditAward(item)}
         >
@@ -1940,7 +2333,9 @@ setNewSkill({ title: "" });
           />
         </div>
       ))}
-      <div
+      <button
+        type="button"
+        data-resume-add-button="award"
         className="mt-3 w-full flex items-center justify-center gap-1.5 border border-dashed border-gray-200 hover:border-[#9346F5] text-gray-400 hover:text-[#9346F5] py-2 cursor-pointer rounded-xl text-xs font-semibold hover:bg-violet-50/30 transition-all"
         onClick={() => {
           setEditingId(null);
@@ -1955,7 +2350,7 @@ setNewSkill({ title: "" });
       >
         <PlusIcon className="w-4 h-4" />
         Thêm giải thưởng
-      </div>
+      </button>
       {isModalAwardOpen && renderInPortal(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform animate-in fade-in zoom-in">
@@ -2093,6 +2488,7 @@ setNewSkill({ title: "" });
           </div>
         </div>
       )}
+      </section>
 
       <div className="border-t border-gray-100 my-4"></div>
       <div className="font-semibold ">Sở thích</div>
@@ -2190,9 +2586,7 @@ setNewSkill({ title: "" });
           </div>
         </div>
       )}
-        </div>
-        </div>
-        </div>
+      </div>
       <div className="px-5 pb-5">
         <ResumeCustomSections sections={customSections} onChange={setCustomSections} />
       </div>

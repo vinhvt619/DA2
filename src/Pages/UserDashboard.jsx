@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   BriefcaseIcon,
   BookmarkIcon,
@@ -7,44 +8,16 @@ import {
   ChartBarIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import SettingsPageLayout, {
   SettingsCard,
   SettingsPageHeader,
 } from "../Components/SettingsLayout.jsx";
+import ApplicationStatusBadge from "../Components/ApplicationStatusBadge.jsx";
+import { useMyApplications } from "../hooks/useMyApplications.js";
+import { getApplicationJobInfo } from "../utils/applicationSubmission.js";
 import { formatRelativeDay } from "../utils/dateTime.js";
-
-function mapStatusToClass(status) {
-  switch (status) {
-    case "Pending":
-    case "Reviewing":
-      return {
-        text: "Đang xử lý",
-        class: "bg-purple-50 text-purple-700 border-purple-100/60",
-      };
-    case "Interview":
-      return {
-        text: "Phỏng vấn",
-        class: "bg-sky-50 text-sky-700 border-sky-100/60",
-      };
-    case "Offered":
-    case "Accepted":
-      return {
-        text: "Thành công",
-        class: "bg-green-50 text-green-700 border-green-100/60",
-      };
-    case "Rejected":
-      return {
-        text: "Từ chối",
-        class: "bg-red-50 text-red-700 border-red-100/60",
-      };
-    default:
-      return {
-        text: status || "Không rõ",
-        class: "bg-gray-50 text-gray-700 border-gray-100/60",
-      };
-  }
-}
 
 function getCompanyColor(companyName) {
   const name = companyName || "Company";
@@ -66,11 +39,40 @@ function getCompanyColor(companyName) {
   return colors[index];
 }
 
+function RecentApplicationRow({ job }) {
+  const companyColorClass = getCompanyColor(job.company);
+  return (
+    <div className="px-4.5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-violet-50/20 transition-colors">
+      <div className="flex items-center gap-3.5 min-w-0">
+        <div
+          className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 border shadow-xs ${companyColorClass}`}
+        >
+          {job.company.charAt(0).toUpperCase()}
+        </div>
+        <div className="min-w-0">
+          <h4 className="font-semibold text-gray-800 text-xs truncate">
+            {job.role}
+          </h4>
+          <p className="text-[11px] text-gray-400 mt-0.5">
+            {job.company}
+            {job.isJobDeleted ? " · Tin đã xoá" : ""}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 shrink-0 justify-between sm:justify-end">
+        <span className="text-xs text-gray-400 font-medium">{job.date}</span>
+        <ApplicationStatusBadge status={job.status} size="xs" />
+      </div>
+    </div>
+  );
+}
+
 function StatCard({
   title,
   value,
   icon,
   trend,
+  subtitle = "so với tháng trước",
   bgClass,
   textClass,
   borderClass,
@@ -94,8 +96,8 @@ function StatCard({
       </div>
 
       <div className="flex items-center text-xs text-gray-450 font-medium">
-        <span className={`${textClass} font-bold mr-1`}>{trend}</span>
-        <span>so với tháng trước</span>
+        {trend ? <span className={`${textClass} font-bold mr-1`}>{trend}</span> : null}
+        <span>{subtitle}</span>
       </div>
     </div>
   );
@@ -103,45 +105,28 @@ function StatCard({
 
 export default function UserDashboard() {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [recentApplications, setRecentApplications] = useState([]);
-  const [loadingApps, setLoadingApps] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const {
+    applications,
+    isLoading: loadingApps,
+    isError: loadError,
+    refetch,
+  } = useMyApplications();
 
-  useEffect(() => {
-    const fetchApps = async () => {
-      try {
-        const res = await fetch("/api/jobs/applications/mine", {
-          credentials: "include",
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const mapped = data.map((app) => {
-            const statusInfo = mapStatusToClass(app.status);
-            return {
-              _id: app._id,
-              company: app.jobId
-                ? app.jobId.company
-                : "Công việc không còn tồn tại",
-              role: app.jobId ? app.jobId.title : "Vị trí không xác định",
-              status: statusInfo.text,
-              statusClass: statusInfo.class,
-              date: formatRelativeDay(app.createdAt),
-            };
-          });
-          setRecentApplications(mapped);
-          setLoadError(false);
-        } else {
-          setLoadError(true);
-        }
-      } catch (err) {
-        console.error(err);
-        setLoadError(true);
-      } finally {
-        setLoadingApps(false);
-      }
-    };
-    fetchApps();
-  }, []);
+  const recentApplications = useMemo(
+    () =>
+      applications.map((app) => {
+        const jobInfo = getApplicationJobInfo(app);
+        return {
+          _id: app._id,
+          company: jobInfo.company,
+          role: jobInfo.title,
+          isJobDeleted: jobInfo.isJobDeleted,
+          status: app.status,
+          date: formatRelativeDay(app.createdAt, "Không rõ"),
+        };
+      }),
+    [applications],
+  );
 
   const LIMIT = 3;
   const hasMore = recentApplications.length > LIMIT;
@@ -166,9 +151,10 @@ export default function UserDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           <StatCard
             title="Đã ứng tuyển"
-            value="12"
+            value={loadingApps ? "..." : String(applications.length)}
             icon={<BriefcaseIcon className="size-5" />}
-            trend="+2"
+            trend="Đồng bộ"
+            subtitle="theo tài khoản hiện tại"
             bgClass="bg-violet-50"
             textClass="text-violet-600"
             borderClass="border-violet-100/60"
@@ -207,6 +193,12 @@ export default function UserDashboard() {
             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               Công việc ứng tuyển gần đây
             </h2>
+            <Link
+              to="/my-applications"
+              className="text-xs font-semibold text-violet-700 hover:text-violet-900"
+            >
+              Xem tất cả
+            </Link>
           </div>
           <div className="divide-y divide-violet-100/40">
             {loadingApps ? (
@@ -216,7 +208,15 @@ export default function UserDashboard() {
             ) : loadError ? (
               <div className="py-8 text-center text-red-500 text-sm flex flex-col items-center gap-2">
                 <BriefcaseIcon className="w-8 h-8 text-red-300" />
-                Đã xảy ra lỗi khi tải danh sách ứng tuyển.
+                <span>Đã xảy ra lỗi khi tải danh sách ứng tuyển.</span>
+                <button
+                  type="button"
+                  onClick={() => refetch()}
+                  className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                >
+                  <ArrowPathIcon className="h-3.5 w-3.5" />
+                  Thử lại
+                </button>
               </div>
             ) : recentApplications.length === 0 ? (
               <div className="py-8 text-center text-gray-500 text-sm flex flex-col items-center gap-2">
@@ -225,41 +225,12 @@ export default function UserDashboard() {
               </div>
             ) : (
               <>
-                {displayedApps.map((job, index) => {
-                  const companyColorClass = getCompanyColor(job.company);
-                  return (
-                    <div
-                      key={job._id || `${job.company}-${index}`}
-                      className="px-4.5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-violet-50/20 transition-colors"
-                    >
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 border shadow-xs ${companyColorClass}`}
-                        >
-                          {job.company.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="font-semibold text-gray-800 text-xs truncate">
-                            {job.role}
-                          </h4>
-                          <p className="text-[11px] text-gray-400 mt-0.5">
-                            {job.company}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 shrink-0 justify-between sm:justify-end">
-                        <span className="text-xs text-gray-400 font-medium">
-                          {job.date}
-                        </span>
-                        <span
-                          className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-bold leading-normal border uppercase tracking-wider ${job.statusClass}`}
-                        >
-                          {job.status}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+                {displayedApps.map((job, index) => (
+                  <RecentApplicationRow
+                    key={job._id || `${job.company}-${index}`}
+                    job={job}
+                  />
+                ))}
 
                 <div
                   className="overflow-hidden transition-all duration-300 ease-in-out"
@@ -270,42 +241,13 @@ export default function UserDashboard() {
                     opacity: isExpanded ? 1 : 0,
                   }}
                 >
-                  <div className="divide-y divide-violet-100/40 border-t border-violet-100/40">
-                    {recentApplications.slice(LIMIT).map((job, index) => {
-                      const companyColorClass = getCompanyColor(job.company);
-                      return (
-                        <div
-                          key={job._id || `${job.company}-${index}`}
-                          className="px-4.5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-violet-50/20 transition-colors animate-fadeIn"
-                        >
-                          <div className="flex items-center gap-3.5 min-w-0">
-                            <div
-                              className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 border shadow-xs ${companyColorClass}`}
-                            >
-                              {job.company.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="min-w-0">
-                              <h4 className="font-semibold text-gray-800 text-xs truncate">
-                                {job.role}
-                              </h4>
-                              <p className="text-[11px] text-gray-400 mt-0.5">
-                                {job.company}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4 shrink-0 justify-between sm:justify-end">
-                            <span className="text-xs text-gray-400 font-medium">
-                              {job.date}
-                            </span>
-                            <span
-                              className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-bold leading-normal border uppercase tracking-wider ${job.statusClass}`}
-                            >
-                              {job.status}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="divide-y divide-violet-100/40 border-t border-violet-100/40 animate-fadeIn">
+                    {recentApplications.slice(LIMIT).map((job, index) => (
+                      <RecentApplicationRow
+                        key={job._id || `${job.company}-${index}`}
+                        job={job}
+                      />
+                    ))}
                   </div>
                 </div>
 

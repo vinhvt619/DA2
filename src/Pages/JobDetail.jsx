@@ -1,10 +1,20 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import Header from "../Components/Header";
+import JobApplicationWizard from "../Components/JobApplicationWizard.jsx";
 import usePublicJobs from "../hooks/usePublicJobs.js";
+import { useMyApplications } from "../hooks/useMyApplications.js";
 import { showToast } from "../utils/toast.js";
 import { formatDate } from "../utils/dateTime.js";
+import {
+  findApplicationForJob,
+  getAccountId,
+  getResumeFetchScope,
+  isCandidateEligible,
+  normalizeIdString,
+  selectScopedResumeState,
+} from "../utils/applicationSubmission.js";
 import {
   ArrowLeftIcon,
   BriefcaseIcon,
@@ -23,7 +33,6 @@ import {
   GlobeAltIcon,
   SignalIcon,
   EyeIcon,
-  DocumentArrowUpIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import { BookmarkIcon as BookmarkSolid } from "@heroicons/react/24/solid";
@@ -46,68 +55,157 @@ const normalizeJobDetails = (data) => ({
 export default function JobDetail() {
   const { jobId } = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, isAuthChecked } = useAuth();
 
-  const fileInputRef = useRef(null);
+  const accountId = getAccountId(currentUser);
+  const isCandidate = isCandidateEligible(currentUser);
 
-  const [savedResumes, setSavedResumes] = useState([]);
-  const [selectedCv, setSelectedCv] = useState("");
-  const [loadingResumes, setLoadingResumes] = useState(true);
-  const [uploadedFile, setUploadedFile] = useState(null);
+  const [resumesState, setResumesState] = useState({
+    scope: null,
+    items: [],
+    loading: false,
+    error: "",
+  });
+  const [resumesReloadToken, setResumesReloadToken] = useState(0);
   const [job, setJob] = useState(null);
   const [loadingJob, setLoadingJob] = useState(true);
-  const [applying, setApplying] = useState(false);
   const [similarJobs, setSimilarJobs] = useState([]);
-  const { jobs: publicJobs } = usePublicJobs();
+  const { jobs: publicJobs } = usePublicJobs({ limit: 8 });
   const { isSaved, toggleSave, pendingIds } = useSavedJobs();
+  const {
+    applications,
+    isLoading: loadingApplications,
+    error: applicationsQueryError,
+    refetch: refetchApplications,
+    invalidate: invalidateMyApplications,
+  } = useMyApplications();
+
   const jobIsDeleted = isJobDeleted(job);
   const jobIsExpired = isJobExpired(job);
   const jobIsUnavailable = isJobUnavailable(job);
+  const targetJobId = normalizeIdString(job?._id || job?.id || jobId);
+  const resumeFetchScope = getResumeFetchScope({
+    isAuthChecked,
+    isCandidate,
+    accountId,
+    job,
+    jobIsUnavailable,
+  });
+  const {
+    resumes: savedResumes,
+    loading: loadingResumes,
+    error: resumesError,
+  } = selectScopedResumeState(resumesState, resumeFetchScope);
+  const wizardScopeKey = `${targetJobId || "none"}::${accountId || "guest"}::${currentUser?.role || "none"}`;
+
+  const matchedApplication = useMemo(
+    () => findApplicationForJob(applications, job?._id || job?.id || jobId),
+    [applications, job?._id, job?.id, jobId],
+  );
 
   useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+
     const getJob = async () => {
       setLoadingJob(true);
+      setJob(null);
       try {
-        const res = await fetch(`/api/jobs/${jobId}`, { cache: "no-store" });
+        const res = await fetch(`/api/jobs/${jobId}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
         if (!res.ok) throw new Error("job not found");
         const data = await res.json();
-        setJob(normalizeJobDetails({
-          ...data,
-          id: data._id,
-          postedAt: formatDate(data.createdAt),
-          requirements: data.requirements || [],
-          benefits: data.benefits || [],
-          tags: data.tags || [],
-        }));
-      } catch {
+        if (!active || controller.signal.aborted) return;
+        setJob(
+          normalizeJobDetails({
+            ...data,
+            id: data._id,
+            postedAt: formatDate(data.createdAt),
+            requirements: data.requirements || [],
+            benefits: data.benefits || [],
+            tags: data.tags || [],
+          }),
+        );
+      } catch (error) {
+        if (error?.name === "AbortError" || !active) return;
         setJob(null);
       } finally {
-        setLoadingJob(false);
+        if (active && !controller.signal.aborted) {
+          setLoadingJob(false);
+        }
       }
     };
+
     getJob();
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, [jobId]);
 
+  // Only candidate accounts with an active job fetch /api/resumes; state is scoped by jobId::accountId.
   useEffect(() => {
+    if (!resumeFetchScope) {
+      setResumesState({
+        scope: null,
+        items: [],
+        loading: false,
+        error: "",
+      });
+      return undefined;
+    }
+
+    const activeScope = resumeFetchScope;
+    const controller = new AbortController();
+    let active = true;
+
+    setResumesState({
+      scope: activeScope,
+      items: [],
+      loading: true,
+      error: "",
+    });
+
     const fetchResumes = async () => {
       try {
         const res = await fetch("/api/resumes", {
           credentials: "include",
+          cache: "no-store",
+          signal: controller.signal,
         });
-        if (res.ok) {
-          const data = await res.json();
-          setSavedResumes(data);
-          if (data.length > 0) {
-            setSelectedCv(data[0]._id);
-          }
+        const data = await res.json().catch(() => null);
+        if (!active || controller.signal.aborted) return;
+        if (!res.ok || !Array.isArray(data)) {
+          throw new Error(data?.message || "Không thể tải danh sách CV đã lưu.");
         }
+        setResumesState({
+          scope: activeScope,
+          items: data,
+          loading: false,
+          error: "",
+        });
       } catch (err) {
-        console.error("Lỗi lấy danh sách CV:", err);
-      } finally {
-        setLoadingResumes(false);
+        if (err?.name === "AbortError" || !active || controller.signal.aborted) return;
+        setResumesState({
+          scope: activeScope,
+          items: [],
+          loading: false,
+          error: err?.message || "Không thể tải danh sách CV đã lưu.",
+        });
       }
     };
+
     fetchResumes();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [resumeFetchScope, resumesReloadToken]);
+
+  const handleRetryResumes = useCallback(() => {
+    setResumesReloadToken((prev) => prev + 1);
   }, []);
 
   useEffect(() => {
@@ -158,137 +256,6 @@ export default function JobDetail() {
       showToast("Đã sao chép liên kết tuyển dụng vào bộ nhớ tạm!", "success");
   };
 
-  const handleApply = async () => {
-    if (jobIsUnavailable)
-      return showToast(jobIsExpired ? "Tin tuyển dụng đã hết hạn và không còn nhận CV." : "Tin tuyển dụng đã đóng hoặc đã bị xoá.", "error");
-    if (!selectedCv)
-      return showToast("Vui lòng chọn một CV để ứng tuyển.", "error");
-
-    const dbJobId = job._id || job.id;
-    if (job._id) {
-      try {
-        setApplying(true);
-        const res = await fetch("/api/jobs/apply", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            jobId: dbJobId,
-            resumeId: selectedCv,
-          }),
-        });
-
-        if (res.status === 401) {
-          showToast("Vui lòng đăng nhập để ứng tuyển.", "info");
-          return navigate("/login");
-        }
-
-        const data = await res.json();
-        if (res.ok) {
-          showToast(`Đã nộp hồ sơ thành công cho ${job.company}!`, "success");
-          setTimeout(() => navigate("/Jobs"), 1000);
-        } else {
-          showToast(data.message || "Lá»—i khi ná»™p há»“ sÆ¡.", "error");
-        }
-      } catch {
-        showToast("Lỗi kết nối đến máy chủ.", "error");
-      } finally {
-        setApplying(false);
-      }
-    } else {
-      if (!currentUser) {
-        showToast("Vui lòng đăng nhập để ứng tuyển.", "info");
-        return navigate("/login");
-      }
-      const cvName =
-        savedResumes.find((x) => x._id === selectedCv)?.title || "CV đã chọn";
-      showToast(`Đã nộp hồ sơ "${cvName}" cho ${job.company}.`, "success");
-      setTimeout(() => navigate("/Jobs"), 1000);
-    }
-  };
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (file.type !== "application/pdf" || !file.name.toLowerCase().endsWith(".pdf")) {
-      setUploadedFile(null);
-      e.target.value = "";
-      showToast("Chỉ hỗ trợ CV định dạng PDF.", "error");
-      return;
-    }
-
-    setUploadedFile(file);
-  };
-
-  const handleApplyUploadedFile = async () => {
-    if (jobIsUnavailable)
-      return showToast(jobIsExpired ? "Tin tuyển dụng đã hết hạn và không còn nhận CV." : "Tin tuyển dụng đã đóng hoặc đã bị xoá.", "error");
-    if (!uploadedFile) return;
-
-    // 1. Validate file size (Giá»›i háº¡n 5MB)
-    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-    if (uploadedFile.size > MAX_FILE_SIZE) {
-      return showToast(
-        "Dung lượng file vượt quá giới hạn cho phép (Tối đa 5MB).",
-        "error",
-      );
-    }
-
-    // Kiểm tra đăng nhập trước khi tiếp tục
-    if (!currentUser) {
-      showToast("Vui lòng đăng nhập để ứng tuyển.", "info");
-      return navigate("/login");
-    }
-
-    const dbJobId = job._id || job.id;
-
-    // 2. Nếu là static job -> Giả lập thành công không gọi API
-    if (!job._id) {
-      showToast(
-        `Đã nộp hồ sơ "${uploadedFile.name}" cho ${job.company}.`,
-        "success",
-      );
-      setTimeout(() => navigate("/Jobs"), 1000);
-      return;
-    }
-
-    // 3. Nếu là DB Job -> Đọc base64 qua Promise và gửi API
-    try {
-      setApplying(true);
-
-      const fileData = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error("Lỗi đọc file."));
-        reader.readAsDataURL(uploadedFile);
-      });
-
-      const res = await fetch("/api/jobs/apply-file", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          jobId: dbJobId,
-          fileData,
-          fileName: uploadedFile.name,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        showToast(`Đã nộp hồ sơ "${uploadedFile.name}" thành công!`, "success");
-        setTimeout(() => navigate("/Jobs"), 1000);
-      } else {
-        showToast(data.message || "Lá»—i khi ná»™p há»“ sÆ¡.", "error");
-      }
-    } catch (err) {
-      showToast(err.message || "Lỗi kết nối đến máy chủ.", "error");
-    } finally {
-      setApplying(false);
-    }
-  };
-
   if (loadingJob) {
     return (
       <div className="min-h-screen bg-[var(--page-background)] font-sans text-sm text-slate-900 antialiased">
@@ -328,7 +295,7 @@ export default function JobDetail() {
   return (
     <div className="min-h-screen bg-[var(--page-background)] font-sans text-slate-900">
       <Header />
-      <main className="mx-auto w-full max-w-[1040px] px-3 py-4 sm:px-5 lg:px-6">
+      <main className="mx-auto w-full max-w-[1080px] px-3 py-4 sm:px-5 lg:px-6">
         <div className="mb-2.5 flex items-center justify-between">
           <button type="button" onClick={() => navigate("/AllJobs")} className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-violet-700">
             <ArrowLeftIcon className="h-4 w-4" /> Tất cả việc làm
@@ -362,8 +329,28 @@ export default function JobDetail() {
               </div>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
-              <button type="button" disabled={jobIsUnavailable} onClick={() => document.getElementById("apply-section")?.scrollIntoView({ behavior: "smooth", block: "center" })} className="rounded-lg bg-violet-700 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300">
-                {jobIsExpired ? "Đã hết hạn" : jobIsUnavailable ? "Không còn nhận hồ sơ" : "Ứng tuyển ngay"}
+              {isCandidate && !jobIsUnavailable && (
+                <button
+                  type="button"
+                  onClick={() => navigate("/ai-interview?jobId=" + encodeURIComponent(jobId))}
+                  className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800 hover:border-violet-400"
+                >
+                  Luyện phỏng vấn cho vị trí này
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={jobIsUnavailable && !matchedApplication}
+                onClick={() => document.getElementById("apply-section")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                className="rounded-lg bg-violet-700 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {matchedApplication
+                  ? "Đã ứng tuyển"
+                  : jobIsExpired
+                    ? "Đã hết hạn"
+                    : jobIsUnavailable
+                      ? "Không còn nhận hồ sơ"
+                      : "Ứng tuyển ngay"}
               </button>
               <button
                 type="button"
@@ -385,8 +372,8 @@ export default function JobDetail() {
           </div>
         )}
 
-        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_275px]">
-          <div className="space-y-4">
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_336px]">
+          <div className="min-w-0 space-y-4">
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
               <h2 className="mb-3 text-base font-bold text-slate-950">Thông tin công việc</h2>
               <div className="grid gap-2 sm:grid-cols-2">
@@ -454,46 +441,27 @@ export default function JobDetail() {
             </section>
           </div>
 
-          <aside className="space-y-4 lg:sticky lg:top-20">
-            <section id="apply-section" className={`scroll-mt-24 rounded-2xl border bg-white p-4 shadow-sm ${jobIsUnavailable ? "border-slate-200" : "border-violet-200"}`}>
-              <h2 className="text-base font-bold text-slate-950">Ứng tuyển công việc</h2>
-              {jobIsUnavailable ? (
-                <div className="mt-3 rounded-lg bg-slate-50 px-3 py-3 text-xs leading-5 text-slate-600">
-                  {jobIsExpired ? "Tin tuyển dụng đã hết hạn và không còn nhận CV mới." : "Tin này không còn nhận hồ sơ mới."}
-                </div>
-              ) : <>
-              <p className="mt-1 text-xs leading-5 text-slate-500">Chọn CV đã tạo hoặc tải CV PDF từ máy tính.</p>
-              <label htmlFor="saved-cv" className="mt-3 block text-xs font-semibold text-slate-700">CV đã lưu</label>
-              {loadingResumes ? (
-                <div className="mt-1.5 h-9 animate-pulse rounded-lg bg-slate-100" />
-              ) : (
-                <select
-                  id="saved-cv"
-                  value={selectedCv}
-                  onChange={(event) => setSelectedCv(event.target.value)}
-                  className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-                >
-                  <option value="">-- Chọn CV đã lưu --</option>
-                  {savedResumes.map((cv) => <option key={cv._id} value={cv._id}>{cv.title || cv.name || "CV không tên"}</option>)}
-                </select>
-              )}
-              <button type="button" onClick={handleApply} disabled={applying || !selectedCv} className="mt-2.5 w-full rounded-lg bg-violet-700 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300">
-                {applying ? "Đang gửi hồ sơ..." : "Ứng tuyển bằng CV đã lưu"}
-              </button>
-              <div className="my-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><span className="h-px flex-1 bg-slate-200" />hoặc<span className="h-px flex-1 bg-slate-200" /></div>
-              <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" onChange={handleFileUpload} className="hidden" />
-              <button type="button" onClick={() => fileInputRef.current?.click()} className="flex w-full flex-col items-center rounded-xl border border-dashed border-violet-300 bg-violet-50/60 px-3 py-3 text-center transition hover:bg-violet-50">
-                <DocumentArrowUpIcon className="h-6 w-6 text-violet-600" />
-                <span className="mt-1 max-w-full truncate text-xs font-semibold text-violet-700">{uploadedFile ? uploadedFile.name : "Tải CV PDF từ máy"}</span>
-                <span className="mt-0.5 text-[10px] text-slate-500">PDF tối đa 5 MB · đúng tỷ lệ A4</span>
-              </button>
-              {uploadedFile && (
-                <button type="button" onClick={handleApplyUploadedFile} disabled={applying} className="mt-2.5 w-full rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60">
-                  {applying ? "Đang gửi hồ sơ..." : "Ứng tuyển bằng PDF vừa tải"}
-                </button>
-              )}
-              </>}
-            </section>
+          <aside className="min-w-0 space-y-4 lg:sticky lg:top-20">
+            <JobApplicationWizard
+              key={wizardScopeKey}
+              job={job}
+              jobIdParam={jobId}
+              jobIsUnavailable={jobIsUnavailable}
+              jobIsExpired={jobIsExpired}
+              currentUser={currentUser}
+              isAuthChecked={isAuthChecked}
+              isCandidate={isCandidate}
+              accountId={accountId}
+              savedResumes={savedResumes}
+              loadingResumes={loadingResumes}
+              resumesError={resumesError}
+              onRetryResumes={handleRetryResumes}
+              matchedApplication={matchedApplication}
+              loadingApplications={loadingApplications}
+              applicationsError={applicationsQueryError?.message || ""}
+              onRetryApplications={refetchApplications}
+              onApplicationConfirmed={invalidateMyApplications}
+            />
 
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2.5">
@@ -517,7 +485,7 @@ export default function JobDetail() {
                       key={similarJob.id}
                       type="button"
                       onClick={() => {
-                        navigate("/JobDetail/" + similarJob.id);
+                        navigate("/jobs/" + similarJob.id);
                         window.scrollTo({ top: 0, behavior: "smooth" });
                       }}
                       className="block w-full rounded-xl border border-slate-100 p-2.5 text-left transition hover:border-violet-200 hover:bg-violet-50/50"

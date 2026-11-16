@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   AdjustmentsHorizontalIcon,
   BriefcaseIcon,
@@ -15,66 +15,13 @@ import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import Header from "../Components/Header.jsx";
 import { useSavedJobs } from "../context/SavedJobsContext.jsx";
 import usePublicJobs from "../hooks/usePublicJobs.js";
-
-const locationOptions = [
-  { value: "", label: "Tất cả địa điểm" },
-  { value: "ho chi minh", label: "TP. Hồ Chí Minh" },
-  { value: "ha noi", label: "Hà Nội" },
-  { value: "da nang", label: "Đà Nẵng" },
-  { value: "hai phong", label: "Hải Phòng" },
-];
-
-const categoryOptions = [
-  { value: "", label: "Tất cả ngành nghề" },
-  { value: "it", label: "Công nghệ thông tin" },
-  { value: "design", label: "Thiết kế" },
-  { value: "marketing", label: "Marketing" },
-];
-
-const categoryKeywords = {
-  it: [
-    "it",
-    "developer",
-    "frontend",
-    "backend",
-    "software",
-    "react",
-    "node",
-    "java",
-    "python",
-    "devops",
-    "data",
-    "qa",
-  ],
-  design: ["design", "designer", "ui/ux", "figma", "thiet ke"],
-  marketing: ["marketing", "content", "seo", "social media"],
-};
-
-const workTypeOptions = [
-  { value: "full-time", label: "Toàn thời gian" },
-  { value: "intern", label: "Thực tập" },
-  { value: "remote", label: "Làm từ xa" },
-  { value: "part-time", label: "Bán thời gian" },
-];
-
-const JOBS_PER_PAGE = 8;
-
-function normalizeText(value = "") {
-  return value
-    .toLocaleLowerCase("vi-VN")
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .replace(/đ/g, "d");
-}
-
-function normalizeLocation(value = "") {
-  return normalizeText(value).replace(/\btp\.?\s*hcm\b/g, "ho chi minh");
-}
-
-function getSalaryMaximum(salary = "") {
-  const values = salary.match(/\d+/g)?.map(Number) ?? [0];
-  return Math.max(...values);
-}
+import {
+  CATEGORY_OPTIONS,
+  LOCATION_OPTIONS,
+  WORK_TYPE_OPTIONS,
+  parsePublicJobsSearchParams,
+  toPublicJobsSearchParams,
+} from "../../shared/jobQueryPolicy.js";
 
 function getShortLocation(location = "") {
   if (location.includes("Hồ Chí Minh") || location.includes("HCM")) {
@@ -100,9 +47,9 @@ function JobSkeleton() {
       <div className="flex items-start gap-3">
         <div className="h-11 w-11 shrink-0 rounded-lg bg-slate-200" />
         <div className="flex-1 space-y-2.5">
-          <div className="h-3.5 w-2/5 rounded bg-slate-200" />
-          <div className="h-3 w-1/3 rounded bg-slate-100" />
-          <div className="h-5 w-3/5 rounded bg-slate-100" />
+          <div className="h-3.5 w-3/5 rounded bg-slate-200" />
+          <div className="h-3 w-2/5 rounded bg-slate-100" />
+          <div className="h-5 w-4/5 rounded bg-slate-100" />
         </div>
       </div>
     </div>
@@ -146,7 +93,9 @@ function AllJobRow({ job, isNew = false }) {
         <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10px] text-slate-500">
           <span className="inline-flex min-w-0 items-center gap-1">
             <MapPinIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-            <span className="max-w-52 truncate">{getShortLocation(job.location)}</span>
+            <span className="max-w-52 truncate">
+              {getShortLocation(job.location)}
+            </span>
           </span>
           <span className="font-medium text-slate-600">{job.type}</span>
           <span className="font-semibold text-emerald-600">{job.salary}</span>
@@ -166,7 +115,7 @@ function AllJobRow({ job, isNew = false }) {
         )}
       </Link>
 
-      <span className="flex shrink-0 flex-col items-end justify-between gap-5">
+      <div className="flex flex-col items-end justify-between">
         <button
           type="button"
           disabled={pending}
@@ -184,128 +133,169 @@ function AllJobRow({ job, isNew = false }) {
           <ClockIcon className="h-3 w-3" />
           {job.postedAt}
         </span>
-      </span>
+      </div>
     </article>
   );
 }
 
 function AllJobs() {
-  const location = useLocation();
-  const [searchKeyword, setSearchKeyword] = useState(
-    location.state?.searchKeyword || "",
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const urlValidation = useMemo(
+    () => parsePublicJobsSearchParams(searchParams),
+    [searchParams],
   );
-  const [searchLocation, setSearchLocation] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [selectedWorkTypes, setSelectedWorkTypes] = useState([]);
-  const [sortMode, setSortMode] = useState("newest");
+  const {
+    keyword: urlKeyword,
+    location: urlLocation,
+    category: urlCategory,
+    workTypes: urlWorkTypes,
+    sort: urlSort,
+    page: currentPage,
+    limit: urlLimit,
+    companyId: urlCompanyId,
+  } = urlValidation.params;
+
+  // Local state for debounced keyword input
+  const [keywordInput, setKeywordInput] = useState(urlKeyword);
   const [showFilters, setShowFilters] = useState(true);
   const [showWorkTypeOptions, setShowWorkTypeOptions] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const { jobs: allJobs, isLoading, error: jobsError, refetch: refetchJobs } = usePublicJobs();
 
   useEffect(() => {
-    if (location.state?.searchKeyword !== undefined) {
-      setSearchKeyword(location.state.searchKeyword);
-      setCurrentPage(1);
-    }
-  }, [location.state?.searchKeyword]);
+    setKeywordInput(urlKeyword);
+  }, [urlKeyword]);
 
-  const filteredJobs = useMemo(() => {
-    const keyword = normalizeText(searchKeyword.trim());
-    const place = normalizeLocation(searchLocation);
+  // Centralized URL search params updater
+  const updateUrlFilters = useCallback(
+    (updates = {}, resetPage = true, { replace = false } = {}) => {
+      setSearchParams(
+        (prev) => {
+          const current = parsePublicJobsSearchParams(prev).params;
+          const nextKeyword =
+            updates.keyword !== undefined ? updates.keyword : current.keyword;
+          const nextLocation =
+            updates.location !== undefined ? updates.location : current.location;
+          const nextCategory =
+            updates.category !== undefined ? updates.category : current.category;
+          const nextWorkTypes =
+            updates.workTypes !== undefined ? updates.workTypes : current.workTypes;
+          const nextSort =
+            updates.sort !== undefined ? updates.sort : current.sort;
+          const nextPage = resetPage
+            ? 1
+            : updates.page !== undefined
+              ? updates.page
+              : current.page;
+          const nextLimit =
+            updates.limit !== undefined ? updates.limit : current.limit;
+          const nextCompanyId =
+            updates.companyId !== undefined ? updates.companyId : current.companyId;
 
-    return allJobs.filter((job) => {
-      const searchableText = normalizeText(
-        [job.title, job.company, ...(job.tags ?? [])].filter(Boolean).join(" "),
+          return toPublicJobsSearchParams({
+            keyword: nextKeyword,
+            location: nextLocation,
+            category: nextCategory,
+            workTypes: nextWorkTypes,
+            sort: nextSort,
+            page: nextPage,
+            limit: nextLimit,
+            companyId: nextCompanyId,
+          });
+        },
+        { replace },
       );
-      const jobLocation = normalizeLocation(job.location);
-      const jobType = normalizeText(
-        [job.type, job.workModel, ...(job.tags ?? [])].filter(Boolean).join(" "),
-      );
-      const matchesKeyword = !keyword || searchableText.includes(keyword);
-      const matchesLocation = !place || jobLocation.includes(place);
-      const matchesCategory =
-        !selectedCategory ||
-        categoryKeywords[selectedCategory].some((categoryKeyword) =>
-          searchableText.includes(categoryKeyword),
-        );
-      const matchesWorkType =
-        selectedWorkTypes.length === 0 ||
-        selectedWorkTypes.some((workType) => jobType.includes(workType));
-
-      return (
-        matchesKeyword &&
-        matchesLocation &&
-        matchesCategory &&
-        matchesWorkType
-      );
-    });
-  }, [allJobs, searchKeyword, searchLocation, selectedCategory, selectedWorkTypes]);
-
-  const sortedJobs = useMemo(() => {
-    const next = [...filteredJobs];
-    if (sortMode === "salary") {
-      next.sort((a, b) => getSalaryMaximum(b.salary) - getSalaryMaximum(a.salary));
-    }
-    if (sortMode === "match") {
-      next.sort((a, b) => (b.tags?.length ?? 0) - (a.tags?.length ?? 0));
-    }
-    return next;
-  }, [filteredJobs, sortMode]);
-
-  const totalPages = Math.max(1, Math.ceil(sortedJobs.length / JOBS_PER_PAGE));
-  const paginatedJobs = useMemo(
-    () =>
-      sortedJobs.slice(
-        (currentPage - 1) * JOBS_PER_PAGE,
-        currentPage * JOBS_PER_PAGE,
-      ),
-    [sortedJobs, currentPage],
+    },
+    [setSearchParams],
   );
 
+  // Debounce free typing (~300ms) to avoid request per keystroke
   useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(totalPages);
-  }, [currentPage, totalPages]);
+    if (!urlValidation.isValid) return;
+    if (keywordInput.normalize("NFC").trim() === urlKeyword.normalize("NFC").trim()) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      updateUrlFilters({ keyword: keywordInput.normalize("NFC").trim() }, true);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [keywordInput, urlKeyword, urlValidation.isValid, updateUrlFilters]);
+
+  // Server-side filtered, sorted, and paginated query
+  const {
+    jobs: paginatedJobs,
+    total,
+    totalPages,
+    isLoading,
+    isFetching,
+    isPlaceholderData,
+    isMatchingSuccess,
+    error: jobsError,
+    refetch: refetchJobs,
+  } = usePublicJobs({
+    keyword: urlKeyword,
+    location: urlLocation,
+    category: urlCategory,
+    workTypes: urlWorkTypes,
+    sort: urlSort,
+    page: currentPage,
+    limit: urlLimit,
+    companyId: urlCompanyId,
+    enabled: urlValidation.isValid,
+  });
+
+  // Out-of-bounds page correction only on matching verified server success
+  useEffect(() => {
+    if (
+      urlValidation.isValid &&
+      isMatchingSuccess &&
+      totalPages > 0 &&
+      currentPage > totalPages
+    ) {
+      updateUrlFilters({ page: totalPages }, false, { replace: true });
+    }
+  }, [
+    urlValidation.isValid,
+    isMatchingSuccess,
+    totalPages,
+    currentPage,
+    updateUrlFilters,
+  ]);
 
   const activeFilterCount =
-    Number(Boolean(searchLocation)) +
-    Number(Boolean(selectedCategory)) +
-    selectedWorkTypes.length;
+    Number(Boolean(urlLocation)) +
+    Number(Boolean(urlCategory)) +
+    urlWorkTypes.length;
+
   const hasActiveFilters = Boolean(
-    searchKeyword || searchLocation || selectedCategory || selectedWorkTypes.length,
+    urlKeyword || urlLocation || urlCategory || urlWorkTypes.length,
   );
+
   const selectedWorkTypeLabel = useMemo(() => {
-    if (selectedWorkTypes.length === 0) return "Tất cả hình thức";
-    if (selectedWorkTypes.length === 1) {
-      return workTypeOptions.find(
-        (option) => option.value === selectedWorkTypes[0],
+    if (urlWorkTypes.length === 0) return "Tất cả hình thức";
+    if (urlWorkTypes.length === 1) {
+      return WORK_TYPE_OPTIONS.find(
+        (option) => option.value === urlWorkTypes[0],
       )?.label;
     }
-    return `${selectedWorkTypes.length} hình thức đã chọn`;
-  }, [selectedWorkTypes]);
+    return `${urlWorkTypes.length} hình thức đã chọn`;
+  }, [urlWorkTypes]);
 
   const toggleWorkType = (value) => {
-    setSelectedWorkTypes((current) =>
-      current.includes(value)
-        ? current.filter((workType) => workType !== value)
-        : [...current, value],
-    );
-    setCurrentPage(1);
+    const nextList = urlWorkTypes.includes(value)
+      ? urlWorkTypes.filter((workType) => workType !== value)
+      : [...urlWorkTypes, value];
+    updateUrlFilters({ workTypes: nextList }, true);
   };
 
   const resetFilters = () => {
-    setSearchKeyword("");
-    setSearchLocation("");
-    setSelectedCategory("");
-    setSelectedWorkTypes([]);
-    setSortMode("newest");
-    setCurrentPage(1);
+    setKeywordInput("");
+    setSearchParams(new URLSearchParams(), { replace: false });
     setShowWorkTypeOptions(false);
   };
 
   const submitSearch = (event) => {
     event.preventDefault();
-    setCurrentPage(1);
+    updateUrlFilters({ keyword: keywordInput.normalize("NFC").trim() }, true);
   };
 
   return (
@@ -328,11 +318,8 @@ function AllJobs() {
                 <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   type="search"
-                  value={searchKeyword}
-                  onChange={(event) => {
-                    setSearchKeyword(event.target.value);
-                    setCurrentPage(1);
-                  }}
+                  value={keywordInput}
+                  onChange={(event) => setKeywordInput(event.target.value)}
                   placeholder="Tên công việc hoặc công ty"
                   className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-xs text-slate-800 outline-none placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
                 />
@@ -376,14 +363,13 @@ function AllJobs() {
                     <span className="relative">
                       <MapPinIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                       <select
-                        value={searchLocation}
-                        onChange={(event) => {
-                          setSearchLocation(event.target.value);
-                          setCurrentPage(1);
-                        }}
+                        value={urlLocation}
+                        onChange={(event) =>
+                          updateUrlFilters({ location: event.target.value }, true)
+                        }
                         className="h-9 w-full appearance-none rounded-lg border border-slate-300 bg-white pl-8 pr-7 text-[11px] text-slate-700 outline-none focus:border-violet-400"
                       >
-                        {locationOptions.map((option) => (
+                        {LOCATION_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
                             {option.label}
                           </option>
@@ -397,14 +383,13 @@ function AllJobs() {
                     Ngành nghề
                     <span className="relative">
                       <select
-                        value={selectedCategory}
-                        onChange={(event) => {
-                          setSelectedCategory(event.target.value);
-                          setCurrentPage(1);
-                        }}
+                        value={urlCategory}
+                        onChange={(event) =>
+                          updateUrlFilters({ category: event.target.value }, true)
+                        }
                         className="h-9 w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 pr-7 text-[11px] text-slate-700 outline-none focus:border-violet-400"
                       >
-                        {categoryOptions.map((option) => (
+                        {CATEGORY_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
                             {option.label}
                           </option>
@@ -442,20 +427,23 @@ function AllJobs() {
                         aria-multiselectable="true"
                         className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-lg border border-violet-100 bg-white p-1.5 shadow-[0_12px_28px_rgba(76,29,149,0.14)]"
                       >
-                        {workTypeOptions.map((option) => (
-                          <label
-                            key={option.value}
-                            className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[11px] font-normal text-slate-700 transition hover:bg-violet-50"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedWorkTypes.includes(option.value)}
-                              onChange={() => toggleWorkType(option.value)}
-                              className="h-3.5 w-3.5 rounded border-slate-300 accent-violet-600"
-                            />
-                            <span>{option.label}</span>
-                          </label>
-                        ))}
+                        {WORK_TYPE_OPTIONS.map((option) => {
+                          const checked = urlWorkTypes.includes(option.value);
+                          return (
+                            <label
+                              key={option.value}
+                              className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[11px] font-normal text-slate-700 transition hover:bg-violet-50"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleWorkType(option.value)}
+                                className="h-3.5 w-3.5 rounded border-slate-300 accent-violet-600"
+                              />
+                              <span>{option.label}</span>
+                            </label>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -480,23 +468,34 @@ function AllJobs() {
           </form>
         </section>
 
-        <section className="mt-3.5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_2px_8px_rgba(15,23,42,0.035)]">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
+        <section className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_2px_8px_rgba(15,23,42,0.035)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-3">
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">Danh sách việc làm</h2>
+              <h2 className="text-sm font-semibold text-slate-900">
+                Danh sách việc làm
+              </h2>
               <p className="mt-0.5 text-[10px] text-slate-400">
-                {filteredJobs.length} cơ hội đang mở
+                {!urlValidation.isValid
+                  ? "Tham số lọc không hợp lệ"
+                  : isLoading
+                    ? "Đang tải danh sách việc làm..."
+                    : isPlaceholderData && isFetching
+                      ? `Đang tải trang ${currentPage}...`
+                      : jobsError
+                        ? "Không thể tải danh sách việc làm"
+                        : `${total} cơ hội việc làm khả dụng`}
               </p>
             </div>
+
             <label className="relative">
               <span className="sr-only">Sắp xếp việc làm</span>
               <select
-                value={sortMode}
-                onChange={(event) => {
-                  setSortMode(event.target.value);
-                  setCurrentPage(1);
-                }}
-                className="h-8 appearance-none rounded-md border border-slate-200 bg-white pl-3 pr-8 text-[11px] font-medium text-slate-600 outline-none transition hover:border-slate-300 focus:border-violet-400"
+                value={urlSort}
+                onChange={(event) =>
+                  updateUrlFilters({ sort: event.target.value }, true)
+                }
+                disabled={!urlValidation.isValid}
+                className="h-8 appearance-none rounded-md border border-slate-200 bg-white pl-3 pr-8 text-[11px] font-medium text-slate-600 outline-none transition hover:border-slate-300 focus:border-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="newest">Mới nhất</option>
                 <option value="salary">Lương cao</option>
@@ -506,22 +505,50 @@ function AllJobs() {
             </label>
           </div>
 
-          <div>
-            {isLoading ? (
+          <div
+            aria-busy={urlValidation.isValid && (isLoading || isFetching)}
+            className={isPlaceholderData ? "opacity-75 transition-opacity" : ""}
+          >
+            {!urlValidation.isValid ? (
+              <div role="alert" className="px-5 py-10 text-center">
+                <p className="text-sm font-semibold text-red-700">
+                  Tham số tìm kiếm trong đường dẫn không hợp lệ
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {urlValidation.error}
+                </p>
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="mt-4 inline-flex items-center rounded-lg bg-violet-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-violet-700"
+                >
+                  Đặt lại bộ lọc mặc định
+                </button>
+              </div>
+            ) : isLoading ? (
               <>
                 <JobSkeleton />
                 <JobSkeleton />
                 <JobSkeleton />
               </>
             ) : jobsError ? (
-              <div role="alert" className="px-5 py-8 text-center text-sm text-red-700">
+              <div
+                role="alert"
+                className="px-5 py-8 text-center text-sm text-red-700"
+              >
                 Không thể tải danh sách việc làm.
-                <button type="button" onClick={() => refetchJobs()} className="ml-2 font-semibold underline">Thử lại</button>
+                <button
+                  type="button"
+                  onClick={() => refetchJobs()}
+                  className="ml-2 font-semibold underline"
+                >
+                  Thử lại
+                </button>
               </div>
             ) : paginatedJobs.length > 0 ? (
               paginatedJobs.map((job, index) => (
                 <AllJobRow
-                  key={`page-${currentPage}-${job.id}`}
+                  key={job.id}
                   job={job}
                   isNew={currentPage === 1 && index < 2}
                 />
@@ -546,19 +573,28 @@ function AllJobs() {
             )}
           </div>
 
-          {!isLoading && filteredJobs.length > 0 && (
+          {urlValidation.isValid && !isLoading && !jobsError && total > 0 && (
             <div className="flex flex-col items-start justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center">
               <span className="text-[10px] text-slate-500">
-                Trang <strong className="font-semibold text-slate-700">{currentPage}</strong> / {totalPages}
+                Trang{" "}
+                <strong className="font-semibold text-slate-700">
+                  {currentPage}
+                </strong>{" "}
+                / {totalPages}
                 <span className="mx-1.5">·</span>
-                <strong className="font-semibold text-slate-700">{filteredJobs.length}</strong> công việc
+                <strong className="font-semibold text-slate-700">
+                  {total}
+                </strong>{" "}
+                công việc
               </span>
 
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                  disabled={currentPage === 1}
+                  onClick={() =>
+                    updateUrlFilters({ page: Math.max(1, currentPage - 1) }, false)
+                  }
+                  disabled={currentPage <= 1}
                   aria-label="Trang trước"
                   className="flex h-8 w-8 items-center justify-center rounded-lg border border-violet-200 bg-white text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
                 >
@@ -566,31 +602,35 @@ function AllJobs() {
                 </button>
 
                 <div className="hidden items-center gap-1 sm:flex">
-                  {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-                    (page) => (
-                      <button
-                        key={page}
-                        type="button"
-                        onClick={() => setCurrentPage(page)}
-                        aria-current={currentPage === page ? "page" : undefined}
-                        className={`flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-semibold transition ${
-                          currentPage === page
-                            ? "bg-violet-600 text-white"
-                            : "border border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    ),
-                  )}
+                  {Array.from(
+                    { length: totalPages },
+                    (_, index) => index + 1,
+                  ).map((page) => (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => updateUrlFilters({ page }, false)}
+                      aria-current={currentPage === page ? "page" : undefined}
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-semibold transition ${
+                        currentPage === page
+                          ? "bg-violet-600 text-white"
+                          : "border border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
                 </div>
 
                 <button
                   type="button"
                   onClick={() =>
-                    setCurrentPage((page) => Math.min(totalPages, page + 1))
+                    updateUrlFilters(
+                      { page: Math.min(totalPages, currentPage + 1) },
+                      false,
+                    )
                   }
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage >= totalPages}
                   aria-label="Trang sau"
                   className="flex h-8 w-8 items-center justify-center rounded-lg border border-violet-200 bg-white text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
                 >

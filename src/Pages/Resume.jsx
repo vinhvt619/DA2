@@ -5,10 +5,12 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useBlocker, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { useConfirmDialog } from "../context/ConfirmDialogContext.jsx";
+import ConfirmPopUp from "../Components/ConfirmPopUp.jsx";
+import ResumeAiFillDialog from "../Components/ResumeAiFillDialog.jsx";
+import useResumeAutosave from "../hooks/useResumeAutosave.js";
+import { AUTOSAVE_IDLE_DELAY_MS, validateResumeDraftForSave } from "../utils/resumeSavePolicy.js";
 import ResumeForm from "../Components/ResumeForm";
 import ResumeLayoutEditor from "../Components/ResumeLayoutEditor.jsx";
 import ResumePreview from "../Components/ResumePreview";
@@ -18,30 +20,59 @@ import useResumePrint from "../hooks/useResumePrint.js";
 import useResumeHistory from "../hooks/useResumeHistory.js";
 import { normalizeResumeLayout, setTemplateLayout, resetTemplateLayout, customSectionKey } from "../utils/resumeLayout.js";
 import { requestAi } from "../utils/aiApi.js";
-import { normalizeResumeDateValue } from "../utils/dateInput.js";
 import { normalizeCustomSections, normalizeSkillNames } from "../../shared/resumeCustomSections.js";
 import { RESUME_TEMPLATE_NAMES as TEMPLATE_NAMES } from "../../shared/resumeTemplates.js";
 import { normalizeResumePageCount, RESUME_PAGE_COUNTS } from "../../shared/resumePages.js";
 import { showToast } from "../utils/toast.js";
 import {
-  mergeAiSection,
-  mergeAiSkills,
+  applySelectedAiProposals,
+  buildAiFillProposals,
+  cleanGeneratedText,
+  DEFAULT_RESUME_TITLE,
+  prepareAiFillInput,
 } from "../utils/resumeAiFill.js";
 import {
+  buildReviewSnapshotSignature,
+  hasReviewableResumeContent,
+  validateAndNormalizeReviewResult,
+} from "../utils/resumeReview.js";
+import {
   ArrowLeftIcon,
+  ArrowPathIcon,
   ArrowUturnLeftIcon,
   ArrowUturnRightIcon,
+  CheckCircleIcon,
   Squares2X2Icon,
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
   CloudArrowUpIcon,
   DocumentArrowDownIcon,
+  ExclamationTriangleIcon,
   EyeIcon,
   SparklesIcon,
-  XMarkIcon,
 } from "@heroicons/react/24/outline";
 
-const DEFAULT_TITLE = "CV mới của tôi";
+const DEFAULT_TITLE = DEFAULT_RESUME_TITLE;
+const INITIAL_AI_FILL_SESSION = {
+  open: false,
+  step: "prompt",
+  targetRole: "",
+  roleValidationError: "",
+  errorMessage: "",
+  hasCareerContext: false,
+  proposals: [],
+  selectedIds: [],
+  conflicts: [],
+};
+const INITIAL_REVIEW_SESSION = {
+  open: false,
+  step: "idle",
+  result: null,
+  errorMessage: "",
+  snapshotSignature: "",
+  docId: null,
+  accountId: null,
+};
 const DEFAULT_PERSONAL_INFO = {
   fullName: "",
   jobTitle: "",
@@ -57,30 +88,6 @@ const mapIds = (items) =>
   Array.isArray(items)
     ? items.map((item) => ({ ...item, id: item._id || item.id }))
     : [];
-
-const mapAccountExperience = (items) =>
-  (Array.isArray(items) ? items : []).map((item, index) => ({
-    id: item._id || `account-experience-${index}`,
-    title: item.position || "",
-    company: item.company || "",
-    location: item.location || "",
-    startDate: normalizeResumeDateValue(item.startDate),
-    endDate: normalizeResumeDateValue(item.endDate),
-    description: item.description || "",
-  }));
-
-const mapAccountEducation = (items) =>
-  (Array.isArray(items) ? items : []).map((item, index) => ({
-    id: item._id || `account-education-${index}`,
-    title: item.degree || "",
-    company: item.school || "",
-    location: item.location || "",
-    major: item.major || "",
-    score: item.score || "",
-    startDate: normalizeResumeDateValue(item.startDate),
-    endDate: normalizeResumeDateValue(item.endDate),
-    description: item.description || "",
-  }));
 
 const normalizeResume = (data = {}) => ({
   title: data.title || DEFAULT_TITLE,
@@ -106,12 +113,14 @@ export default function CreateResume() {
   const location = useLocation();
   const navigate = useNavigate();
   const { resumeId: routeResumeId } = useParams();
-  const confirmDialog = useConfirmDialog();
-  const initialResumeId = routeResumeId || location.state?.cvId || null;
+  const routeResumeKey = routeResumeId || location.state?.cvId || null;
   const previewRef = useCvZoom();
   const printContentRef = useRef(null);
   const titleInputRef = useRef(null);
-  const loadedResumeRef = useRef({ id: null, attempt: -1 });
+  const loadedResumeRef = useRef({ id: null, userId: null, attempt: -1 });
+  const prevRouteContextRef = useRef({ routeId: routeResumeKey, userId: null });
+  const pendingInternalRedirectRef = useRef(null);
+  const isLeavingRef = useRef(false);
 
   const [showForm, setShowForm] = useState(
     () => typeof window === "undefined" || window.innerWidth >= 1024,
@@ -119,76 +128,420 @@ export default function CreateResume() {
   const [showTemplates, setShowTemplates] = useState(
     () => typeof window !== "undefined" && window.innerWidth >= 1600,
   );
-  const [_id, setId] = useState(initialResumeId);
-  const initialResume = useMemo(() => normalizeResume({ selectedTemplate: location.state?.template }), [location.state?.template]);
-  const { value: resumeData, setters, update: updateResume, reset: resetResume, undo, redo, canUndo, canRedo } = useResumeHistory(initialResume);
-  const { title, selectedTemplate, image, bio, personalInfo, profile, experience, education, skill,
-    language, certificate, project, award, hobby, layout, customSections, pageCount } = resumeData;
-  const { title: setTitle, selectedTemplate: setSelectedTemplate, image: setImage, bio: setBio,
-    personalInfo: setPersonalInfo, profile: setProfile, experience: setExperience, education: setEducation,
-    skill: setSkill, language: setLanguage, certificate: setCertificate, project: setProject,
-    award: setAward, hobby: setHobby } = setters;
-  const setCustomSections = useCallback((value) => updateResume((current) => {
-    const next = typeof value === "function" ? value(current.customSections) : value;
-    return { ...current, customSections: next, layout: normalizeResumeLayout(current.layout, next) };
-  }), [updateResume]);
+  const [promotedDocId, setPromotedDocId] = useState(null);
+  const _id = routeResumeKey !== null ? routeResumeKey : promotedDocId;
+  const initialResume = useMemo(
+    () => normalizeResume({ selectedTemplate: location.state?.template }),
+    [location.state?.template],
+  );
+  const {
+    value: resumeData,
+    setters,
+    update: updateResume,
+    reset: resetResume,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+  } = useResumeHistory(initialResume);
+  const {
+    title,
+    selectedTemplate,
+    image,
+    bio,
+    personalInfo,
+    profile,
+    experience,
+    education,
+    skill,
+    language,
+    certificate,
+    project,
+    award,
+    hobby,
+    layout,
+    customSections,
+    pageCount,
+  } = resumeData;
+  const {
+    title: setTitle,
+    selectedTemplate: setSelectedTemplate,
+    image: setImage,
+    bio: setBio,
+    personalInfo: setPersonalInfo,
+    profile: setProfile,
+    experience: setExperience,
+    education: setEducation,
+    skill: setSkill,
+    language: setLanguage,
+    certificate: setCertificate,
+    project: setProject,
+    award: setAward,
+    hobby: setHobby,
+  } = setters;
+  const setCustomSections = useCallback(
+    (value) =>
+      updateResume((current) => {
+        const next =
+          typeof value === "function" ? value(current.customSections) : value;
+        return {
+          ...current,
+          customSections: next,
+          layout: normalizeResumeLayout(current.layout, next),
+        };
+      }),
+    [updateResume],
+  );
   const [isLayoutEditorOpen, setIsLayoutEditorOpen] = useState(false);
   const [titleError, setTitleError] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const [isLoadingResume, setIsLoadingResume] = useState(Boolean(initialResumeId));
+  const [isLoadingResume, setIsLoadingResume] = useState(Boolean(routeResumeKey));
   const [loadError, setLoadError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
-  const [lastSaved, setLastSaved] = useState(null);
-  const [savedSignature, setSavedSignature] = useState(null);
-  const [isReviewingResume, setIsReviewingResume] = useState(false);
-  const [resumeReview, setResumeReview] = useState(null);
-  const [isAiFillingResume, setIsAiFillingResume] = useState(false);
-  const [isAiFillPromptOpen, setIsAiFillPromptOpen] = useState(false);
-  const [aiTargetRole, setAiTargetRole] = useState("");
+  const [reviewSession, setReviewSession] = useState(INITIAL_REVIEW_SESSION);
+  const [highlightedSectionKey, setHighlightedSectionKey] = useState(null);
+  const [aiSession, setAiSession] = useState(INITIAL_AI_FILL_SESSION);
+  const isReviewModalOpen = reviewSession.open;
+  const isAiFillingResume = aiSession.open && aiSession.step === "loading";
+  const isAiModalOpen = aiSession.open;
 
   const { currentUser, isAuthChecked } = useAuth();
-  const currentSignature = useMemo(
-    () => JSON.stringify(resumeData),
-    [resumeData],
+  const currentUserId =
+    currentUser?._id || currentUser?.id || currentUser?.username || null;
+  const isCandidateAllowed =
+    Boolean(currentUser) &&
+    currentUser.role !== "admin" &&
+    currentUser.role !== "company";
+
+  const currentUserIdRef = useRef(currentUserId);
+  const currentUserRef = useRef(currentUser);
+  const resumeDataRef = useRef(resumeData);
+  const routeResumeKeyRef = useRef(routeResumeKey);
+  const docIdRef = useRef(_id);
+  const loadAttemptRef = useRef(loadAttempt);
+  const loadErrorRef = useRef(loadError);
+  const isCandidateAllowedRef = useRef(isCandidateAllowed);
+  const reviewSessionRef = useRef(reviewSession);
+  const aiGenerationRef = useRef(0);
+  const aiAbortControllerRef = useRef(null);
+  const reviewGenerationRef = useRef(0);
+  const reviewAbortControllerRef = useRef(null);
+  const pendingReviewTargetRef = useRef(null);
+  const reviewFocusTimersRef = useRef([]);
+  const highlightTimerRef = useRef(null);
+  const aiMountedRef = useRef(true);
+  currentUserIdRef.current = currentUserId;
+  currentUserRef.current = currentUser;
+  resumeDataRef.current = resumeData;
+  routeResumeKeyRef.current = routeResumeKey;
+  docIdRef.current = _id;
+  loadAttemptRef.current = loadAttempt;
+  loadErrorRef.current = loadError;
+  isCandidateAllowedRef.current = isCandidateAllowed;
+  reviewSessionRef.current = reviewSession;
+
+  const clearReviewFocusTimers = useCallback(() => {
+    reviewFocusTimersRef.current.forEach((timerId) => clearTimeout(timerId));
+    reviewFocusTimersRef.current = [];
+    if (highlightTimerRef.current) {
+      clearTimeout(highlightTimerRef.current);
+      highlightTimerRef.current = null;
+    }
+  }, []);
+
+  const cancelReviewRequest = useCallback(() => {
+    reviewGenerationRef.current += 1;
+    if (reviewAbortControllerRef.current) {
+      reviewAbortControllerRef.current.abort();
+      reviewAbortControllerRef.current = null;
+    }
+  }, []);
+
+  const resetReviewSession = useCallback(() => {
+    cancelReviewRequest();
+    clearReviewFocusTimers();
+    pendingReviewTargetRef.current = null;
+    setHighlightedSectionKey(null);
+    setReviewSession(INITIAL_REVIEW_SESSION);
+  }, [cancelReviewRequest, clearReviewFocusTimers]);
+
+  const cancelAiFillSession = useCallback(() => {
+    aiGenerationRef.current += 1;
+    if (aiAbortControllerRef.current) {
+      aiAbortControllerRef.current.abort();
+      aiAbortControllerRef.current = null;
+    }
+    setAiSession(INITIAL_AI_FILL_SESSION);
+  }, []);
+
+  useEffect(() => {
+    aiMountedRef.current = true;
+    return () => {
+      aiMountedRef.current = false;
+      aiGenerationRef.current += 1;
+      if (aiAbortControllerRef.current) {
+        aiAbortControllerRef.current.abort();
+        aiAbortControllerRef.current = null;
+      }
+      reviewGenerationRef.current += 1;
+      if (reviewAbortControllerRef.current) {
+        reviewAbortControllerRef.current.abort();
+        reviewAbortControllerRef.current = null;
+      }
+      reviewFocusTimersRef.current.forEach((timerId) => clearTimeout(timerId));
+      reviewFocusTimersRef.current = [];
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current);
+        highlightTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const {
+    saveState,
+    setContext: setSaveContext,
+    hydrateClean,
+    syncDraft,
+    triggerManualSave,
+    triggerRetry,
+    cancelPendingWork,
+    getSnapshot: getSaveSnapshot,
+  } = useResumeAutosave({
+    debounceMs: AUTOSAVE_IDLE_DELAY_MS,
+    onCommitted: ({ mode, isFirstCreate, savedId }) => {
+      setTitleError("");
+      if (isFirstCreate && savedId) {
+        loadedResumeRef.current = {
+          id: savedId,
+          userId: currentUserIdRef.current,
+          attempt: loadAttemptRef.current,
+        };
+        setReviewSession((prev) =>
+          prev.result &&
+          prev.docId === null &&
+          prev.accountId === currentUserIdRef.current
+            ? { ...prev, docId: savedId }
+            : prev,
+        );
+        setPromotedDocId(savedId);
+        pendingInternalRedirectRef.current = `/resume/${savedId}`;
+        navigate(`/resume/${savedId}`, { replace: true });
+      }
+      if (mode === "manual" || mode === "retry") {
+        showToast("Lưu CV thành công!", "success");
+      }
+    },
+    onFailureFeedback: ({ mode, classifiedError, isValidation, field }) => {
+      const shouldFocusTitle =
+        classifiedError.isDuplicateTitle || (isValidation && field === "title");
+      if (shouldFocusTitle) {
+        setTitleError(classifiedError.userMessage);
+        if (mode === "manual" || mode === "retry") {
+          showToast(classifiedError.userMessage, "error");
+          window.requestAnimationFrame(() => {
+            titleInputRef.current?.focus();
+            if (classifiedError.isDuplicateTitle) {
+              titleInputRef.current?.select();
+            }
+          });
+        }
+        return;
+      }
+      if (mode === "manual" || mode === "retry") {
+        showToast(classifiedError.userMessage, "error");
+      }
+    },
+  });
+
+  const isDirty = saveState.isDirty;
+  const isSaving = saveState.isManualSaving;
+  const lastSaved = saveState.lastSavedAt;
+
+  const applyResume = useCallback(
+    (data) => {
+      const normalized = normalizeResume(data);
+      resetResume(normalized);
+      return normalized;
+    },
+    [resetResume],
   );
-  const isDirty =
-    savedSignature !== null && currentSignature !== savedSignature;
 
-  const applyResume = useCallback((data) => {
-    const normalized = normalizeResume(data);
-    resetResume(normalized);
-    return normalized;
-  }, [resetResume]);
+  // Sync validation or duplicate-title error from coordinator cleanly
+  useEffect(() => {
+    const err = saveState.lastError;
+    if (
+      saveState.status === "failed" &&
+      err &&
+      (err.isDuplicateTitle || err.kind === "validation")
+    ) {
+      setTitleError(err.userMessage);
+    } else {
+      setTitleError("");
+    }
+  }, [saveState.status, saveState.lastError]);
 
-  const historyDisabled = isLoadingResume || Boolean(loadError) || isSaving || isAiFillingResume;
+  const shouldBlockNavigation = useCallback(
+    ({ currentLocation, nextLocation }) => {
+      if (isLeavingRef.current) return false;
+      if (!/^\/resume(\/|$)/i.test(currentLocation.pathname)) return false;
+      if (!isCandidateAllowedRef.current) return false;
+      if (
+        pendingInternalRedirectRef.current &&
+        nextLocation.pathname === pendingInternalRedirectRef.current
+      ) {
+        return false;
+      }
+      const sameLocation =
+        currentLocation.pathname === nextLocation.pathname &&
+        currentLocation.search === nextLocation.search;
+      if (sameLocation) return false;
+      if (loadErrorRef.current) return false;
+      return getSaveSnapshot().hasUnsavedOrInFlightWork;
+    },
+    [getSaveSnapshot],
+  );
+
+  const blocker = useBlocker(shouldBlockNavigation);
+  const isBlockerOpen = blocker.state === "blocked";
+
+  useEffect(() => {
+    if (
+      pendingInternalRedirectRef.current &&
+      location.pathname === pendingInternalRedirectRef.current
+    ) {
+      pendingInternalRedirectRef.current = null;
+    }
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (blocker.state === "blocked" && !isCandidateAllowed) {
+      cancelPendingWork();
+      cancelAiFillSession();
+      resetReviewSession();
+      blocker.proceed();
+    }
+  }, [
+    blocker,
+    isCandidateAllowed,
+    cancelPendingWork,
+    cancelAiFillSession,
+    resetReviewSession,
+  ]);
+
+  // Keep coordinator context synchronized with loading, auth, AI fill, and leave modal
+  useEffect(() => {
+    setSaveContext({
+      accountId: currentUserId,
+      docId: _id,
+      loading: isLoadingResume,
+      loadError,
+      aiFilling: isAiModalOpen,
+      blockedPromptOpen: isBlockerOpen,
+    });
+  }, [
+    _id,
+    currentUserId,
+    isAiModalOpen,
+    isBlockerOpen,
+    isLoadingResume,
+    loadError,
+    setSaveContext,
+  ]);
+
+  // Sync draft edits to coordinator; no-op when unhydrated or matching saved snapshot
+  useEffect(() => {
+    syncDraft(resumeData);
+  }, [resumeData, syncDraft]);
+
+  const historyDisabled =
+    isLoadingResume ||
+    Boolean(loadError) ||
+    isSaving ||
+    isAiModalOpen ||
+    isReviewModalOpen;
   useEffect(() => {
     const handleHistoryKey = (event) => {
-      if (historyDisabled || !(event.ctrlKey || event.metaKey) || event.altKey ||
-        event.target.closest?.("input, textarea, [contenteditable], dialog, [role='dialog']")) return;
+      if (
+        historyDisabled ||
+        !(event.ctrlKey || event.metaKey) ||
+        event.altKey ||
+        event.target.closest?.(
+          "input, textarea, [contenteditable], dialog, [role='dialog']",
+        )
+      ) {
+        return;
+      }
       if (event.key.toLowerCase() === "z") {
         event.preventDefault();
-        if (event.shiftKey) redo(); else undo();
+        if (event.shiftKey) redo();
+        else undo();
       } else if (event.key.toLowerCase() === "y") {
-        event.preventDefault(); redo();
+        event.preventDefault();
+        redo();
       }
     };
     window.addEventListener("keydown", handleHistoryKey);
     return () => window.removeEventListener("keydown", handleHistoryKey);
   }, [historyDisabled, undo, redo]);
 
+  // Handle route/account transitions: reset cleanly when switching documents or returning to /resume
   useEffect(() => {
-    const nextId = routeResumeId || location.state?.cvId || null;
-    setId(nextId);
-  }, [routeResumeId, location.state?.cvId]);
+    const prev = prevRouteContextRef.current;
+    const isPromotedNewDoc =
+      Boolean(routeResumeKey) &&
+      loadedResumeRef.current.id === routeResumeKey &&
+      loadedResumeRef.current.userId === currentUserId;
+    const routeChanged = prev.routeId !== routeResumeKey;
+    const accountChanged =
+      prev.userId !== null && prev.userId !== currentUserId;
 
-  useEffect(() => {
-    if (!_id && savedSignature === null) {
-      setSavedSignature(currentSignature);
+    prevRouteContextRef.current = {
+      routeId: routeResumeKey,
+      userId: currentUserId,
+    };
+
+    if ((routeChanged || accountChanged) && !isPromotedNewDoc) {
+      isLeavingRef.current = false;
+      setPromotedDocId(null);
+      cancelPendingWork();
+      cancelAiFillSession();
+      resetReviewSession();
+      loadedResumeRef.current = { id: null, userId: null, attempt: -1 };
+      setTitleError("");
+      setLoadError("");
+      if (!routeResumeKey) {
+        const fresh = applyResume({
+          selectedTemplate: location.state?.template,
+        });
+        setIsLoadingResume(false);
+        hydrateClean({
+          accountId: currentUserId,
+          docId: null,
+          resumeData: fresh,
+        });
+      } else {
+        setIsLoadingResume(true);
+      }
+    } else if (routeResumeKey) {
+      setPromotedDocId((prevPromotedId) =>
+        prevPromotedId === routeResumeKey ? null : prevPromotedId
+      );
     }
-  }, [_id, currentSignature, savedSignature]);
+  }, [
+    applyResume,
+    cancelAiFillSession,
+    cancelPendingWork,
+    currentUserId,
+    hydrateClean,
+    location.state?.template,
+    resetReviewSession,
+    routeResumeKey,
+  ]);
+
+  const shouldWarnBeforeLeave =
+    saveState.hasUnsavedOrInFlightWork && !loadError && isCandidateAllowed;
 
   useEffect(() => {
-    if (!isDirty) return undefined;
+    if (!shouldWarnBeforeLeave) return undefined;
 
     const warnBeforeUnload = (event) => {
       event.preventDefault();
@@ -197,11 +550,14 @@ export default function CreateResume() {
 
     window.addEventListener("beforeunload", warnBeforeUnload);
     return () => window.removeEventListener("beforeunload", warnBeforeUnload);
-  }, [isDirty]);
+  }, [shouldWarnBeforeLeave]);
 
   useEffect(() => {
     if (!isAuthChecked) return undefined;
     if (!currentUser) {
+      cancelPendingWork();
+      cancelAiFillSession();
+      resetReviewSession();
       navigate("/login");
       return undefined;
     }
@@ -209,19 +565,34 @@ export default function CreateResume() {
     if (!_id) {
       setIsLoadingResume(false);
       setLoadError("");
+      if (!saveState.hydrated || saveState.accountId !== currentUserId) {
+        hydrateClean({
+          accountId: currentUserId,
+          docId: null,
+          resumeData: initialResume,
+        });
+      }
       return undefined;
     }
 
-    if (loadedResumeRef.current.id === _id && loadedResumeRef.current.attempt === loadAttempt) return undefined;
+    if (
+      loadedResumeRef.current.id === _id &&
+      loadedResumeRef.current.userId === currentUserId &&
+      loadedResumeRef.current.attempt === loadAttempt
+    ) {
+      return undefined;
+    }
 
     const controller = new AbortController();
+    const expectedId = _id;
+    const expectedAccount = currentUserId;
 
     const fetchResumeData = async () => {
       setIsLoadingResume(true);
       setLoadError("");
 
       try {
-        const response = await fetch(`/api/resume/${_id}`, {
+        const response = await fetch(`/api/resume/${expectedId}`, {
           credentials: "include",
           signal: controller.signal,
         });
@@ -231,11 +602,26 @@ export default function CreateResume() {
           throw new Error(data.message || "Không thể tải CV này.");
         }
 
+        if (
+          controller.signal.aborted ||
+          expectedAccount !== currentUserIdRef.current
+        ) {
+          return;
+        }
+
         const normalized = applyResume(data);
-        loadedResumeRef.current = { id: _id, attempt: loadAttempt };
-        setSavedSignature(JSON.stringify(normalized));
+        loadedResumeRef.current = {
+          id: expectedId,
+          userId: expectedAccount,
+          attempt: loadAttempt,
+        };
+        hydrateClean({
+          accountId: expectedAccount,
+          docId: expectedId,
+          resumeData: normalized,
+        });
       } catch (error) {
-        if (error.name === "AbortError") return;
+        if (error.name === "AbortError" || controller.signal.aborted) return;
         console.error("Lỗi khi tải CV:", error);
         setLoadError(error.message || "Không thể tải CV này.");
         showToast(error.message || "Không thể tải CV này.", "error");
@@ -249,230 +635,527 @@ export default function CreateResume() {
   }, [
     _id,
     applyResume,
+    cancelAiFillSession,
+    cancelPendingWork,
     currentUser,
+    currentUserId,
+    hydrateClean,
+    initialResume,
     isAuthChecked,
     loadAttempt,
     navigate,
+    resetReviewSession,
+    saveState.accountId,
+    saveState.hydrated,
   ]);
 
-  const handleAiFillResume = async (requestedRole = "") => {
-    const requestedTargetRole =
-      typeof requestedRole === "string" ? requestedRole.trim() : "";
-    const accountExperience = mapAccountExperience(currentUser?.experiences);
-    const accountEducation = mapAccountEducation(currentUser?.educations);
-    const sourceExperience =
-      experience.length > 0 ? experience : accountExperience;
-    const sourceEducation = education.length > 0 ? education : accountEducation;
-    const accountLocation =
-      currentUser?.address ||
-      [currentUser?.hometown, currentUser?.country].filter(Boolean).join(", ");
-    const latestAccountRole =
-      sourceExperience.find((item) => item.title?.trim())?.title || "";
-    const mergedPersonalInfo = {
-      ...personalInfo,
-      fullName:
-        personalInfo.fullName ||
-        currentUser?.fullName ||
-        currentUser?.username ||
-        "",
-      email: personalInfo.email || currentUser?.email || "",
-      phone: personalInfo.phone || currentUser?.phoneNumber || "",
-      location: personalInfo.location || accountLocation || "",
-      jobTitle:
-        personalInfo.jobTitle || latestAccountRole || requestedTargetRole,
-    };
-    const hasCareerContext =
-      Boolean(mergedPersonalInfo.jobTitle?.trim()) ||
-      Boolean(bio.trim()) ||
-      sourceExperience.length > 0 ||
-      sourceEducation.length > 0 ||
-      skill.length > 0 ||
-      project.length > 0 ||
-      certificate.length > 0;
+  useEffect(() => {
+    if (isAuthChecked && (!isCandidateAllowed || loadError)) {
+      cancelAiFillSession();
+      resetReviewSession();
+    }
+  }, [
+    cancelAiFillSession,
+    isAuthChecked,
+    isCandidateAllowed,
+    loadError,
+    resetReviewSession,
+  ]);
 
-    if (!hasCareerContext) {
-      updateResume((current) => ({ ...current, personalInfo: mergedPersonalInfo }));
-      setAiTargetRole("");
-      setIsAiFillPromptOpen(true);
+  const handleAiFillResume = useCallback(async (requestedRole = "") => {
+    if (!isCandidateAllowedRef.current || loadErrorRef.current) {
       return;
     }
 
-    setIsAiFillPromptOpen(false);
-    setIsAiFillingResume(true);
+    const latestResume = resumeDataRef.current;
+    const latestUser = currentUserRef.current;
+    const roleInput = typeof requestedRole === "string" ? requestedRole : "";
+    const basePrepared = prepareAiFillInput({
+      resumeData: latestResume,
+      currentUser: latestUser,
+      requestedTargetRole: "",
+    });
+    const prepared = prepareAiFillInput({
+      resumeData: latestResume,
+      currentUser: latestUser,
+      requestedTargetRole: roleInput,
+    });
+
+    if (!prepared.hasCareerContext) {
+      aiGenerationRef.current += 1;
+      if (aiAbortControllerRef.current) {
+        aiAbortControllerRef.current.abort();
+        aiAbortControllerRef.current = null;
+      }
+      setAiSession({
+        ...INITIAL_AI_FILL_SESSION,
+        open: true,
+        step: "prompt",
+        targetRole: roleInput,
+        hasCareerContext: false,
+      });
+      return;
+    }
+
+    const generation = ++aiGenerationRef.current;
+    if (aiAbortControllerRef.current) {
+      aiAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    aiAbortControllerRef.current = controller;
+
+    const startUserId = currentUserIdRef.current;
+    const startRouteKey = routeResumeKeyRef.current;
+    const startDocId = docIdRef.current;
+
+    setAiSession({
+      ...INITIAL_AI_FILL_SESSION,
+      open: true,
+      step: "loading",
+      targetRole: roleInput,
+      hasCareerContext: basePrepared.hasCareerContext,
+    });
+
+    const isRequestStillValid = () =>
+      aiMountedRef.current &&
+      aiGenerationRef.current === generation &&
+      !controller.signal.aborted &&
+      currentUserIdRef.current === startUserId &&
+      routeResumeKeyRef.current === startRouteKey &&
+      docIdRef.current === startDocId &&
+      isCandidateAllowedRef.current;
+
     try {
       const data = await requestAi("/resume/fill", {
-        resumeContext: {
-          personalInfo: mergedPersonalInfo,
-          bio,
-          experience: sourceExperience,
-          education: sourceEducation,
-          skill,
-          language,
-          certificate,
-          project,
-          award,
-          hobby,
-          profile,
-        },
+        resumeContext: prepared.resumeContext,
+      }, { signal: controller.signal, requireResultObject: true });
+      if (!isRequestStillValid()) return;
+
+      const generated = data?.result || {};
+      const { proposals } = buildAiFillProposals({
+        resumeData: resumeDataRef.current,
+        currentUser: currentUserRef.current,
+        requestedTargetRole: prepared.requestedRoleClean,
+        generatedResult: generated,
       });
-      const generated = data.result || {};
-      const targetRole =
-        mergedPersonalInfo.jobTitle || generated.targetRole?.trim() || "";
+      if (!isRequestStillValid()) return;
 
-      updateResume((current) => ({
-        ...current,
-        personalInfo: Object.fromEntries(Object.keys(mergedPersonalInfo).map((key) => [
-          key, current.personalInfo[key] || (key === "jobTitle" ? targetRole : mergedPersonalInfo[key]),
-        ])),
-        bio: current.bio.trim() ? current.bio : generated.bio?.trim() || current.bio,
-        skill: mergeAiSkills(current.skill, generated.skills),
-        experience: mergeAiSection(current.experience.length ? current.experience : sourceExperience,
-          generated.experiences, ["title", "company", "location", "startDate", "endDate", "description"], "experience"),
-        education: mergeAiSection(current.education.length ? current.education : sourceEducation,
-          generated.education, ["title", "major", "company", "location", "startDate", "endDate", "score", "description"], "education"),
-        language: mergeAiSection(current.language, generated.languages, ["title", "description"], "language"),
-        certificate: mergeAiSection(current.certificate, generated.certificates, ["title", "date", "publisher", "description"], "certificate"),
-        project: mergeAiSection(current.project, generated.projects, ["title", "company", "location", "startDate", "endDate", "date", "link", "description"], "project"),
-        award: mergeAiSection(current.award, generated.awards, ["title", "awarder", "date", "description"], "award"),
-        hobby: mergeAiSection(current.hobby, generated.hobbies, ["title"], "hobby"),
-        title: current.title === DEFAULT_TITLE && targetRole ? `CV ${targetRole}` : current.title,
+      const defaultSelectedIds = proposals
+        .filter((item) => item.defaultSelected)
+        .map((item) => item.id);
+
+      setAiSession((prev) => ({
+        ...prev,
+        open: true,
+        step: proposals.length > 0 ? "preview" : "empty",
+        proposals,
+        selectedIds: defaultSelectedIds,
+        conflicts: [],
+        errorMessage: "",
       }));
+    } catch (error) {
+      if (!isRequestStillValid() || error?.name === "AbortError") {
+        return;
+      }
+      setAiSession((prev) => ({
+        ...prev,
+        open: true,
+        step: "error",
+        errorMessage: error?.message || "Không thể xử lý yêu cầu AI lúc này.",
+      }));
+    } finally {
+      if (aiAbortControllerRef.current === controller) {
+        aiAbortControllerRef.current = null;
+      }
+    }
+  }, []);
 
+  const handleSubmitAiRole = useCallback(
+    (roleValue) => {
+      const cleanRole = cleanGeneratedText(roleValue, 160);
+      if (!cleanRole) {
+        setAiSession((prev) => ({
+          ...prev,
+          roleValidationError: "Hãy nhập vị trí mong muốn.",
+        }));
+        showToast("Hãy nhập vị trí mong muốn.", "error");
+        return;
+      }
+      void handleAiFillResume(cleanRole);
+    },
+    [handleAiFillResume],
+  );
+
+  const handleToggleAiProposal = useCallback((proposalId) => {
+    setAiSession((prev) => {
+      const next = new Set(prev.selectedIds);
+      if (next.has(proposalId)) {
+        next.delete(proposalId);
+      } else {
+        next.add(proposalId);
+      }
+      return { ...prev, selectedIds: Array.from(next), conflicts: [] };
+    });
+  }, []);
+
+  const handleSelectSafeDefaults = useCallback(() => {
+    setAiSession((prev) => ({
+      ...prev,
+      selectedIds: prev.proposals
+        .filter((item) => item.defaultSelected)
+        .map((item) => item.id),
+      conflicts: [],
+    }));
+  }, []);
+
+  const handleSelectAllProposals = useCallback(() => {
+    setAiSession((prev) => ({
+      ...prev,
+      selectedIds: prev.proposals.map((item) => item.id),
+      conflicts: [],
+    }));
+  }, []);
+
+  const handleDeselectAllProposals = useCallback(() => {
+    setAiSession((prev) => ({
+      ...prev,
+      selectedIds: [],
+      conflicts: [],
+    }));
+  }, []);
+
+  const handleConfirmAiProposals = useCallback(() => {
+    const proposalsSnapshot = aiSession.proposals;
+    const selectedSnapshot = new Set(aiSession.selectedIds);
+    const outcome = applySelectedAiProposals(
+      resumeDataRef.current,
+      proposalsSnapshot,
+      selectedSnapshot,
+    );
+
+    if (!outcome.changed) {
+      if (outcome.conflicts.length > 0) {
+        setAiSession((prev) => ({
+          ...prev,
+          conflicts: outcome.conflicts,
+        }));
+        showToast(
+          "Dữ liệu CV đã thay đổi nên các mục đã chọn được giữ nguyên. Hãy tạo lại đề xuất mới.",
+          "error",
+        );
+      }
+      return;
+    }
+
+    updateResume((current) => {
+      const result = applySelectedAiProposals(
+        current,
+        proposalsSnapshot,
+        selectedSnapshot,
+      );
+      return result.changed ? result.nextResume : current;
+    });
+
+    cancelAiFillSession();
+    if (outcome.conflicts.length > 0) {
       showToast(
-        "AI đã điền các phần còn thiếu. Hãy kiểm tra nội dung trước khi lưu.",
+        `Đã áp dụng ${outcome.appliedCount} mục. ${outcome.conflicts.length} mục đã có nội dung mới nên được bỏ qua.`,
         "success",
       );
-    } catch (error) {
-      showToast(error.message, "error");
-    } finally {
-      setIsAiFillingResume(false);
-    }
-  };
-
-  const handleReviewResume = async () => {
-    const hasReviewableContent =
-      Boolean(personalInfo.jobTitle?.trim()) ||
-      Boolean(bio.trim()) ||
-      experience.length > 0 ||
-      education.length > 0 ||
-      skill.length > 0 ||
-      project.length > 0 ||
-      certificate.length > 0 || customSections.some((section) => section.items.length > 0);
-
-    if (!hasReviewableContent) {
+    } else {
       showToast(
-        "Hãy nhập tiểu sử, kỹ năng, kinh nghiệm hoặc học vấn trước khi review CV.",
-        "error",
+        `Đã áp dụng ${outcome.appliedCount} đề xuất vào CV. Hãy kiểm tra trước khi lưu.`,
+        "success",
       );
+    }
+  }, [
+    aiSession.proposals,
+    aiSession.selectedIds,
+    cancelAiFillSession,
+    updateResume,
+  ]);
+
+  const currentReviewSnapshotSignature = useMemo(
+    () => buildReviewSnapshotSignature(resumeData),
+    [resumeData],
+  );
+  const isReviewStale = Boolean(
+    reviewSession.result &&
+      reviewSession.snapshotSignature &&
+      currentReviewSnapshotSignature !== reviewSession.snapshotSignature,
+  );
+
+  const tryFocusEditorSection = useCallback((sectionKey) => {
+    if (typeof document === "undefined") return false;
+    const sectionEl = document.querySelector(
+      `[data-resume-section="${sectionKey}"]`,
+    );
+    if (!sectionEl) return false;
+
+    sectionEl.scrollIntoView({
+      behavior: "auto",
+      block: "start",
+      inline: "nearest",
+    });
+
+    if (
+      document.activeElement &&
+      sectionEl.contains(document.activeElement)
+    ) {
+      return true;
+    }
+
+    let focusTarget;
+    if (sectionKey === "personalInfo") {
+      focusTarget = sectionEl.querySelector("input, textarea, select");
+    } else if (sectionKey === "bio") {
+      focusTarget = sectionEl.querySelector('[contenteditable="true"]');
+    } else {
+      const items = sectionEl.querySelectorAll("[data-resume-section-item]");
+      if (items.length === 0) {
+        focusTarget = sectionEl.querySelector(
+          `[data-resume-add-button="${sectionKey}"]`,
+        );
+      } else {
+        focusTarget = sectionEl.querySelector(
+          `[data-resume-section-heading="${sectionKey}"]`,
+        );
+      }
+    }
+
+    const resolvedNode =
+      focusTarget ||
+      sectionEl.querySelector(`[data-resume-section-heading="${sectionKey}"]`) ||
+      sectionEl;
+    resolvedNode.focus?.({ preventScroll: true });
+    return Boolean(
+      document.activeElement && sectionEl.contains(document.activeElement),
+    );
+  }, []);
+
+  const executePendingReviewTarget = useCallback(() => {
+    const target = pendingReviewTargetRef.current;
+    if (!target || !aiMountedRef.current) return;
+    pendingReviewTargetRef.current = null;
+    clearReviewFocusTimers();
+
+    if (target.type === "layout_editor") {
+      const timerId = window.setTimeout(() => {
+        if (aiMountedRef.current) {
+          setIsLayoutEditorOpen(true);
+        }
+      }, 0);
+      reviewFocusTimersRef.current.push(timerId);
+      return;
+    }
+
+    if (target.type === "editor_section" && target.sectionKey) {
+      setHighlightedSectionKey(target.sectionKey);
+      highlightTimerRef.current = window.setTimeout(() => {
+        if (aiMountedRef.current) {
+          setHighlightedSectionKey((prev) =>
+            prev === target.sectionKey ? null : prev,
+          );
+        }
+      }, 2400);
+
+      window.requestAnimationFrame(() => {
+        if (!aiMountedRef.current) return;
+        tryFocusEditorSection(target.sectionKey);
+        const settleId = window.setTimeout(() => {
+          if (aiMountedRef.current) {
+            tryFocusEditorSection(target.sectionKey);
+          }
+        }, 230);
+        reviewFocusTimersRef.current.push(settleId);
+      });
+    }
+  }, [clearReviewFocusTimers, tryFocusEditorSection]);
+
+  const handleReviewResume = useCallback(async () => {
+    if (!isCandidateAllowedRef.current || loadErrorRef.current) {
       return false;
     }
 
-    setIsReviewingResume(true);
+    const latestResume = resumeDataRef.current;
+    if (!hasReviewableResumeContent(latestResume)) {
+      const message =
+        "Hãy nhập tiểu sử, kỹ năng, kinh nghiệm hoặc học vấn trước khi review CV.";
+      showToast(message, "error");
+      if (reviewSessionRef.current?.open) {
+        setReviewSession((prev) => ({
+          ...prev,
+          open: true,
+          step: "error",
+          errorMessage: message,
+        }));
+      }
+      return false;
+    }
+
+    const generation = ++reviewGenerationRef.current;
+    if (reviewAbortControllerRef.current) {
+      reviewAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    reviewAbortControllerRef.current = controller;
+
+    const startUserId = currentUserIdRef.current;
+    const startRouteKey = routeResumeKeyRef.current;
+    const startDocId = docIdRef.current;
+    const snapshotSignature = buildReviewSnapshotSignature(latestResume);
+
+    setReviewSession((prev) => ({
+      ...prev,
+      open: true,
+      step: "loading",
+      errorMessage: "",
+    }));
+
+    const isRequestStillValid = () =>
+      aiMountedRef.current &&
+      reviewGenerationRef.current === generation &&
+      !controller.signal.aborted &&
+      currentUserIdRef.current === startUserId &&
+      routeResumeKeyRef.current === startRouteKey &&
+      docIdRef.current === startDocId &&
+      isCandidateAllowedRef.current &&
+      !loadErrorRef.current;
+
     try {
       const data = await requestAi("/resume/review", {
-        resumeId: _id || undefined,
+        resumeId: startDocId || undefined,
         resumeContext: {
-          title,
-          personalInfo,
-          bio,
-          profile,
-          experience,
-          education,
-          skill,
-          language,
-          certificate,
-          project,
-          award,
-          hobby,
-          selectedTemplate,
-          customSections,
+          title: latestResume.title,
+          personalInfo: latestResume.personalInfo,
+          bio: latestResume.bio,
+          profile: latestResume.profile,
+          experience: latestResume.experience,
+          education: latestResume.education,
+          skill: latestResume.skill,
+          language: latestResume.language,
+          certificate: latestResume.certificate,
+          project: latestResume.project,
+          award: latestResume.award,
+          hobby: latestResume.hobby,
+          selectedTemplate: latestResume.selectedTemplate,
+          customSections: latestResume.customSections,
         },
+      }, { signal: controller.signal });
+      if (!isRequestStillValid()) return false;
+
+      const validatedResult = validateAndNormalizeReviewResult(data?.result);
+      if (!isRequestStillValid()) return false;
+
+      setReviewSession({
+        open: true,
+        step: "result",
+        result: validatedResult,
+        errorMessage: "",
+        snapshotSignature,
+        docId: startDocId,
+        accountId: startUserId,
       });
-      setResumeReview(data.result);
       return true;
     } catch (error) {
-      showToast(error.message, "error");
+      if (!isRequestStillValid() || error?.name === "AbortError") {
+        return false;
+      }
+      setReviewSession((prev) => ({
+        ...prev,
+        open: true,
+        step: "error",
+        errorMessage:
+          error?.message || "Không thể review CV lúc này. Vui lòng thử lại.",
+      }));
       return false;
     } finally {
-      setIsReviewingResume(false);
-    }
-  };
-
-  const handleSave = async () => {
-    const cleanTitle = title.trim();
-    if (!cleanTitle) {
-      const message = "Vui lòng nhập tên CV.";
-      setTitleError(message);
-      showToast(message, "error");
-      titleInputRef.current?.focus();
-      return;
-    }
-
-    if (isSaving || isAiFillingResume || isLoadingResume || loadError) return;
-
-    setTitleError("");
-    setIsSaving(true);
-    try {
-      const payload = { ...resumeData, title: cleanTitle };
-      if (_id) payload._id = _id;
-
-      const response = await fetch("/api/resume", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(payload),
-      });
-      const responseData = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        const error = new Error(responseData.message || "Lỗi khi lưu CV.");
-        error.code = responseData.code;
-        throw error;
+      if (reviewAbortControllerRef.current === controller) {
+        reviewAbortControllerRef.current = null;
       }
-
-      const savedResume = normalizeResume(payload);
-      const savedId = responseData.resume?._id || _id;
-      loadedResumeRef.current = { id: savedId, attempt: loadAttempt };
-      updateResume((current) => current.title === title ? { ...current, title: cleanTitle } : current);
-      setSavedSignature(JSON.stringify(savedResume));
-      setLastSaved(new Date());
-
-      if (savedId && savedId !== _id) {
-        setId(savedId);
-        navigate(`/resume/${savedId}`, { replace: true });
-      }
-
-      showToast("Lưu CV thành công!", "success");
-    } catch (error) {
-      const isDuplicateTitle =
-        error.code === "DUPLICATE_RESUME_TITLE" ||
-        error.message?.toLowerCase().includes("tên cv này đã tồn tại") ||
-        error.message?.toLowerCase().includes("ten cv nay da ton tai");
-      const message = isDuplicateTitle
-        ? "Tên CV này đã tồn tại. Hãy đổi sang tên khác hoặc mở CV cũ để chỉnh sửa."
-        : error.message || "Không thể kết nối đến server!";
-
-      if (isDuplicateTitle) {
-        setTitleError(message);
-        window.requestAnimationFrame(() => {
-          titleInputRef.current?.focus();
-          titleInputRef.current?.select();
-        });
-      }
-
-      showToast(message, "error");
-    } finally {
-      setIsSaving(false);
     }
-  };
+  }, []);
 
-  const handleBack = async () => {
+  const handleOpenReviewModal = useCallback(() => {
+    if (!isCandidateAllowedRef.current || loadErrorRef.current) return;
+    const current = reviewSessionRef.current;
     if (
-      isDirty &&
-      !(await confirmDialog("CV có thay đổi chưa lưu. Bạn vẫn muốn rời trang?"))
+      current.result &&
+      current.docId === docIdRef.current &&
+      current.accountId === currentUserIdRef.current
     ) {
+      setReviewSession((prev) => ({
+        ...prev,
+        open: true,
+        step: "result",
+        errorMessage: "",
+      }));
       return;
     }
+    void handleReviewResume();
+  }, [handleReviewResume]);
+
+  const handleCloseReviewModal = useCallback(() => {
+    cancelReviewRequest();
+    setReviewSession((prev) => {
+      const hasValidCache =
+        Boolean(prev.result) &&
+        prev.docId === docIdRef.current &&
+        prev.accountId === currentUserIdRef.current;
+      return hasValidCache
+        ? { ...prev, open: false, step: "result", errorMessage: "" }
+        : INITIAL_REVIEW_SESSION;
+    });
+  }, [cancelReviewRequest]);
+
+  const handleRestoreCachedReview = useCallback(() => {
+    setReviewSession((prev) =>
+      prev.result
+        ? { ...prev, open: true, step: "result", errorMessage: "" }
+        : prev,
+    );
+  }, []);
+
+  const handleJumpToReviewTarget = useCallback(
+    (target) => {
+      if (!target) return;
+      pendingReviewTargetRef.current = target;
+      if (target.type === "editor_section") {
+        setShowForm(true);
+        if (typeof window !== "undefined" && window.innerWidth < 1024) {
+          setShowTemplates(false);
+        }
+      }
+      setReviewSession((prev) => ({
+        ...prev,
+        open: false,
+        errorMessage: "",
+      }));
+      const fallbackTimer = window.setTimeout(() => {
+        if (pendingReviewTargetRef.current) {
+          executePendingReviewTarget();
+        }
+      }, 60);
+      reviewFocusTimersRef.current.push(fallbackTimer);
+    },
+    [executePendingReviewTarget],
+  );
+
+  const handleReviewDialogCloseAutoFocus = useCallback(
+    (event) => {
+      if (pendingReviewTargetRef.current) {
+        event?.preventDefault?.();
+        executePendingReviewTarget();
+      }
+    },
+    [executePendingReviewTarget],
+  );
+
+  const handleSave = () => {
+    void triggerManualSave();
+  };
+
+  const handleBack = () => {
     navigate("/ResumeSelection");
   };
 
@@ -498,6 +1181,11 @@ export default function CreateResume() {
       })
     : null;
 
+  const draftValidation = useMemo(
+    () => validateResumeDraftForSave(resumeData, TEMPLATE_NAMES),
+    [resumeData],
+  );
+
   if (!isAuthChecked) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[var(--page-background)] font-sans">
@@ -519,7 +1207,7 @@ export default function CreateResume() {
           <button type="button" onClick={redo} disabled={!canRedo || historyDisabled} aria-label="Làm lại CV" title="Làm lại CV (Ctrl+Shift+Z)" className="grid h-8 w-8 place-items-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"><ArrowUturnRightIcon className="h-4 w-4" /></button>
           <button type="button" onClick={() => setIsLayoutEditorOpen(true)} disabled={historyDisabled} aria-label="Chỉnh bố cục CV" title="Chỉnh bố cục CV" className="grid h-8 w-8 place-items-center rounded-md border border-slate-200 text-slate-600 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40"><Squares2X2Icon className="h-4 w-4" /></button>
         </div>
-        <div className="flex min-w-0 w-full items-center gap-2 sm:w-auto sm:flex-1">
+        <div className="flex min-w-0 w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-1 sm:flex-nowrap">
           <fieldset className="flex shrink-0 items-center gap-2" disabled={historyDisabled}>
             <legend className="sr-only">Số trang A4</legend>
             <div className="flex rounded-md border border-slate-200 p-0.5">
@@ -569,15 +1257,75 @@ export default function CreateResume() {
             )}
           </div>
 
-          {isDirty ? (
-            <span className="hidden shrink-0 text-[10px] font-medium text-amber-600 md:inline">
-              Chưa lưu
-            </span>
-          ) : formattedTime ? (
-            <span className="hidden shrink-0 text-[10px] font-medium text-slate-400 md:inline">
-              Lưu lúc {formattedTime}
-            </span>
-          ) : null}
+          {!isLoadingResume && !loadError && (
+            <div
+              role="status"
+              aria-live="polite"
+              data-resume-save-status={saveState.status}
+              className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-medium"
+            >
+              {saveState.status === "saving" ? (
+                <span className="text-violet-600">
+                  {saveState.activeMode === "auto"
+                    ? "Đang tự động lưu..."
+                    : "Đang lưu..."}
+                </span>
+              ) : saveState.status === "retrying" ? (
+                <>
+                  <span className="text-amber-600">
+                    Lỗi tạm thời, đang thử lại...
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void triggerRetry()}
+                    className="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-100"
+                  >
+                    Thử lại
+                  </button>
+                </>
+              ) : saveState.status === "failed" ? (
+                <>
+                  <span
+                    title={saveState.lastError?.userMessage || ""}
+                    className="inline-flex items-center gap-1 text-red-600"
+                  >
+                    <ExclamationTriangleIcon className="h-3.5 w-3.5 shrink-0" />
+                    {saveState.lastError?.statusBadge || "Lưu thất bại"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void triggerRetry()}
+                    className="inline-flex items-center gap-1 rounded border border-red-300 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 transition hover:bg-red-100"
+                  >
+                    <ArrowPathIcon className="h-3 w-3" />
+                    Thử lại
+                  </button>
+                </>
+              ) : isDirty ? (
+                <span
+                  title={
+                    !draftValidation.isValid
+                      ? draftValidation.validationError
+                      : _id
+                        ? "Chưa lưu — sẽ tự động lưu sau khi dừng chỉnh sửa"
+                        : "Bản nháp mới — bấm Lưu CV để tạo"
+                  }
+                  className={
+                    !draftValidation.isValid ? "text-red-600" : "text-amber-600"
+                  }
+                >
+                  {!draftValidation.isValid && draftValidation.field === "title"
+                    ? "Thiếu tên CV"
+                    : "Chưa lưu"}
+                </span>
+              ) : formattedTime ? (
+                <span className="inline-flex items-center gap-1 text-emerald-700">
+                  <CheckCircleIcon className="h-3.5 w-3.5 shrink-0" />
+                  Đã lưu lúc {formattedTime}
+                </span>
+              ) : null}
+            </div>
+          )}
         </div>
 
         <div className="grid w-full grid-cols-5 items-center gap-1.5 sm:ml-auto sm:flex sm:w-auto">
@@ -620,7 +1368,7 @@ export default function CreateResume() {
           <button
             type="button"
             onClick={() => handleAiFillResume()}
-            disabled={isAiFillingResume}
+            disabled={isAiFillingResume || isLoadingResume || Boolean(loadError)}
             aria-label={isAiFillingResume ? "AI đang điền CV" : "AI điền CV"}
             title="Dùng AI điền các phần CV còn thiếu"
             className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-1 text-xs font-semibold text-violet-700 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60 sm:shrink-0 sm:px-2.5"
@@ -678,84 +1426,70 @@ export default function CreateResume() {
         }}
         onReset={() => setters.layout(resetTemplateLayout(layout, selectedTemplate, customSections))} />
 
-      {isAiFillPromptOpen &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/45 p-4"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="ai-fill-dialog-title"
-          >
-            <form
-              className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-5 shadow-2xl"
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (!aiTargetRole.trim()) {
-                  showToast("Hãy nhập vị trí mong muốn.", "error");
-                  return;
-                }
-                handleAiFillResume(aiTargetRole);
-              }}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2
-                    id="ai-fill-dialog-title"
-                    className="text-lg font-bold text-slate-900"
-                  >
-                    AI điền CV
-                  </h2>
-                  <p className="mt-1 text-sm leading-5 text-slate-500">
-                    Nhập vị trí bạn muốn ứng tuyển để AI viết các phần CV còn
-                    thiếu.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsAiFillPromptOpen(false)}
-                  aria-label="Đóng"
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
-                >
-                  <XMarkIcon className="h-5 w-5" />
-                </button>
-              </div>
+      <ResumeAiFillDialog
+        open={aiSession.open}
+        step={aiSession.step}
+        targetRole={aiSession.targetRole}
+        onTargetRoleChange={(value) =>
+          setAiSession((prev) => ({
+            ...prev,
+            targetRole: value,
+            roleValidationError: "",
+          }))
+        }
+        roleValidationError={aiSession.roleValidationError}
+        errorMessage={aiSession.errorMessage}
+        hasCareerContext={aiSession.hasCareerContext}
+        proposals={aiSession.proposals}
+        selectedIds={aiSession.selectedIds}
+        conflicts={aiSession.conflicts}
+        onToggleProposal={handleToggleAiProposal}
+        onSelectSafeDefaults={handleSelectSafeDefaults}
+        onSelectAllProposals={handleSelectAllProposals}
+        onDeselectAllProposals={handleDeselectAllProposals}
+        onSubmitRole={handleSubmitAiRole}
+        onRetry={() => handleAiFillResume(aiSession.targetRole)}
+        onEditRole={() =>
+          setAiSession((prev) => ({
+            ...prev,
+            step: "prompt",
+            errorMessage: "",
+            roleValidationError: "",
+          }))
+        }
+        onRefreshPreview={() => handleAiFillResume(aiSession.targetRole)}
+        onConfirmApply={handleConfirmAiProposals}
+        onCancel={cancelAiFillSession}
+      />
 
-              <label
-                htmlFor="ai-target-role"
-                className="mt-5 block text-sm font-semibold text-slate-700"
-              >
-                Vị trí mong muốn
-              </label>
-              <input
-                id="ai-target-role"
-                autoFocus
-                value={aiTargetRole}
-                onChange={(event) => setAiTargetRole(event.target.value)}
-                placeholder="Ví dụ: Frontend Developer"
-                className="mt-2 h-11 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
-              />
+      {saveState.status === "failed" && saveState.lastError && !titleError && (
+        <div
+          role="alert"
+          data-resume-save-error
+          className="z-20 flex items-center gap-1.5 border-b border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 sm:px-4"
+        >
+          <ExclamationTriangleIcon className="h-4 w-4 shrink-0" />
+          <span>{saveState.lastError.userMessage}</span>
+        </div>
+      )}
 
-              <div className="mt-6 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAiFillPromptOpen(false)}
-                  className="h-10 rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="inline-flex h-10 items-center gap-2 rounded-md bg-violet-600 px-4 text-sm font-bold text-white transition hover:bg-violet-700"
-                >
-                  <SparklesIcon className="h-4 w-4" />
-                  Bắt đầu điền
-                </button>
-              </div>
-            </form>
-          </div>,
-          document.body,
-        )}
+      {isBlockerOpen && (
+        <ConfirmPopUp
+          message={
+            saveState.isSaving
+              ? "CV đang được lưu. Nếu rời trang ngay bây giờ, thay đổi mới có thể chưa hoàn tất. Bạn vẫn muốn rời trang?"
+              : "CV có thay đổi chưa lưu. Bạn vẫn muốn rời trang?"
+          }
+          confirm={() => {
+            isLeavingRef.current = true;
+            cancelPendingWork();
+            blocker.proceed();
+          }}
+          cancel={() => {
+            blocker.reset();
+          }}
+        />
+      )}
 
       <div className="relative flex flex-1 overflow-hidden">
         {showForm && (
@@ -811,9 +1545,15 @@ export default function CreateResume() {
               setHobby={setHobby}
               customSections={customSections}
               setCustomSections={setCustomSections}
-              onReviewResume={handleReviewResume}
-              isReviewingResume={isReviewingResume}
-              resumeReview={resumeReview}
+              onOpenReviewModal={handleOpenReviewModal}
+              onTriggerReview={handleReviewResume}
+              onCloseReviewModal={handleCloseReviewModal}
+              onRestoreCachedReview={handleRestoreCachedReview}
+              onJumpToReviewTarget={handleJumpToReviewTarget}
+              onReviewDialogCloseAutoFocus={handleReviewDialogCloseAutoFocus}
+              reviewSession={reviewSession}
+              isReviewStale={isReviewStale}
+              highlightedSectionKey={highlightedSectionKey}
             />
           </div>
         </aside>

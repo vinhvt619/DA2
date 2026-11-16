@@ -56,6 +56,8 @@ test("CV editor and library expose PDF download actions backed by shared print h
   assert.match(printHook, /useReactToPrint/);
   assert.doesNotMatch(editor, /window\.print\(\)/);
   assert.doesNotMatch(library, /window\.print\(\)/);
+  assert.match(printHook, /paginationReady/);
+  assert.match(printHook, /fitReady/);
 });
 
 test("uploaded PDF resumes render as clean A4 pages without a native iframe viewer", async () => {

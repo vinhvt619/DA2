@@ -80,6 +80,7 @@ Kết quả build đáng chú ý:
 | CV library | Có thể dùng | Đổi tên, xóa, chọn mẫu và mở editor cần cùng một mutation/cache contract |
 | CV editor | Nhiều chức năng | State quá lớn; chưa có autosave/dirty state hoàn chỉnh; AI và dialog chen nhiều logic vào form |
 | CV preview/PDF | Có thể dùng | Sáu template lặp markup; chunk lớn; rich text render không qua một renderer chung |
+| Nhập CV từ PDF & OCR (BL-07B) | Đã nghiệm thu xác minh cục bộ | Pipeline phân tầng cục bộ: Tier 1 direct text (pdfjs-dist) + Tier 2 OCR (tesseract.js 7.0.0 LSTM WASM vie+eng) same-origin, worker CSP có wasm-unsafe-eval, preview đối chiếu, chống race và duplicate title. Đã nghiệm thu cục bộ 10/11/2026 (live DB/Vercel deploy chưa xác minh). |
 | AI viết tiểu sử | Có thể dùng | Cần preview thay đổi, undo và lỗi/retry nhất quán |
 | AI điền CV | Có thể dùng | Cần cho người dùng chọn mục nào được điền, chỉ điền phần thiếu và xem trước trước khi áp dụng |
 | AI review toàn bộ CV | Có thể dùng | Cần liên kết từng gợi ý với đúng section và cho áp dụng/chỉnh sửa từng ý |
@@ -179,6 +180,7 @@ Tiêu chí hoàn thành:
 - Chặn rời trang hoặc đổi CV khi có thay đổi chưa lưu.
 - Khi save lỗi, dữ liệu trên màn hình vẫn còn và có nút thử lại.
 - Selected template phải được lưu cùng CV.
+- *Ghi chú tiến độ BL-08 (11/2026):* Đã triển khai trước lớp điều phối độc lập (`src/utils/resumeSavePolicy.js`, `src/utils/resumeSaveCoordinator.js`, `src/hooks/useResumeAutosave.js`, `src/Pages/Resume.jsx`, Data Router `createBrowserRouter` + `useBlocker` trong `src/Pages/App.jsx`) cho debounced autosave `1.200 ms` (chỉ sau khi có `_id`), single-flight/coalescing, retry có giới hạn, `DUPLICATE_RESUME_TITLE`, `ConfirmPopUp` + `beforeunload` và kiểm thử (`test/resumeAutosave.test.js`, `e2e/cv-editing.spec.js`), trong khi việc tách lớn sang React Hook Form vẫn giữ ở bước sau.
 
 #### Section và rich text
 
@@ -218,17 +220,42 @@ Tiêu chí hoàn thành:
 - Editor, preview, view resume và PDF hiển thị rich text nhất quán.
 - Route Resume không còn chunk trên 500 kB trước gzip.
 
-### 5.3. Việc làm và tìm kiếm
+#### Nhập CV từ PDF & Mô-đun OCR cục bộ (BL-07B - Đã nghiệm thu xác minh cục bộ 10/11/2026, Job `2883e33f-fc35-4a9c-b6ef-3dff4ebc0272`)
 
-- Bỏ việc ghép `dbJobs` với `src/data/jobsData.js` trong runtime.
-- Chuyển job mẫu cần giữ thành script seed development idempotent.
-- API `/api/jobs` hỗ trợ `q`, location, type, workModel, experience, salary, sort và pagination.
-- Đồng bộ filter vào query string để refresh/back/share URL không mất trạng thái.
-- Debounce ô tìm kiếm khoảng 250-350 ms và hủy request cũ bằng AbortSignal.
-- Giữ dữ liệu trang trước khi tải trang mới để tránh giao diện nhấp nháy.
-- Job card có chiều cao ổn định; skeleton cùng kích thước card thật.
-- Saved job dùng optimistic update và rollback khi API lỗi.
-- Job detail lấy related jobs bằng query riêng có limit, không tải toàn bộ jobs.
+- Pipeline trích xuất 2 tầng cục bộ trên trình duyệt người dùng:
+  - **Tầng 1 (Direct PDF Text):** Dùng `pdfjs-dist@6.2.108` trích xuất văn bản số trực tiếp, tự động dựng lại thứ tự đọc 1 cột / 2 cột theo tọa độ (chia cột tại X = 50%, 64%, 66%, 34%), loại bỏ lớp chữ watermark/số trang ("Page 2 of 2").
+  - **Tầng 2 (Local OCR Engine):** Tự động kích hoạt `tesseract.js@7.0.0` (LSTM WASM `tesseract.js-core@7.0.0` + `@tesseract.js-data/vie` & `eng` `4.0.0_best_int`, Apache-2.0) cho các trang quét ảnh hoặc thiếu văn bản. Toàn bộ asset phục vụ cùng nguồn `/ocr/*` (`workerBlobURL: false`, `cacheMethod: "none"`), không gửi PII ra ngoài.
+  - **Chính sách CSP sản xuất (Production CSP):** Được định tuyến riêng trong `vercel.json`: cấu hình worker-scoped CSP `script-src 'self' 'wasm-unsafe-eval'` hẹp chỉ dành cho `/ocr/(.*)`, trong khi toàn bộ document và trang web `/((?!ocr/).*)` được bảo vệ nghiêm ngặt với `script-src 'self'` (không eval, không wasm-unsafe-eval). Đã kiểm thử hồi quy trên asset production thực tế.
+- Ngân sách an toàn: Giới hạn $\le 5\text{ MB}$ (kiểm tra metadata trước khi đọc buffer vào bộ nhớ), $\le 3$ trang A4, từ chối file mã hóa (`/Encrypt`), trần kích thước render $\le 1.800\text{ px}$ cạnh dài, $\le 2.400.000\text{ pixel/trang}$, $\le 6.600.000\text{ pixel}$ tổng tài liệu, timeout 30s init / 60s page / 120s total. Toàn bộ các bước chờ (pdfLoader, getPage, getTextContent, rasterizePage, ocrWorker) đều được chặn trần bởi deadline tổng.
+- Quản lý vòng đời tác vụ & chống Race Condition:
+  - `createCvOcrJobManager` dùng `requestId` đơn điệu tăng để hủy stale async result, dọn dẹp worker, task và canvas khi modal đóng hoặc đổi tài khoản. Khử cả stale failure và stale success.
+  - Theo dõi việc khởi tạo bất đồng bộ của cả PDF loading task và OCR worker: đảm bảo tác vụ trễ hoàn thành sau timeout hoặc cancel được hủy triệt để (`task.destroy()`, `worker.terminate()`) đúng một lần, dọn dẹp giải phóng tài nguyên an toàn không gây nghẽn deadline hoặc rò rỉ unhandledRejection.
+  - Chống race condition đọc file chồng lấn: tăng thế hệ file và hủy tác vụ cũ ngay khi chọn file mới trước khi xác thực metadata (bảo vệ trường hợp File A chậm bị File B không hợp lệ hoặc File B nhanh thay thế).
+  - Bảo vệ lưu CV và điều hướng SPA: hủy AbortController và chặn cập nhật/điều hướng nếu modal đóng hoặc chuyển trang SPA trước khi API phản hồi.
+- Giao diện đối chiếu: Khung xem văn bản gốc (`data-ocr-raw-text`) đặt cạnh form đã phân mục, huy hiệu nguồn theo trang (`data-ocr-page-source="text"|"ocr"`), cảnh báo uncertain fields / unmapped lines, bảo lưu dữ liệu sửa đổi khi trùng tên (`400 DUPLICATE_RESUME_TITLE`) và chống gửi đúp (double-click lock).
+- Số liệu benchmark thực tế:
+  - Trích xuất văn bản trực tiếp (Tier 1): ~200 - 280 ms, 0 trang OCR.
+  - OCR nhận diện ảnh quét (Tier 2): Khởi tạo ~396 ms, nhận diện ~2.000 - 2.400 ms, chỉ số tin cậy từ engine Tesseract ~89% (chỉ số heuristic nội tại của engine Tesseract LSTM, không phải tỷ lệ đo lường độ chính xác ký tự theo ground truth/CER).
+  - Tài liệu lai 2 trang: Trang 1 dùng text, Trang 2 dùng OCR; tổng thời gian trong Playwright Chrome ~37s, trong Node.js ~3s.
+- Lưu ý về trang lai (Hybrid Page Limitation Note): Nếu trang có lớp văn bản số đạt chuẩn chất lượng (`meaningfulCharCount >= 80`, đủ từ vựng và tín hiệu CV), hệ thống ưu tiên text gốc và không chạy OCR ảnh đối với hình vẽ/ảnh chèn tĩnh trong trang đó để tiết kiệm tài nguyên.
+### 5.3. Việc làm và tìm kiếm (Cập nhật vòng kiểm thử Revision Round 3)
+
+- Hợp đồng truy vấn & Bảo mật (`shared/jobQueryPolicy.js`):
+  - Xác thực nghiêm ngặt scalar string cho các tham số: `keyword` hoặc `q` (không dùng đồng thời), `location` (khớp canonical hoặc `LOCATION_ALIASES`), `category` (`VALID_CATEGORIES`), `workTypes` (chuỗi phân tách bằng dấu phẩy `<= 200` ký tự trước `.split(',')`, chỉ nhận `VALID_WORK_TYPES`), `sort` (`newest`, `salary`, `match`), `page` ($\ge 1$), `limit` ($1 \le \text{limit} \le 50$, mặc định 8), `companyId` (ObjectId 24 ký tự hex).
+  - Từ chối ngay lập tức (HTTP 400) tham số lạ, mảng/object, tham số scalar lặp lại hoặc giá trị không hợp lệ.
+  - Chuẩn hóa NFC và giữ nguyên dấu `+`, `.` khi thoát ký tự regex (`buildVietnameseRegexPattern`) để tìm kiếm đúng `C++`, `.NET` và tiếng Việt không dấu/có dấu; chia sẻ `parsePublicJobsSearchParams` với giao diện `/AllJobs` để báo lỗi URL chia sẻ không hợp lệ thay vì hiển thị danh sách sai lệch.
+- Bộ lọc công khai & Pipeline MongoDB (`server/services/publicJobsService.js`):
+  - Bảo toàn tuyệt đối `publicJobsFilter(now)` và ép kiểu `new mongoose.Types.ObjectId(companyId)` trực tiếp trong `$match` của `JobModel.aggregate(pipeline)` (loại bỏ đường dẫn fallback `find()`/JS sort).
+  - Lược bỏ `description`, `requirements`, `benefits` qua `$project` trong `$facet`, trả về `{ data: [...], meta: { page, limit, total, totalPages } }`.
+  - Chính sách chuẩn hóa lương VND (`sort=salary`): áp dụng văn phạm neo toàn chuỗi (`SALARY_MILLION_REGEX_SOURCE`, `SALARY_VND_REGEX_SOURCE`) dùng chung giữa `parseComparableVndSalary` và `$regexFind` + `$convert` (`onError: null`, thay thế `$regexFindAll`/`$toInt`). Chỉ nhận số tiền dương đơn hoặc dải tăng dần 2 đầu mút ($0 < \text{lo} \le \text{hi} \le 10$ tỷ VND) gắn trực tiếp đơn vị triệu/VND và hậu tố tháng tùy chọn (`/tháng`, `/month`, `/th`) vào `__salaryBucket: 1`; chuỗi kèm chú thích/giờ làm (`20 triệu/tháng (40 giờ/tuần)`), số âm/0 (`-20 triệu`, `0-20 triệu`), dải giảm dần hoặc vượt ngưỡng toàn phần (`50-30 triệu`, `20-999999 triệu`), dấu ngăn cách hỗn hợp (`10.000,500 VND`), chu kỳ khác tháng (`/năm`, `/tuần`, `/giờ`), ngoại tệ (USD...), thỏa thuận hay mơ hồ thiếu đơn vị đều rơi an toàn vào `__salaryBucket: 0` với tie-break `{ createdAt: -1, _id: -1 }`. Chế độ `sort=match` công khai sử dụng số lượng `tags` như heuristic sắp xếp.
+  - Khai báo compound index trên Mongoose `JobSchema` (`{ status, approvalStatus, deletedAt, isAdminHidden, createdAt: -1 }` và `{ companyId, createdAt: -1 }`).
+- Đồng bộ URL Canonical & Trạng thái tải (`src/Pages/AllJobs.jsx`, `src/Pages/Jobs.jsx`, `src/hooks/usePublicJobs.js`):
+  - `/AllJobs` dùng `useSearchParams()` làm nguồn sự thật duy nhất (không đọc `location.state.searchKeyword`). Khi URL có tham số không hợp lệ, hiển thị màn hình `role="alert"` có nút đặt lại bộ lọc mà không gọi API.
+  - Query key chuẩn tắc `['public-jobs', { keyword, location, category, workTypes, sort, page, limit, companyId }]` với `AbortSignal` hủy request cũ; `placeholderData` chỉ giữ kết quả cũ khi phân trang trên cùng bộ lọc/sort/limit/companyId, ẩn hoàn toàn card/số đếm cũ khi đổi bộ lọc; chỉ tự sửa trang vượt ngưỡng với `{ replace: true }` khi nhận phản hồi khớp request (`isMatchingSuccess`).
+  - `/Jobs` điều hướng SPA sang `/AllJobs` qua search params; gỡ bỏ polling 15s và giữ nguyên `limit=12` trên `PublicProfile.jsx` / `limit=8` trên `JobDetail.jsx`.
+- Bộ kiểm thử chất lượng:
+  - Unit & Aggregate Pipeline test (`test/publicJobs.test.js`): 6 bài kiểm tra dùng Express + bộ đánh giá aggregation pipeline in-memory (hỗ trợ `$regexFind`, `$arrayElemAt`, `$convert`) kiểm tra BSON `ObjectId` (và `Job.aggregate(...).pipeline()`), literal `C++` / NFD, văn phạm lương VND theo tháng + tách bucket 0 trên chuỗi bẫy, và lọc/từ chối HTTP 400 (chưa kết nối MongoDB live trong môi trường test tự động).
+  - Browser E2E suite (`e2e/jobs-search.spec.js`): 11 ca kiểm thử Playwright (`TC-01`..`TC-11`, dùng API mock, `--retries=0`) bao gồm `C++` round-trip, trì hoãn phản hồi kiểm chứng ẩn dữ liệu cũ khi đổi filter, giữ nguyên `page` khi chuyển trang chờ phản hồi + `replace` history khi vượt ngưỡng, và phục hồi URL chia sẻ sai tham số.
 - Job hết hạn/đã đóng/đã xóa hiển thị một trạng thái thống nhất ở list, detail và saved jobs.
 - Không hiện nút ứng tuyển khi trạng thái job không cho phép.
 - Các filter desktop và mobile dùng cùng state/schema.
@@ -770,12 +797,15 @@ Kết quả: fetch/loading/error/mutation nhất quán; form không mất dữ l
 - [ ] Tạo ResumeDocument và chuyển Resume editor sang React Hook Form/FormProvider/useFieldArray.
 - [ ] Tách ResumeForm theo section.
 - [ ] Autosave dựa trên `useWatch`, dirty state dựa trên `formState.isDirty`, retry và chặn rời trang khi chưa lưu.
+  - [x] **BL-08 (đã triển khai trên editor hiện tại qua `createResumeSaveCoordinator` & `useResumeAutosave`):** Debounced autosave `1.200 ms` cho CV đã có `_id`, giữ tạo lần đầu bằng nút **"Lưu CV"**, single-flight/coalescing, trạng thái/thử lại có giới hạn/offline/`DUPLICATE_RESUME_TITLE`, `createBrowserRouter` + `useBlocker` `ConfirmPopUp` (kể cả Back/Forward) + `beforeunload`, không dùng `localStorage` draft (`test/resumeAutosave.test.js`, `e2e/cv-editing.spec.js`).
 - [ ] Chuẩn hóa duplicate title/rename flow.
 - [ ] Tích hợp dnd-kit cho reorder nếu giữ tính năng sắp xếp.
 - [ ] Chuyển rich text sang Tiptap JSON theo dual-read bằng API có sẵn trong `@tiptap/core`.
 - [ ] Thêm `@tiptap/static-renderer` cùng version Tiptap và tạo `RichTextContent` dùng chung cho preview/view/print.
 - [ ] Thêm `react-to-print` và gom ba luồng in thành `useResumePrint`.
 - [ ] Thiết kế lại AI Fill/Review theo preview, checkbox, apply riêng và undo.
+  - [x] **BL-09 (đã hoàn thành luồng AI điền CV):** Thay thế auto-merge trực tiếp bằng hộp thoại Radix `ResumeAiFillDialog` (`prompt` → `loading` → `preview`/`empty`/`error`), không biến đổi `resumeData`/lịch sử/autosave trước khi bấm **"Áp dụng mục đã chọn"**, phân biệt rõ nguồn **"Từ hồ sơ tài khoản"** / **"Từ vị trí bạn nhập"** và **"AI đề xuất"**, mặc định chỉ chọn trường trống an toàn có nguồn (`defaultSelected = false` và gắn cảnh báo **"Cần xác nhận"** cho mục AI tự tạo/số liệu chưa có nguồn), bỏ ghép nhầm theo chỉ số mảng (chỉ ghép theo định danh chuẩn hóa), kiểm tra lại xung đột với bản sửa mới nhất lúc apply trong một giao dịch `updateResume` hỗ trợ Hoàn tác/Làm lại 1 bước, hủy request cũ qua `AbortController` + generation khi đóng/đổi route/đổi tài khoản/unmount, và giữ tối thiểu PII gửi `/api/ai/resume/fill` (`test/resumeAiFill.test.js`, `e2e/cv-editing.spec.js`).
+  - [x] **BL-10 (đã hoàn thành luồng AI Review CV kết nối chỉnh sửa thủ công):** Nâng cấp hộp thoại **Review toàn bộ CV** lên `@radix-ui/react-dialog` (`src/Components/ResumeForm.jsx`, `src/Pages/Resume.jsx`, `src/utils/resumeReview.js`), ánh xạ an toàn 10 mục chuẩn (9 mục biểu mẫu + `Bố cục và ATS` mở `ResumeLayoutEditor`) qua nút **"Mở mục để sửa"** để đóng dialog, mở ngăn editor trên mobile (`< 1024px`), cuộn và đưa focus bàn phím tới đúng vùng sửa mà không tự động sửa CV hay tạo lịch sử undo/autosave (giữ `"Khác"`/nhãn không khớp ở dạng tham khảo chung). Bổ sung kiểm tra cấu trúc payload `/api/ai/resume/review` trước khi render, trạng thái lỗi `role="alert"` kèm **"Thử lại"** thủ công, cache phiên trong bộ nhớ theo từng tài khoản/CV kèm banner **"Bản review cũ"** khi snapshot CV thay đổi, nút **"Review lại"** tường minh và hủy request qua `AbortController` + generation khi đóng/hủy/đổi CV/đổi tài khoản/unmount (`test/resumeReview.test.js`, `e2e/cv-editing.spec.js`). *(Chưa bật auto-apply trực tiếp nội dung `fix` dạng văn xuôi tự do; kiểm tra runtime qua backend/AI mock trong Playwright.)*
 - [ ] Lazy-load Tiptap, PDF.js, AI dialog và template.
 - [ ] Test snapshot A4 và save/reload.
 
@@ -786,8 +816,8 @@ Kết quả: CV editor là một luồng hoàn chỉnh, mượt và không mất
 - [ ] Server-side search/filter/sort/pagination cho jobs.
 - [ ] URL state cho filter.
 - [ ] Optimistic saved jobs.
-- [ ] Luồng application ba bước và upload feedback.
-- [ ] Timeline application dùng chung.
+- [x] **Luồng application ba bước và upload feedback (Giai đoạn 3 / Mục 5.4):** Hoàn thành wizard 3 bước trên `JobDetail.jsx` (`JobApplicationWizard.jsx` & `applicationSubmission.js`: chọn nguồn CV RabbitCV hoặc tải PDF kèm kiểm tra định dạng/kích thước/`%PDF-`/mã hóa và cấu trúc PDF via PDF.js, xem trước PDF bằng cách truyền bytes trực tiếp vào PDF.js, thư ứng tuyển plain text tối đa 5.000 ký tự, bước kiểm tra và xác nhận gửi đơn 1 lần với khóa gửi trùng + `AbortController`, xử lý trung thực `401`/`403`/`409`/`410`/`5xx`/phản hồi thiếu ID) và đồng bộ trạng thái qua hook TanStack Query `useMyApplications` (`JobDetail.jsx`, `MyApplications.jsx`, `UserDashboard.jsx`). _(Tách `CompanyDashboard` giữ ở hạng mục kế tiếp.)_
+- [x] **Timeline application dùng chung (Giai đoạn 3 / Mục 5.4–5.5):** Bổ sung `statusHistory` (`{ status, timestamp }`, không lưu PII) khởi tạo `[Pending @ createdAt]` khi nộp và đẩy 1 mốc nguyên tử trong cùng `findOneAndUpdate` CAS khi đổi trạng thái; hợp nhất nhãn/màu trạng thái qua `src/utils/applicationStatus.js`, `ApplicationStatusBadge.jsx` và `ApplicationTimeline.jsx` cho `MyApplications.jsx`, `UserDashboard.jsx`, `CompanyDashboard.jsx` và `JobApplicationWizard.jsx` (xử lý trung thực hồ sơ cũ thiếu mốc, từ chối sớm không suy diễn bước, giữ snapshot tin đã xoá, hỗ trợ bàn phím và mobile 390px).
 - [ ] Tách CompanyDashboard theo feature/tab.
 - [ ] Application pipeline cho doanh nghiệp.
 - [ ] TanStack Table cho admin nếu cần.

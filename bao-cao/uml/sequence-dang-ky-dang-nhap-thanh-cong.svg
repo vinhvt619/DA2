@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2200" height="1540" viewBox="0 0 2200 1540">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#000000"/>
+    </marker>
+    <style>
+      .title { font: 700 30px Arial, sans-serif; fill: #000000; }
+      .subtitle { font: 16px Arial, sans-serif; fill: #000000; }
+      .participant { font: 700 16px Arial, sans-serif; fill: #000000; }
+      .message { font: 15px Arial, sans-serif; fill: #000000; }
+      .section { font: 700 18px Arial, sans-serif; fill: #000000; }
+      .lifeline { stroke: #000000; stroke-width: 2; stroke-dasharray: 8 7; }
+      .request { stroke: #000000; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .return { stroke: #000000; stroke-width: 2.2; stroke-dasharray: 8 7; fill: none; marker-end: url(#arrow); }
+      .box { fill: #FFFFFF; stroke: #000000; stroke-width: 2; }
+      .activation { fill: #FFFFFF; stroke: #000000; stroke-width: 2; }
+      .label-bg { fill: #FFFFFF; }
+      .note { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="2200" height="1540" fill="#FFFFFF"/>
+  <text x="1100" y="45" text-anchor="middle" class="title">Sequence Diagram — Đăng ký và đăng nhập thành công</text>
+  <text x="1100" y="75" text-anchor="middle" class="subtitle">Luồng chính của hệ thống (không bao gồm các nhánh lỗi)</text>
+  <line x1="70" y1="95" x2="2130" y2="95" stroke="#000000" stroke-width="2"/>
+
+  <!-- Participants -->
+  <rect x="70" y="115" width="250" height="58" class="box"/>
+  <rect x="475" y="115" width="250" height="58" class="box"/>
+  <rect x="880" y="115" width="250" height="58" class="box"/>
+  <rect x="1285" y="115" width="250" height="58" class="box"/>
+  <rect x="1690" y="115" width="250" height="58" class="box"/>
+  <text x="195" y="151" text-anchor="middle" class="participant">Người dùng</text>
+  <text x="600" y="151" text-anchor="middle" class="participant">React Auth UI</text>
+  <text x="1005" y="151" text-anchor="middle" class="participant">AuthContext</text>
+  <text x="1410" y="151" text-anchor="middle" class="participant">Express API</text>
+  <text x="1815" y="151" text-anchor="middle" class="participant">MongoDB</text>
+
+  <!-- Lifelines -->
+  <line x1="195" y1="173" x2="195" y2="1465" class="lifeline"/>
+  <line x1="600" y1="173" x2="600" y2="1465" class="lifeline"/>
+  <line x1="1005" y1="173" x2="1005" y2="1465" class="lifeline"/>
+  <line x1="1410" y1="173" x2="1410" y2="1465" class="lifeline"/>
+  <line x1="1815" y1="173" x2="1815" y2="1465" class="lifeline"/>
+
+  <!-- Activation bars -->
+  <rect x="591" y="245" width="18" height="585" class="activation"/>
+  <rect x="996" y="300" width="18" height="460" class="activation"/>
+  <rect x="1401" y="355" width="18" height="405" class="activation"/>
+  <rect x="591" y="960" width="18" height="460" class="activation"/>
+  <rect x="996" y="1015" width="18" height="405" class="activation"/>
+  <rect x="1401" y="1070" width="18" height="350" class="activation"/>
+
+  <!-- Registration section -->
+  <rect x="930" y="190" width="150" height="30" class="label-bg"/>
+  <text x="1005" y="212" text-anchor="middle" class="section">ĐĂNG KÝ</text>
+
+  <line x1="195" y1="245" x2="600" y2="245" class="request"/>
+  <rect x="270" y="224" width="255" height="23" class="label-bg"/>
+  <text x="397" y="241" text-anchor="middle" class="message">Nhập thông tin đăng ký</text>
+
+  <line x1="600" y1="300" x2="1005" y2="300" class="request"/>
+  <rect x="675" y="279" width="255" height="23" class="label-bg"/>
+  <text x="802" y="296" text-anchor="middle" class="message">Gửi yêu cầu đăng ký</text>
+
+  <line x1="1005" y1="355" x2="1410" y2="355" class="request"/>
+  <rect x="1080" y="334" width="255" height="23" class="label-bg"/>
+  <text x="1207" y="351" text-anchor="middle" class="message">POST /api/register</text>
+
+  <line x1="1410" y1="410" x2="1815" y2="410" class="request"/>
+  <rect x="1485" y="389" width="255" height="23" class="label-bg"/>
+  <text x="1612" y="406" text-anchor="middle" class="message">Kiểm tra tài khoản trùng</text>
+
+  <line x1="1815" y1="465" x2="1410" y2="465" class="return"/>
+  <rect x="1465" y="444" width="300" height="23" class="label-bg"/>
+  <text x="1615" y="461" text-anchor="middle" class="message">Không có tài khoản trùng</text>
+
+  <rect x="1430" y="495" width="300" height="44" class="note"/>
+  <text x="1580" y="514" text-anchor="middle" class="message">Mã hóa mật khẩu</text>
+  <text x="1580" y="532" text-anchor="middle" class="message">bằng bcrypt</text>
+
+  <line x1="1410" y1="570" x2="1815" y2="570" class="request"/>
+  <rect x="1515" y="549" width="195" height="23" class="label-bg"/>
+  <text x="1612" y="566" text-anchor="middle" class="message">Lưu tài khoản mới</text>
+
+  <line x1="1815" y1="625" x2="1410" y2="625" class="return"/>
+  <rect x="1480" y="604" width="270" height="23" class="label-bg"/>
+  <text x="1615" y="621" text-anchor="middle" class="message">Tài khoản được tạo thành công</text>
+
+  <line x1="1410" y1="680" x2="1005" y2="680" class="return"/>
+  <rect x="1080" y="659" width="255" height="23" class="label-bg"/>
+  <text x="1207" y="676" text-anchor="middle" class="message">HTTP 201 — Đăng ký thành công</text>
+
+  <line x1="1005" y1="735" x2="600" y2="735" class="return"/>
+  <rect x="675" y="714" width="255" height="23" class="label-bg"/>
+  <text x="802" y="731" text-anchor="middle" class="message">Cập nhật kết quả đăng ký</text>
+
+  <line x1="600" y1="790" x2="195" y2="790" class="return"/>
+  <rect x="250" y="769" width="295" height="23" class="label-bg"/>
+  <text x="397" y="786" text-anchor="middle" class="message">Hiển thị thông báo đăng ký thành công</text>
+
+  <!-- Divider -->
+  <line x1="70" y1="850" x2="2130" y2="850" stroke="#000000" stroke-width="1.5"/>
+  <rect x="930" y="835" width="150" height="30" class="label-bg"/>
+  <text x="1005" y="857" text-anchor="middle" class="section">ĐĂNG NHẬP</text>
+
+  <!-- Login section -->
+  <line x1="195" y1="910" x2="600" y2="910" class="request"/>
+  <rect x="270" y="889" width="255" height="23" class="label-bg"/>
+  <text x="397" y="906" text-anchor="middle" class="message">Nhập thông tin đăng nhập</text>
+
+  <line x1="600" y1="965" x2="1005" y2="965" class="request"/>
+  <rect x="675" y="944" width="255" height="23" class="label-bg"/>
+  <text x="802" y="961" text-anchor="middle" class="message">Gửi yêu cầu đăng nhập</text>
+
+  <line x1="1005" y1="1020" x2="1410" y2="1020" class="request"/>
+  <rect x="1080" y="999" width="255" height="23" class="label-bg"/>
+  <text x="1207" y="1016" text-anchor="middle" class="message">POST /api/login</text>
+
+  <line x1="1410" y1="1075" x2="1815" y2="1075" class="request"/>
+  <rect x="1465" y="1054" width="300" height="23" class="label-bg"/>
+  <text x="1615" y="1071" text-anchor="middle" class="message">Tìm tài khoản theo username</text>
+
+  <line x1="1815" y1="1130" x2="1410" y2="1130" class="return"/>
+  <rect x="1430" y="1109" width="370" height="23" class="label-bg"/>
+  <text x="1615" y="1126" text-anchor="middle" class="message">Trả về tài khoản và mật khẩu đã mã hóa</text>
+
+  <rect x="1430" y="1160" width="300" height="44" class="note"/>
+  <text x="1580" y="1179" text-anchor="middle" class="message">So sánh mật khẩu</text>
+  <text x="1580" y="1197" text-anchor="middle" class="message">bằng bcrypt</text>
+
+  <rect x="1430" y="1220" width="300" height="44" class="note"/>
+  <text x="1580" y="1239" text-anchor="middle" class="message">Tạo mã xác thực và</text>
+  <text x="1580" y="1257" text-anchor="middle" class="message">thiết lập cookie HTTP-only</text>
+
+  <line x1="1410" y1="1290" x2="1005" y2="1290" class="return"/>
+  <rect x="1060" y="1269" width="295" height="23" class="label-bg"/>
+  <text x="1207" y="1286" text-anchor="middle" class="message">HTTP 200 — Đăng nhập thành công + user</text>
+
+  <line x1="1005" y1="1345" x2="600" y2="1345" class="return"/>
+  <rect x="675" y="1324" width="255" height="23" class="label-bg"/>
+  <text x="802" y="1341" text-anchor="middle" class="message">Cập nhật trạng thái đăng nhập</text>
+
+  <line x1="600" y1="1400" x2="195" y2="1400" class="return"/>
+  <rect x="270" y="1379" width="255" height="23" class="label-bg"/>
+  <text x="397" y="1396" text-anchor="middle" class="message">Chuyển người dùng đến trang chính</text>
+
+  <text x="1100" y="1500" text-anchor="middle" class="subtitle">Mũi tên liền: yêu cầu/thao tác  •  Mũi tên đứt: kết quả trả về</text>
+</svg>

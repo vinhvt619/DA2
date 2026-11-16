@@ -74,4 +74,13 @@ const JobSchema = new mongoose.Schema({
   expiredNotifiedAt: { type: Date, default: null },
 }, { timestamps: true });
 
+JobSchema.index({
+  status: 1,
+  approvalStatus: 1,
+  deletedAt: 1,
+  isAdminHidden: 1,
+  createdAt: -1,
+});
+JobSchema.index({ companyId: 1, createdAt: -1 });
+
 export default mongoose.model('Job', JobSchema);

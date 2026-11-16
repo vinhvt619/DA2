@@ -4,6 +4,18 @@ import Resume from './Resume.js';
 const ResumeSnapshotSchema = new mongoose.Schema({ ...Resume.schema.obj }, { _id: false, id: false });
 ResumeSnapshotSchema.remove('userId');
 
+const ApplicationStatusHistorySchema = new mongoose.Schema({
+  status: {
+    type: String,
+    enum: ['Pending', 'Reviewing', 'Interview', 'Offered', 'Rejected', 'Accepted'],
+    required: true,
+  },
+  timestamp: {
+    type: Date,
+    required: true,
+  },
+}, { _id: false, id: false });
+
 const ApplicationSchema = new mongoose.Schema({
   jobId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -52,6 +64,10 @@ const ApplicationSchema = new mongoose.Schema({
     enum: ['Pending', 'Reviewing', 'Interview', 'Offered', 'Rejected', 'Accepted'],
     default: 'Pending',
   },
+  statusHistory: {
+    type: [ApplicationStatusHistorySchema],
+    default: undefined,
+  },
   jobSnapshot: {
     title: { type: String, default: "" },
     company: { type: String, default: "" },
@@ -70,7 +86,6 @@ const ApplicationSchema = new mongoose.Schema({
 });
 
 ApplicationSchema.index({ jobId: 1, candidateId: 1 }, { unique: true });
-ApplicationSchema.index({ resumeId: 1 });
 ApplicationSchema.index({ resumeId: 1 });
 
 export default mongoose.model('Application', ApplicationSchema);

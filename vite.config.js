@@ -3,17 +3,19 @@ import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
 import { viteHmrHeartbeat } from "./scripts/viteHmrHeartbeat.mjs";
 import { viteHmrBfcache } from "./scripts/viteHmrBfcache.mjs";
+import { viteOcrAssets } from "./scripts/viteOcrAssets.mjs";
 
 // https://vite.dev/config/
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), viteHmrHeartbeat(), viteHmrBfcache()],
+  plugins: [react(), tailwindcss(), viteHmrHeartbeat(), viteHmrBfcache(), viteOcrAssets()],
   build: {
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined;
           if (id.includes("pdfjs-dist")) return "pdf-vendor";
+          if (id.includes("tesseract.js")) return "ocr-vendor";
           if (
             id.includes("@tiptap") ||
             id.includes("prosemirror") ||
@@ -68,6 +70,14 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 4000,
     strictPort: true,
+    watch: {
+      ignored: [
+        "**/playwright-report/**",
+        "**/test-results/**",
+        "**/output/**",
+        "**/tmp/**",
+      ],
+    },
     hmr: {
       path: "/__vite_hmr",
       timeout: 10_000,

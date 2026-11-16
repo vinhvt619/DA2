@@ -29,7 +29,7 @@ function preparePage(page, source, continuation) {
       if (next?.matches("[data-resume-zone], .resume-two-column-grid, .cv-new-grid")) next.style.setProperty("margin-top", "0", "important");
       element.remove();
     });
-    if (template.matches(".cv-new-graduate")) template.style.setProperty("padding-top", "32px", "important");
+    if (template.matches(".cv-new-graduate")) template.setProperty?.("padding-top", "32px", "important") ?? template.style.setProperty("padding-top", "32px", "important");
   }
   const pageRect = page.getBoundingClientRect();
   const zoom = pageRect.width / page.clientWidth;
@@ -88,36 +88,72 @@ function paginatePages(pages, source) {
 }
 
 export default function ResumePages({ children }) {
+  const containerRef = useRef(null);
   const sourceRef = useRef(null);
   const pageRefs = useRef([]);
   const [status, setStatus] = useState({ ready: false, overflow: false });
 
   useLayoutEffect(() => {
+    const container = containerRef.current;
     const source = sourceRef.current?.firstElementChild;
-    if (!source) return undefined;
+    if (!container || !source) return undefined;
     let cancelled = false;
     let frame;
+
+    const resetReadyFlags = () => {
+      container.dataset.paginationReady = "false";
+      container.dataset.resumeOverflow = "false";
+      setStatus((current) => (current.ready || current.overflow ? { ready: false, overflow: false } : current));
+    };
+
     const updatePages = () => {
+      if (cancelled) return;
+      resetReadyFlags();
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         if (cancelled) return;
-        const overflow = paginatePages(pageRefs.current, source);
+        const pages = pageRefs.current.filter(Boolean);
+        if (
+          pages.length < 2 ||
+          pages.some((page) => !page.clientHeight || !page.clientWidth) ||
+          !source.scrollHeight
+        ) {
+          return;
+        }
+        const images = [...source.querySelectorAll("img")];
+        if (images.some((image) => !image.complete)) {
+          return;
+        }
+        const overflow = paginatePages(pages, source);
+        container.dataset.paginationReady = "true";
+        container.dataset.resumeOverflow = String(overflow);
         setStatus({ ready: true, overflow });
       });
     };
+
     updatePages();
     document.fonts?.ready.then(updatePages);
     const images = [...source.querySelectorAll("img")];
-    images.forEach((image) => image.addEventListener("load", updatePages));
+    images.forEach((image) => {
+      image.addEventListener("load", updatePages);
+      image.addEventListener("error", updatePages);
+    });
+    const resizeObserver = new ResizeObserver(updatePages);
+    pageRefs.current.filter(Boolean).forEach((page) => resizeObserver.observe(page));
+
     return () => {
       cancelled = true;
       cancelAnimationFrame(frame);
-      images.forEach((image) => image.removeEventListener("load", updatePages));
+      resizeObserver.disconnect();
+      images.forEach((image) => {
+        image.removeEventListener("load", updatePages);
+        image.removeEventListener("error", updatePages);
+      });
     };
   }, [children]);
 
   return (
-    <div className="cv-resume-pages" data-pagination-ready={status.ready} data-resume-overflow={status.overflow}>
+    <div ref={containerRef} className="cv-resume-pages" data-pagination-ready={status.ready} data-resume-overflow={status.overflow}>
       <div ref={sourceRef} className="cv-pagination-source">{children}</div>
       {[0, 1].map((index) => <div key={index} ref={(node) => { pageRefs.current[index] = node; }} className="cv-resume-page" data-cv-page={index + 1} aria-hidden="true" />)}
       {status.overflow && <p role="alert" className="cv-pagination-error print:hidden">Nội dung vượt quá 2 trang A4. Hãy rút gọn nội dung trước khi xuất PDF.</p>}

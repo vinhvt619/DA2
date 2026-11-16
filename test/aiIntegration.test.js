@@ -82,7 +82,7 @@ test("frontend exposes the supported resume AI workflows", async () => {
 });
 
 test("candidate navigation exposes the AI interview practice page", async () => {
-  const [app, header, publicHeader, mainMenu, interview] = await Promise.all([
+  const [app, header, publicHeader, mainMenu, interview, practice, composer] = await Promise.all([
     readFile(new URL("../src/Pages/App.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/Components/Header.jsx", import.meta.url), "utf8"),
     readFile(
@@ -91,16 +91,18 @@ test("candidate navigation exposes the AI interview practice page", async () => 
     ),
     readFile(new URL("../src/Pages/MainMenu.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/Pages/AiInterview.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/Components/InterviewPractice.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/Components/InterviewAnswerComposer.jsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(app, /path="\/ai-interview"/);
   assert.match(header, /Phỏng vấn AI/);
   assert.match(publicHeader, /Phỏng vấn AI/);
   assert.match(mainMenu, /Phỏng vấn với AI/);
-  assert.match(interview, /requestAi\("\/interview\/turn"/);
-  assert.match(interview, /Kết quả buổi phỏng vấn/);
-  assert.match(interview, /Gửi câu trả lời/);
-  assert.match(interview, /\{ value: 12, duration: "30–35 phút" \}/);
+  assert.match(interview, /<InterviewPractice/);
+  assert.match(practice, /\/api\/ai\/interview\/sessions/);
+  assert.match(practice, /Kết quả buổi phỏng vấn/);
+  assert.match(composer, /Gửi câu trả lời/);
   assert.ok(header.indexOf("Tin tức") < header.indexOf("Phỏng vấn AI"));
   assert.ok(publicHeader.indexOf("Tin tức") < publicHeader.indexOf("Phỏng vấn AI"));
   assert.doesNotMatch(interview, /Còn \{remaining\} lượt AI/);

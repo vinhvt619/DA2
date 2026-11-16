@@ -67,6 +67,7 @@ export const runStructuredAiRequest = async ({
   input,
   validateResult,
   retryInstructions,
+  invalidResultMessage = "AI chua tao duoc ban tieu su hoan chinh. Vui long thu lai",
 }) => {
   const config = getAiConfig();
   if (!config.enabled) {
@@ -165,7 +166,7 @@ export const runStructuredAiRequest = async ({
       }
       if (attempt === 1) {
         throw new AiRequestError(
-          "AI chua tao duoc ban tieu su hoan chinh. Vui long thu lai",
+          invalidResultMessage,
           502,
           "AI_INVALID_CONTENT",
         );

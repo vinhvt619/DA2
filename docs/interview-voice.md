@@ -24,7 +24,7 @@ Tham khảo: [MDN SpeechRecognition.start](https://developer.mozilla.org/en-US/d
 - Dùng Web Speech API (`SpeechRecognition` hoặc `webkitSpeechRecognition`) của trình duyệt; không cần thêm API key hay dịch vụ backend.
 - Yêu cầu HTTPS hoặc localhost và trình duyệt có hỗ trợ. Nếu không hỗ trợ hoặc bị từ chối quyền, người dùng vẫn gõ chữ được.
 - Trình duyệt có thể gửi âm thanh đến dịch vụ nhận dạng của nhà cung cấp trình duyệt. Không cam kết nhận dạng offline hoặc hoàn toàn trên thiết bị.
-- Ứng dụng không tải âm thanh lên backend, không tự gửi bản chép lời, không lưu file ghi âm. Chỉ gửi văn bản người dùng xác nhận qua `/api/ai/interview/turn`.
+- Ứng dụng không tải âm thanh lên backend, không tự gửi bản chép lời và không lưu file ghi âm. Chỉ văn bản người dùng xác nhận được gửi cho buổi luyện qua API phiên phỏng vấn.
 - Nhận dạng có thể sai tiếng Việt hoặc thuật ngữ chuyên môn; cần kiểm tra bản chép lời. AI đánh giá nội dung, không đánh giá phát âm, giọng điệu hoặc độ tự tin.
 - Giữ giới hạn câu trả lời hiện có: 1200 ký tự. Nếu đạt giới hạn, mic dừng và có cảnh báo rõ ràng về phần văn bản được giữ lại. Phiên mic tự dừng sau 2 phút.
 - Mic được dừng khi trang bị ẩn, đóng/rời trang hoặc buổi phỏng vấn kết thúc. Không tự mở lại mic.

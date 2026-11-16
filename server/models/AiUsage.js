@@ -14,6 +14,8 @@ const AiUsageSchema = new mongoose.Schema(
         "resume_fill",
         "resume_review",
         "interview_practice",
+        "interview_session_grade",
+        "interview_session_questions",
         "cover_letter",
         "job_description",
       ],

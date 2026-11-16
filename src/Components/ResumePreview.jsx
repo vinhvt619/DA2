@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef } from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import {
   EnvelopeIcon,
   PhoneIcon,
@@ -47,6 +47,7 @@ const MIN_RESUME_FIT_SCALE = 0.74;
 function AutoFitResumePage({ children }) {
   const pageRef = useRef(null);
   const contentRef = useRef(null);
+  const [status, setStatus] = useState({ ready: false, overflow: false });
 
   useLayoutEffect(() => {
     const page = pageRef.current;
@@ -67,6 +68,12 @@ function AutoFitResumePage({ children }) {
     const fitContent = () => {
       if (cancelled) return;
 
+      cancelAnimationFrame(animationFrame);
+      page.dataset.fitReady = "false";
+      page.dataset.resumeOverflow = "false";
+      setStatus((current) =>
+        current.ready || current.overflow ? { ready: false, overflow: false } : current,
+      );
       applyScale(1);
       let scale = 1;
       let attempts = 0;
@@ -75,17 +82,42 @@ function AutoFitResumePage({ children }) {
         if (cancelled) return;
 
         const pageHeight = page.clientHeight;
+        const pageWidth = page.clientWidth;
         const requiredHeight = template.scrollHeight;
-        if (!pageHeight || !requiredHeight) return;
+        if (!pageHeight || !pageWidth || !requiredHeight) {
+          return;
+        }
+
+        const currentImages = Array.from(content.querySelectorAll("img"));
+        if (currentImages.some((image) => !image.complete)) {
+          return;
+        }
 
         const renderedHeight = requiredHeight * scale;
-        if (renderedHeight <= pageHeight + 1 || attempts >= 6) return;
+        if (renderedHeight <= pageHeight + 1) {
+          page.dataset.resumeOverflow = "false";
+          page.dataset.fitReady = "true";
+          setStatus((current) =>
+            current.ready && !current.overflow ? current : { ready: true, overflow: false },
+          );
+          return;
+        }
 
         const nextScale = Math.max(
           MIN_RESUME_FIT_SCALE,
           Math.min(scale, pageHeight / requiredHeight - 0.003),
         );
-        if (Math.abs(nextScale - scale) < 0.001) return;
+        if (attempts >= 6 || Math.abs(nextScale - scale) < 0.001) {
+          const didOverflow = renderedHeight > pageHeight + 1;
+          page.dataset.resumeOverflow = String(didOverflow);
+          page.dataset.fitReady = "true";
+          setStatus((current) =>
+            current.ready && current.overflow === didOverflow
+              ? current
+              : { ready: true, overflow: didOverflow },
+          );
+          return;
+        }
 
         scale = nextScale;
         attempts += 1;
@@ -100,7 +132,10 @@ function AutoFitResumePage({ children }) {
     document.fonts?.ready.then(fitContent);
 
     const images = Array.from(content.querySelectorAll("img"));
-    images.forEach((image) => image.addEventListener("load", fitContent));
+    images.forEach((image) => {
+      image.addEventListener("load", fitContent);
+      image.addEventListener("error", fitContent);
+    });
 
     const resizeObserver = new ResizeObserver(fitContent);
     resizeObserver.observe(page);
@@ -109,18 +144,34 @@ function AutoFitResumePage({ children }) {
       cancelled = true;
       cancelAnimationFrame(animationFrame);
       resizeObserver.disconnect();
-      images.forEach((image) => image.removeEventListener("load", fitContent));
+      images.forEach((image) => {
+        image.removeEventListener("load", fitContent);
+        image.removeEventListener("error", fitContent);
+      });
     };
-  });
+  }, [children]);
 
   return (
-    <div ref={pageRef} className="h-full w-full overflow-hidden bg-white">
+    <div
+      ref={pageRef}
+      data-fit-ready={status.ready}
+      data-resume-overflow={status.overflow}
+      className="relative h-full w-full overflow-hidden bg-white"
+    >
       <div
         ref={contentRef}
         className="resume-fit-content origin-top-left overflow-visible"
       >
         {children}
       </div>
+      {status.overflow && (
+        <p
+          role="alert"
+          className="cv-pagination-error print:hidden absolute inset-x-0 top-0 z-20"
+        >
+          Nội dung vượt quá 1 trang A4. Hãy chọn bố cục 2 trang hoặc rút gọn nội dung trước khi xuất PDF.
+        </p>
+      )}
     </div>
   );
 }
@@ -128,9 +179,9 @@ function AutoFitResumePage({ children }) {
 const ContactItem = ({ icon: _Icon, text, link }) => {
   if (!text) return null;
   const content = (
-    <div className="flex items-center gap-1.5 text-xs text-gray-600">
-      <_Icon className="w-3.5 h-3.5 shrink-0" />
-      <span className="truncate">{text}</span>
+    <div className="flex min-w-0 max-w-full items-start gap-1.5 text-[11px] leading-4 text-gray-600">
+      <_Icon className="mt-0.5 w-3.5 h-3.5 shrink-0" />
+      <span className="min-w-0 break-words [overflow-wrap:break-word]">{text}</span>
     </div>
   );
   const safeLink = safeExternalUrl(link);
@@ -139,7 +190,7 @@ const ContactItem = ({ icon: _Icon, text, link }) => {
       href={safeLink}
       target="_blank"
       rel="noreferrer"
-      className="hover:text-blue-600"
+      className="min-w-0 max-w-full hover:text-blue-600"
     >
       {content}
     </a>
@@ -151,9 +202,9 @@ const ContactItem = ({ icon: _Icon, text, link }) => {
 const SidebarContactItem = ({ icon: _Icon, text, link }) => {
   if (!text) return null;
   const content = (
-    <div className="flex items-center gap-2 text-xs text-gray-300">
-      <_Icon className="w-4 h-4 text-gray-400 shrink-0" />
-      <span className="truncate">{text}</span>
+    <div className="flex min-w-0 max-w-full items-start gap-2 text-[11px] leading-4 text-gray-300">
+      <_Icon className="mt-0.5 w-3.5 h-3.5 text-gray-400 shrink-0" />
+      <span className="min-w-0 break-words [overflow-wrap:break-word]">{text}</span>
     </div>
   );
   const safeLink = safeExternalUrl(link);
@@ -162,7 +213,7 @@ const SidebarContactItem = ({ icon: _Icon, text, link }) => {
       href={safeLink}
       target="_blank"
       rel="noreferrer"
-      className="hover:text-white"
+      className="min-w-0 max-w-full hover:text-white"
     >
       {content}
     </a>
@@ -399,7 +450,7 @@ const BasicTemplate = ({
                   {i.link && (
                     <a
                       href={safeExternalUrl(i.link)}
-                      className="text-[11px] text-blue-600 hover:underline block mb-1 truncate"
+                      className="text-[11px] text-blue-600 hover:underline block mb-1 break-all"
                     >
                       {i.link}
                     </a>
@@ -466,15 +517,15 @@ const ModernTemplate = ({
   <div className="cv-print-layout min-w-0 w-full flex h-full min-h-0 flex-col overflow-hidden bg-white font-sans text-gray-800">
     <div className="resume-two-column-grid grid h-full min-h-0 grid-cols-12">
       <div className="cv-modern-main col-span-8 min-w-0 p-10 print:p-6 bg-white flex flex-col gap-6 print:gap-3">
-        <div className="mb-4 print:mb-2 text-center md:text-left">
-          <h1 className="text-4xl print:text-3xl font-extrabold tracking-tight text-gray-900 mb-1">
+        <div className="mb-4 print:mb-2 text-left">
+          <h1 className="text-4xl print:text-3xl font-extrabold tracking-tight text-gray-900 mb-1 break-words">
             {personalInfo.fullName}
           </h1>
-          <h2 className="text-base print:text-sm font-medium text-blue-700 uppercase tracking-widest">
+          <h2 className="text-base print:text-sm font-medium text-blue-700 uppercase tracking-widest break-words">
             {personalInfo.jobTitle}
           </h2>
 
-          <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4 print:mt-2 justify-center md:justify-start">
+          <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4 print:mt-2 justify-start">
             <ContactItem icon={EnvelopeIcon} text={personalInfo.email} />
             <ContactItem icon={PhoneIcon} text={personalInfo.phone} />
             <ContactItem icon={MapPinIcon} text={personalInfo.location} />
@@ -594,7 +645,7 @@ const ModernTemplate = ({
                   {i.link && (
                     <a
                       href={safeExternalUrl(i.link)}
-                      className="text-[11px] text-blue-600 hover:underline block mb-1 print:mb-0.5 truncate"
+                      className="text-[11px] text-blue-600 hover:underline block mb-1 print:mb-0.5 break-all"
                     >
                       {i.link}
                     </a>
@@ -740,7 +791,7 @@ const ProfessionalTemplate = ({
   certificate,
 }) => (
   <div className="cv-print-layout flex h-full min-h-0 overflow-hidden bg-white font-sans">
-    <div className="cv-sidebar flex w-[30%] shrink-0 flex-col gap-5 bg-gray-900 p-6 text-white print:gap-4 print:p-5">
+    <div className="cv-sidebar flex w-[30%] min-w-0 shrink-0 flex-col gap-5 bg-gray-900 p-6 text-white print:gap-4 print:p-5">
       <div className="flex flex-col items-center text-center">
         {image ? (
           <img
@@ -755,10 +806,10 @@ const ProfessionalTemplate = ({
             </span>
           </div>
         )}
-        <h1 className="mb-1 text-xl font-bold uppercase leading-tight tracking-tight">
+        <h1 className="mb-1 w-full break-words text-xl font-bold uppercase leading-tight tracking-tight">
           {personalInfo.fullName}
         </h1>
-        <h2 className="text-xs font-medium text-gray-400 uppercase tracking-widest">
+        <h2 className="w-full break-words text-xs font-medium text-gray-400 uppercase tracking-widest">
           {personalInfo.jobTitle}
         </h2>
       </div>
@@ -840,7 +891,7 @@ const ProfessionalTemplate = ({
       )}
     </div>
 
-    <div className="cv-main-content flex w-[70%] flex-col gap-5 p-8 text-gray-800 print:gap-3 print:p-6">
+    <div className="cv-main-content flex w-[70%] min-w-0 flex-col gap-5 p-8 text-gray-800 print:gap-3 print:p-6">
       {bio && (
         <section>
           <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 border-b border-gray-200 pb-1 mb-3">
@@ -935,7 +986,7 @@ const ProfessionalTemplate = ({
                 {i.link && (
                   <a
                     href={safeExternalUrl(i.link)}
-                    className="text-[11px] text-blue-600 hover:underline block mb-1 truncate"
+                    className="text-[11px] text-blue-600 hover:underline block mb-1 break-all"
                   >
                     {i.link}
                   </a>
@@ -1082,10 +1133,11 @@ const TemplateEducation = ({
         {items.map((item, index) => (
           <article key={item.id || `${item.title}-${index}`} className="break-inside-avoid">
             <h4 className={`text-[12px] font-bold leading-5 ${titleClass}`}>{item.title}</h4>
-            <p className={`cv-item-meta mt-0.5 text-[10px] font-semibold leading-4 ${secondaryClass}`}>{item.company}</p>
+            <p className={`cv-item-meta mt-0.5 text-[10px] font-semibold leading-4 ${secondaryClass}`}>{item.company}{item.location ? ` • ${item.location}` : ""}</p>
             <p className={`cv-item-date mt-1 text-[10px] ${dateClass}`}>
               {formatDateRange(item.startDate, item.endDate)}
             </p>
+            {item.description && <RichTextContent className={`cv-item-description mt-1 text-[10px] leading-[1.5] ${secondaryClass}`} content={item.description} />}
             {(item.major || item.score) && (
               <p className={`cv-item-meta mt-1 text-[10px] leading-4 ${secondaryClass}`}>
                 {[item.major, item.score].filter(Boolean).join(" • ")}
@@ -1111,7 +1163,7 @@ const TemplateProjects = ({ items, headingClass, accentClass = "text-violet-700"
               <h4 className={`text-[12px] font-bold ${titleClass}`}>{item.title}</h4>
               {item.date && <span className={`cv-item-date shrink-0 text-[10px] font-semibold ${accentClass}`}>{formatResumeDate(item.date)}</span>}
             </div>
-            {item.link && <p className={`cv-item-meta mt-1 truncate text-[10px] ${accentClass}`}>{item.link}</p>}
+            {item.link && <p className={`cv-item-meta mt-1 break-all text-[10px] ${accentClass}`}>{item.link}</p>}
             {item.description && (
               <RichTextContent
                 className={`cv-item-description mt-1.5 pl-3 text-[11px] leading-[1.65] ${secondaryClass}`}
@@ -1252,6 +1304,7 @@ const CompactEducation = ({ items }) => {
               </p>
             </div>
             {(item.major || item.score) && <p className="mt-1 text-[9px] text-slate-600">{[item.major, item.score].filter(Boolean).join(" • ")}</p>}
+            {item.description && <RichTextContent className="mt-0.5 text-[9px] leading-[1.45] text-slate-600" content={item.description} />}
           </article>
         ))}
       </div>
@@ -1419,8 +1472,8 @@ const CreativeTemplate = ({
         </div>
       </div>
       <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-[10px] text-teal-50">
-        {[personalInfo.email, personalInfo.phone, personalInfo.location, personalInfo.website].filter(Boolean).map((item) => <span key={item}>{item}</span>)}
-        {profile?.map((item, index) => <span key={item.id || index}>{item.networkName || item.link}</span>)}
+        {[personalInfo.email, personalInfo.phone, personalInfo.location, personalInfo.website].filter(Boolean).map((item) => <span key={item} className="min-w-0 max-w-full break-words">{item}</span>)}
+        {profile?.map((item, index) => <span key={item.id || index} className="min-w-0 max-w-full break-words">{item.networkName || item.link}</span>)}
       </div>
     </header>
 
@@ -1460,8 +1513,8 @@ const CompactTemplate = ({
       <h1 className="text-[28px] font-bold uppercase leading-tight tracking-[0.025em] text-slate-950">{personalInfo.fullName}</h1>
       <h2 className="mt-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-700">{personalInfo.jobTitle}</h2>
       <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-medium text-slate-600">
-        {[personalInfo.email, personalInfo.phone, personalInfo.location, personalInfo.website].filter(Boolean).map((item) => <span key={item}>{item}</span>)}
-        {profile?.map((item, index) => <span key={item.id || index}>{item.link || item.username || item.networkName}</span>)}
+        {[personalInfo.email, personalInfo.phone, personalInfo.location, personalInfo.website].filter(Boolean).map((item) => <span key={item} className="min-w-0 max-w-full break-words">{item}</span>)}
+        {profile?.map((item, index) => <span key={item.id || index} className="min-w-0 max-w-full break-words">{item.link || item.username || item.networkName}</span>)}
       </div>
     </header>
 
@@ -1592,7 +1645,7 @@ const DynamicResumeSection = ({ section, data, theme, compact }) => {
 };
 
 const CustomResumeContacts = ({ data, dark = false, centered = false }) => (
-  <div className={`flex flex-wrap gap-x-4 gap-y-2 text-[10px] ${centered ? "justify-center" : ""} ${dark ? "text-gray-300" : "text-slate-600"}`}>
+  <div className={`flex flex-wrap gap-x-4 gap-y-1.5 text-[10px] leading-4 ${centered ? "justify-center" : ""} ${dark ? "text-gray-300" : "text-slate-600"}`}>
     {[
       [EnvelopeIcon, data.personalInfo.email],
       [PhoneIcon, data.personalInfo.phone],
@@ -1600,11 +1653,11 @@ const CustomResumeContacts = ({ data, dark = false, centered = false }) => (
       [GlobeAltIcon, data.personalInfo.website, data.personalInfo.website],
       ...(data.profile || []).map((item) => [GlobeAltIcon, item.networkName || item.link, item.link]),
     ].filter(([, text]) => text).map(([_Icon, text, link], index) => {
-      const content = <><_Icon className="h-3 w-3 shrink-0" /><span className="min-w-0 break-words">{text}</span></>;
+      const content = <><_Icon className="mt-0.5 h-3 w-3 shrink-0" /><span className="min-w-0 break-words [overflow-wrap:break-word]">{text}</span></>;
       const href = safeExternalUrl(link);
       return href ? (
-        <a key={index} href={href} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-start gap-1.5">{content}</a>
-      ) : <span key={index} className="flex min-w-0 items-start gap-1.5">{content}</span>;
+        <a key={index} href={href} target="_blank" rel="noopener noreferrer" className="flex min-w-0 max-w-full items-start gap-1.5">{content}</a>
+      ) : <span key={index} className="flex min-w-0 max-w-full items-start gap-1.5">{content}</span>;
     })}
   </div>
 );
@@ -1686,7 +1739,7 @@ const CustomizableTemplate = ({ selectedTemplate, layout, paginated = false, ...
         <header className="mb-8 flex flex-col items-center text-center">
           <CustomResumeAvatar data={data} className="mb-4 h-24 w-24 rounded-full" />
           <h1 className="mb-1 break-words text-3xl font-bold uppercase tracking-wider text-gray-900">{name}</h1>
-          <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-gray-500">{jobTitle}</h2>
+          <h2 className="mb-4 break-words text-sm font-medium uppercase tracking-wider text-gray-500">{jobTitle}</h2>
           <CustomResumeContacts data={data} centered />
         </header>
         <div className="resume-basic-grid grid grid-cols-12 gap-8 print:gap-4">
@@ -1704,7 +1757,7 @@ const CustomizableTemplate = ({ selectedTemplate, layout, paginated = false, ...
           <main data-resume-zone="main" className="cv-modern-main col-span-8 min-w-0 space-y-6 bg-white p-10 print:p-6">
             <header className="mb-8">
               <h1 className="mb-1 break-words text-4xl font-extrabold tracking-tight text-gray-900">{name}</h1>
-              <h2 className="mb-4 text-base font-medium uppercase tracking-widest text-blue-700">{jobTitle}</h2>
+              <h2 className="mb-4 break-words text-base font-medium uppercase tracking-widest text-blue-700">{jobTitle}</h2>
               <CustomResumeContacts data={data} />
             </header>
             {renderZone(zones.main)}
@@ -1725,7 +1778,7 @@ const CustomizableTemplate = ({ selectedTemplate, layout, paginated = false, ...
           <header className="flex flex-col items-center text-center">
             <CustomResumeAvatar data={data} placeholder className="cv-avatar mb-3 h-24 w-24 rounded-full border-2 border-gray-600 bg-gray-800 text-gray-400" />
             <h1 className="mb-1 break-words text-xl font-bold uppercase leading-tight tracking-tight">{name}</h1>
-            <h2 className="text-xs font-medium uppercase tracking-widest text-gray-400">{jobTitle}</h2>
+            <h2 className="w-full break-words text-xs font-medium uppercase tracking-widest text-gray-400">{jobTitle}</h2>
           </header>
           <section data-resume-static>
             <TemplateSectionTitle className={DARK_SIDEBAR_THEME.accent}>Liên hệ</TemplateSectionTitle>
@@ -1744,7 +1797,7 @@ const CustomizableTemplate = ({ selectedTemplate, layout, paginated = false, ...
         {creative && <CustomResumeAvatar data={data} placeholder className="h-20 w-20 rounded-full border border-white/30 bg-white/10" />}
         <div className="min-w-0 flex-1">
           <h1 className={`break-words leading-[1.08] ${creative ? "text-[36px] font-black tracking-[-0.04em]" : "text-[34px] font-semibold tracking-[-0.035em] text-slate-950"}`}>{name}</h1>
-          <h2 className={`mt-2 text-[13px] font-medium uppercase tracking-[0.18em] ${creative ? "text-teal-100" : "text-slate-500"}`}>{jobTitle}</h2>
+          <h2 className={`mt-2 break-words text-[13px] font-medium uppercase tracking-[0.18em] ${creative ? "text-teal-100" : "text-slate-500"}`}>{jobTitle}</h2>
         </div>
         {!creative && !compact && <CustomResumeAvatar data={data} className="h-20 w-20 rounded-sm grayscale" />}
       </div>

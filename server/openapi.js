@@ -622,10 +622,10 @@ const openapiSpec = {
           action: "start",
           settings: {
             role: "Frontend Developer",
-            level: "Junior",
+            level: "junior",
+            type: "mixed",
             totalQuestions: 5,
           },
-          answeredQuestions: 0,
           messages: [],
         }),
         responses: {
@@ -1039,12 +1039,29 @@ const openapiSpec = {
       },
       AiInterviewRequest: {
         type: "object",
-        required: ["action", "settings"],
+        required: ["action", "settings", "messages"],
         properties: {
           action: { type: "string", enum: ["start", "answer", "finish"] },
-          settings: { type: "object", additionalProperties: true },
-          answeredQuestions: { type: "integer", minimum: 0 },
-          messages: { type: "array", items: { type: "object", additionalProperties: true } },
+          settings: {
+            type: "object",
+            required: ["role", "level", "type", "totalQuestions"],
+            properties: {
+              role: { type: "string", maxLength: 160 },
+              level: { type: "string", enum: ["intern", "junior", "middle", "senior"] },
+              type: { type: "string", enum: ["general", "technical", "behavioral", "mixed"] },
+              totalQuestions: { type: "integer", enum: [5, 8, 12] },
+            },
+          },
+          messages: {
+            type: "array",
+            description: "Câu hỏi và câu trả lời xen kẽ, bắt đầu bằng câu hỏi. Gửi mảng rỗng khi bắt đầu.",
+            maxItems: 24,
+            items: {
+              type: "object",
+              required: ["role", "content"],
+              properties: { role: { type: "string", enum: ["assistant", "user"] }, content: { type: "string" } },
+            },
+          },
         },
         additionalProperties: true,
       },
