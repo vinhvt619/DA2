@@ -453,7 +453,7 @@ export const newsArticles = [
       {
         heading: "Kỹ sư kỹ nghệ gợi ý (Prompt Engineer)",
         paragraphs: [
-          "Đây là một trong những vị trí mới nhất xuất hiện nhờ AI tạo sinh. Nhiệm vụ của họ là thiết kế, tối ưu hóa các câu lệnh (prompt) để hướng dẫn các mô hình ngôn ngữ lớn (LLM) như GPT, Claude, Gemini tạo ra kết quả chính xác, hiệu quả nhất cho doanh nghiệp.",
+          "Công việc này xuất hiện cùng với AI tạo sinh. Kỹ sư viết và thử nghiệm các chỉ dẫn (prompt) để mô hình ngôn ngữ lớn trả lời chính xác và phù hợp với mục đích sử dụng của doanh nghiệp.",
         ],
       },
       {

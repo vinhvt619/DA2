@@ -1,6 +1,6 @@
 # Nguồn tham khảo của 7 mẫu CV bổ sung
 
-Các mẫu bổ sung được sửa ngày 03/10/2026 để dựa trên mẫu công khai của tác giả thực tế. Không dùng ImageGen, hình ảnh CV do AI sinh hoặc thiết kế không có nguồn. Đây là **bản chuyển thể sang React/CSS của RabbitCV**, không phải renderer LaTeX/JSON Resume nguyên bản, không phải sản phẩm được các tác giả nguồn bảo trợ.
+RabbitCV chuyển thể các mẫu công khai dưới đây sang React và CSS. Bảng ghi rõ tác giả, bản xem trước và giấy phép của từng mẫu gốc.
 
 | Mã lưu trong dữ liệu | Tên trước đây | Mẫu tham khảo và tác giả | Bản xem trước | Giấy phép nguồn |
 | --- | --- | --- | --- | --- |

@@ -25,9 +25,29 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-.agents/skills/ui-ux-pro-max-skill/
-
 .vercel
+
+# Local tools and generated files
+/.agents/
+/.gemini/
+/.codex/
+/.claude/
+/.flowbite-react/
+/.pnpm-store/
+/bao-cao/
+/docs/diagrams/
+/docs/bao-cao-do-an-rabbitcv.md
+/docs/project-review-draft.md
+/docs/ke-hoach-chinh-sua-toan-du-an.md
+/tmp/
+/output/
+/output.pdf
+/cookie.txt
+/login.json
+/eslint_output*.json
+/lint_output.txt
+__pycache__/
+*.pyc
 
 # Playwright
 playwright-report/

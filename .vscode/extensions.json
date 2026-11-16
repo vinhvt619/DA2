@@ -1,6 +1,5 @@
 {
   "recommendations": [
-    "bradlc.vscode-tailwindcss",
-    "es6kr.claude-sessions"
+    "bradlc.vscode-tailwindcss"
   ]
 }
